@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Infrastructure.Persistence;
 
-public sealed class CratebaseDbContext : DbContext, ICratebaseDbContext
+public partial class CratebaseDbContext : DbContext, IUnitOfWork
 {
     public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options)
         : base(options)
@@ -30,6 +30,11 @@ public sealed class CratebaseDbContext : DbContext, ICratebaseDbContext
     public DbSet<ArtistRelation> ArtistRelations => Set<ArtistRelation>();
 
     public DbSet<TrackRelation> TrackRelations => Set<TrackRelation>();
+
+    public IRepository<TAggregate, TKey> GetRepository<TAggregate, TKey>()
+    {
+        return (IRepository<TAggregate, TKey>)this;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

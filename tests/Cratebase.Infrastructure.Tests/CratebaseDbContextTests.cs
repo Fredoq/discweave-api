@@ -1,3 +1,4 @@
+using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
@@ -7,6 +8,8 @@ using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Cratebase.Infrastructure.Tests;
 
@@ -170,6 +173,65 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         _ = Assert.IsType<TrackCreditTarget>(credits[1].Target);
         Assert.Equal(1983, Assert.IsType<PresentOptionalValue<ArtistRelationPeriod>>(artistRelation.Period).Value.StartYear.Match(year => year, () => 0));
         Assert.Equal(targetTrack.Id, (await context.TrackRelations.SingleAsync()).TargetTrackId);
+    }
+
+    [Fact(DisplayName = "Dependency injection resolves one scoped context for the unit of work interface")]
+    public void Dependency_injection_resolves_one_scoped_context_for_the_unit_of_work_interface()
+    {
+        Dictionary<string, string?> configurationValues = new()
+        {
+            ["ConnectionStrings:Cratebase"] = "Host=localhost;Database=cratebase;Username=cratebase;Password=cratebase"
+        };
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configurationValues)
+            .Build();
+        ServiceCollection services = [];
+        _ = DependencyInjection.AddCratebaseInfrastructure(services, configuration);
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        using IServiceScope scope = serviceProvider.CreateScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        IUnitOfWork unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        Assert.Same(context, unitOfWork);
+    }
+
+    [Fact(DisplayName = "The unit of work returns repositories for current aggregate roots")]
+    public async Task The_unit_of_work_returns_repositories_for_current_aggregate_roots()
+    {
+        await using CratebaseDbContext context = new(CreateOptions("Host=localhost;Database=cratebase;Username=cratebase;Password=cratebase"));
+
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Artist, ArtistId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Label, LabelId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Release, ReleaseId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Track, TrackId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<OwnedItem, OwnedItemId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Credit, CreditId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<ArtistRelation, ArtistRelationId>());
+        Assert.Same(context, ((IUnitOfWork)context).GetRepository<TrackRelation, TrackRelationId>());
+    }
+
+    [Fact(DisplayName = "Repositories use public identifiers for command lookup")]
+    public async Task Repositories_use_public_identifiers_for_command_lookup()
+    {
+        await using CratebaseDbContext context = await CreateMigratedContextAsync();
+        IRepository<Label, LabelId> labels = ((IUnitOfWork)context).GetRepository<Label, LabelId>();
+        var labelId = LabelId.New();
+        var label = Label.Create(labelId, "Factory");
+
+        labels.Add(label);
+        _ = await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        Label? actualLabel = await labels.TryFindAsync(labelId);
+        Assert.NotNull(actualLabel);
+        Assert.Equal(labelId, actualLabel.Id);
+
+        await labels.DeleteAsync(labelId);
+        _ = await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        Assert.Null(await labels.TryFindAsync(labelId));
     }
 
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(CratebaseDbContext context, string tableName)

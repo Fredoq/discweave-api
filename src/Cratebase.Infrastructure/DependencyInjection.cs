@@ -16,10 +16,11 @@ public static class DependencyInjection
         string connectionString = configuration.GetConnectionString("Cratebase")
             ?? throw new InvalidOperationException("Connection string 'Cratebase' is not configured");
 
-        _ = services.AddDbContext<ICratebaseDbContext, CratebaseDbContext>(options =>
+        _ = services.AddDbContext<CratebaseDbContext>(options =>
         {
             _ = options.UseNpgsql(connectionString);
         });
+        _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CratebaseDbContext>());
 
         return services;
     }
