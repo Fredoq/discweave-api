@@ -7,6 +7,13 @@ namespace Cratebase.Domain.Relations;
 
 public sealed class ArtistRelation : IEntity<ArtistRelationId>
 {
+    private int? _periodStartYear;
+    private int? _periodEndYear;
+
+    private ArtistRelation()
+    {
+    }
+
     private ArtistRelation(
         ArtistRelationId id,
         ArtistId sourceArtistId,
@@ -18,18 +25,18 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         SourceArtistId = sourceArtistId;
         TargetArtistId = targetArtistId;
         Type = type;
-        Period = period;
+        SetPeriod(period);
     }
 
-    public ArtistRelationId Id { get; }
+    public ArtistRelationId Id { get; private set; }
 
-    public ArtistId SourceArtistId { get; }
+    public ArtistId SourceArtistId { get; private set; }
 
-    public ArtistId TargetArtistId { get; }
+    public ArtistId TargetArtistId { get; private set; }
 
-    public ArtistRelationType Type { get; }
+    public ArtistRelationType Type { get; private set; }
 
-    public IOptionalValue<ArtistRelationPeriod> Period { get; }
+    public IOptionalValue<ArtistRelationPeriod> Period => CreatePeriod();
 
     public static ArtistRelation Create(
         ArtistRelationId id,
@@ -54,5 +61,34 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         return sourceArtistId == targetArtistId
             ? throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice")
             : new ArtistRelation(id, sourceArtistId, targetArtistId, type, Optional.From(period));
+    }
+
+    private void SetPeriod(IOptionalValue<ArtistRelationPeriod> period)
+    {
+        if (period is not PresentOptionalValue<ArtistRelationPeriod> presentPeriod)
+        {
+            _periodStartYear = null;
+            _periodEndYear = null;
+            return;
+        }
+
+        ArtistRelationPeriod value = presentPeriod.Value;
+        _periodStartYear = value.StartYear is PresentOptionalValue<int> presentStartYear
+            ? presentStartYear.Value
+            : null;
+        _periodEndYear = value.EndYear is PresentOptionalValue<int> presentEndYear
+            ? presentEndYear.Value
+            : null;
+    }
+
+    private IOptionalValue<ArtistRelationPeriod> CreatePeriod()
+    {
+        return (_periodStartYear, _periodEndYear) switch
+        {
+            (null, null) => Optional.Missing<ArtistRelationPeriod>(),
+            ({ } startYear, null) => Optional.From(ArtistRelationPeriod.StartingAt(startYear)),
+            (null, { } endYear) => Optional.From(ArtistRelationPeriod.EndingAt(endYear)),
+            ({ } startYear, { } endYear) => Optional.From(ArtistRelationPeriod.FromYears(startYear, endYear))
+        };
     }
 }

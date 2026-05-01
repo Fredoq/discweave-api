@@ -13,5 +13,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Cratebase.Api.Tests/Cratebase.Api.Tests.csproj" />
     <Project Path="tests/Cratebase.Domain.Tests/Cratebase.Domain.Tests.csproj" />
+    <Project Path="tests/Cratebase.Infrastructure.Tests/Cratebase.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

@@ -7,6 +7,15 @@ namespace Cratebase.Domain.Catalog;
 
 public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 {
+    private readonly List<Genre> _genres = [];
+    private readonly List<Tag> _tags = [];
+    private readonly List<ReleaseTrack> _tracklist = [];
+
+    private Release()
+    {
+        Summary = ReleaseSummary.Empty;
+    }
+
     private Release(
         ReleaseId id,
         ReleaseSummary summary,
@@ -15,17 +24,36 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     {
         Id = id;
         Summary = summary;
-        Tracklist = tracklist;
-        Cataloging = cataloging;
+        _tracklist = [.. tracklist];
+        _genres = [.. cataloging.Genres];
+        _tags = [.. cataloging.Tags];
     }
 
-    public ReleaseId Id { get; }
+    public ReleaseId Id { get; private set; }
 
-    public ReleaseSummary Summary { get; }
+    public ReleaseSummary Summary { get; private set; }
 
-    public IReadOnlyList<ReleaseTrack> Tracklist { get; }
+    public IReadOnlyList<ReleaseTrack> Tracklist => _tracklist.AsReadOnly();
 
-    public Cataloging Cataloging { get; }
+    public Cataloging Cataloging
+    {
+        get
+        {
+            Cataloging cataloging = Cataloging.Empty;
+
+            foreach (Genre genre in _genres)
+            {
+                cataloging = cataloging.WithGenre(genre);
+            }
+
+            foreach (Tag tag in _tags)
+            {
+                cataloging = cataloging.WithTag(tag);
+            }
+
+            return cataloging;
+        }
+    }
 
     public string DisplayName => Summary.Title;
 
@@ -38,7 +66,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        return new Release(Id, summary, [.. Tracklist], Cataloging);
+        return new Release(Id, summary, _tracklist, Cataloging);
     }
 
     public Release WithRating(Rating rating)
@@ -52,14 +80,14 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         EnsureTrackPositionIsUnique(releaseTrack.Position);
 
-        return new Release(Id, Summary, [.. Tracklist, releaseTrack], Cataloging);
+        return new Release(Id, Summary, [.. _tracklist, releaseTrack], Cataloging);
     }
 
     public Release WithCataloging(Cataloging cataloging)
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Release(Id, Summary, [.. Tracklist], cataloging);
+        return new Release(Id, Summary, _tracklist, cataloging);
     }
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)

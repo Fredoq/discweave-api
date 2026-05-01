@@ -5,6 +5,12 @@ namespace Cratebase.Domain.Catalog;
 
 public sealed record TrackPosition
 {
+    private TrackPosition()
+    {
+        Disc = Optional.Missing<string>();
+        Side = Optional.Missing<string>();
+    }
+
     private TrackPosition(int number, IOptionalValue<string> disc, IOptionalValue<string> side)
     {
         Number = number;
@@ -12,11 +18,13 @@ public sealed record TrackPosition
         Side = side;
     }
 
-    public int Number { get; }
+    public int Number { get; private set; }
 
-    public IOptionalValue<string> Disc { get; }
+    public IOptionalValue<string> Disc { get; private set; }
 
-    public IOptionalValue<string> Side { get; }
+    public IOptionalValue<string> Side { get; private set; }
+
+    public static TrackPosition Empty { get; } = new();
 
     public static TrackPosition FromNumber(int number)
     {

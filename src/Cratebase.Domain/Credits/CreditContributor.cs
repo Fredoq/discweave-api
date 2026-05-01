@@ -22,4 +22,9 @@ public sealed record CreditContributor
 
         return new CreditContributor(artist.Id, artist.Name);
     }
+
+    internal static CreditContributor Create(ArtistId artistId, string name)
+    {
+        return new CreditContributor(artistId, name);
+    }
 }

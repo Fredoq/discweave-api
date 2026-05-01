@@ -84,6 +84,62 @@ public sealed class DomainModelShapeTests
         Assert.Empty(violations);
     }
 
+    [Fact]
+    public void Private_parameterless_constructors_are_limited_to_EF_materialization_shapes()
+    {
+        string[] expectedTypes =
+        [
+            typeof(ArtistRelation).FullName!,
+            typeof(Credit).FullName!,
+            typeof(OwnedItem).FullName!,
+            typeof(Release).FullName!,
+            typeof(ReleaseSummary).FullName!,
+            typeof(ReleaseTrack).FullName!,
+            typeof(Track).FullName!,
+            typeof(TrackPosition).FullName!
+        ];
+        string[] actualTypes =
+        [
+            .. typeof(Release).Assembly.GetTypes()
+                .Where(type =>
+                    type is { IsClass: true } &&
+                    type.Namespace?.StartsWith("Cratebase.Domain.", StringComparison.Ordinal) == true)
+                .Where(HasPrivateParameterlessConstructor)
+                .Select(type => type.FullName!)
+                .Order(StringComparer.Ordinal)
+        ];
+
+        Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
+    }
+
+    [Fact]
+    public void Private_setters_are_limited_to_EF_materialization_shapes()
+    {
+        string[] expectedTypes =
+        [
+            typeof(ArtistRelation).FullName!,
+            typeof(Credit).FullName!,
+            typeof(OwnedItem).FullName!,
+            typeof(Release).FullName!,
+            typeof(ReleaseTrack).FullName!,
+            typeof(Track).FullName!,
+            typeof(TrackPosition).FullName!
+        ];
+        string[] actualTypes =
+        [
+            .. typeof(Release).Assembly.GetTypes()
+                .Where(type =>
+                    type is { IsClass: true } &&
+                    type.Namespace?.StartsWith("Cratebase.Domain.", StringComparison.Ordinal) == true)
+                .Where(HasPublicPropertyWithPrivateSetter)
+                .Select(type => type.FullName!)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+        ];
+
+        Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
+    }
+
     private static IEnumerable<Type> GetPublicDomainClasses()
     {
         return typeof(Release).Assembly.GetTypes()
@@ -147,5 +203,17 @@ public sealed class DomainModelShapeTests
     private static bool HasNullDefault(ParameterInfo parameter)
     {
         return parameter.HasDefaultValue && parameter.DefaultValue is null;
+    }
+
+    private static bool HasPrivateParameterlessConstructor(Type type)
+    {
+        return type.GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+            .Any(constructor => constructor.IsPrivate && constructor.GetParameters().Length == 0);
+    }
+
+    private static bool HasPublicPropertyWithPrivateSetter(Type type)
+    {
+        return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Any(property => property.SetMethod?.IsPrivate == true);
     }
 }

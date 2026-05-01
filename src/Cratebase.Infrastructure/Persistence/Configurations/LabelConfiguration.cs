@@ -1,0 +1,32 @@
+using Cratebase.Domain.Catalog;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Cratebase.Infrastructure.Persistence.Configurations;
+
+internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
+{
+    public void Configure(EntityTypeBuilder<Label> builder)
+    {
+        _ = builder.ToTable("labels");
+
+        _ = builder.Property<long>("id")
+            .HasColumnName("id")
+            .ValueGeneratedOnAdd();
+
+        _ = builder.HasKey("id");
+
+        _ = builder.Property(label => label.Id)
+            .HasColumnName("label_id")
+            .HasConversion(PersistenceValueConverters.LabelId)
+            .ValueGeneratedNever();
+
+        _ = builder.HasAlternateKey(label => label.Id)
+            .HasName("label_id");
+
+        _ = builder.Property(label => label.Name)
+            .HasColumnName("name")
+            .HasMaxLength(512)
+            .IsRequired();
+    }
+}
