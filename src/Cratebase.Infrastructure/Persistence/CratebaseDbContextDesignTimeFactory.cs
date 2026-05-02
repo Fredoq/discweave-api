@@ -7,8 +7,11 @@ public sealed class CratebaseDbContextDesignTimeFactory : IDesignTimeDbContextFa
 {
     public CratebaseDbContext CreateDbContext(string[] args)
     {
+        string connectionString = Environment.GetEnvironmentVariable("CRATEBASE_DESIGN_TIME_CONNECTION_STRING") ??
+            "Host=localhost;Database=cratebase;Username=cratebase";
+
         DbContextOptions<CratebaseDbContext> options = new DbContextOptionsBuilder<CratebaseDbContext>()
-            .UseNpgsql("Host=localhost;Database=cratebase;Username=cratebase;Password=cratebase")
+            .UseNpgsql(connectionString)
             .Options;
 
         return new CratebaseDbContext(options);
