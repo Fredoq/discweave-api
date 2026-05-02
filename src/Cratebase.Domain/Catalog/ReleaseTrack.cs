@@ -5,6 +5,12 @@ namespace Cratebase.Domain.Catalog;
 
 public sealed class ReleaseTrack
 {
+    private ReleaseTrack()
+    {
+        Position = TrackPosition.Empty;
+        TitleOverride = Optional.Missing<string>();
+    }
+
     private ReleaseTrack(TrackId trackId, TrackPosition position, IOptionalValue<string> titleOverride)
     {
         TrackId = trackId;
@@ -12,11 +18,11 @@ public sealed class ReleaseTrack
         TitleOverride = titleOverride;
     }
 
-    public TrackId TrackId { get; }
+    public TrackId TrackId { get; private set; }
 
-    public TrackPosition Position { get; }
+    public TrackPosition Position { get; private set; }
 
-    public IOptionalValue<string> TitleOverride { get; }
+    public IOptionalValue<string> TitleOverride { get; private set; }
 
     public static ReleaseTrack Create(TrackId trackId, TrackPosition position)
     {

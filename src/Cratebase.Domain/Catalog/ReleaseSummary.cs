@@ -6,6 +6,13 @@ namespace Cratebase.Domain.Catalog;
 
 public sealed record ReleaseSummary
 {
+    private ReleaseSummary()
+    {
+        Title = string.Empty;
+        Metadata = ReleaseMetadata.Empty;
+        Rating = Optional.Missing<Rating>();
+    }
+
     private ReleaseSummary(string title, ReleaseMetadata metadata, IOptionalValue<Rating> rating)
     {
         Title = title;
@@ -18,6 +25,8 @@ public sealed record ReleaseSummary
     public ReleaseMetadata Metadata { get; }
 
     public IOptionalValue<Rating> Rating { get; }
+
+    internal static ReleaseSummary Empty { get; } = new();
 
     public static ReleaseSummary Create(string title)
     {

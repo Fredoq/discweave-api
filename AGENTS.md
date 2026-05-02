@@ -121,8 +121,16 @@ Statuses such as owned, wanted, sold, and needs digitization must be explicit da
 
 ## Persistence
 
-- Use EF Core intentionally; do not hide all data access behind generic repositories.
-- Prefer specific query/application services over generic repository abstractions.
+- Use EF Core intentionally; do not hide query composition or persistence behavior behind broad abstractions.
+- Treat `DbContext` as the concrete unit of work and `DbSet` as the concrete repository implementation.
+- EF Core `DbContext` types may remain unsealed when the repository/unit-of-work implementation needs cast-based generic interface dispatch.
+- Command-side repository interfaces may exist only as thin EF-aware contracts: `TryFindAsync`, `Add`, and `Delete`.
+- Do not create standalone generic repository implementation classes. The EF Core `DbContext` must implement supported repository interfaces directly, usually through explicit members in partial files grouped by aggregate root.
+- Repository lookup must use public domain identifiers such as `ArtistId`, `ReleaseId`, and `TrackId`. It must not use infrastructure-only shadow surrogate keys.
+- Use `IUnitOfWork.SaveChangesAsync` to commit command changes. Do not add a custom unit-of-work implementation separate from EF Core.
+- Use named query interfaces for reusable read models and reports. Define query contracts in Application and implement them in Infrastructure with EF Core LINQ projections.
+- Do not introduce a generic specification pipeline. Reusable queries should be methods with descriptive names.
+- Prefer specific query/application services over broad generic query abstractions.
 - Keep migrations readable.
 - Do not add incremental migrations before the initial schema is stable; update the baseline migration during early schema design.
 - Model constraints in the database when they represent real invariants.
@@ -188,6 +196,7 @@ When RabbitMQ is introduced:
 - Classes and records should be `sealed` by default.
 - Put exactly one top-level type in each `.cs` file. This applies to classes, records, structs, interfaces, and enums. Name the file after that type.
 - Prefer immutability for value objects and contracts.
+- Private instance fields must use `_camelCase`, including EF Core backing fields. Do not use bare camelCase private fields.
 - Use `Guid.CreateVersion7()` for newly generated GUID values, including typed IDs. Do not use `Guid.NewGuid()` for domain identifiers.
 - Use `class` for objects with identity, lifecycle, or behavior-heavy invariants.
 - Use `record` or `record struct` only when value semantics are intentional.

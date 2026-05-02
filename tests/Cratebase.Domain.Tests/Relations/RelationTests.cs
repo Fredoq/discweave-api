@@ -44,6 +44,18 @@ public sealed class RelationTests
     }
 
     [Fact]
+    public void Artist_relation_can_omit_a_period()
+    {
+        var relation = ArtistRelation.Create(
+            ArtistRelationId.New(),
+            ArtistId.New(),
+            ArtistId.New(),
+            ArtistRelationType.Collaboration);
+
+        Assert.False(relation.Period.HasValue);
+    }
+
+    [Fact]
     public void Track_relation_rejects_self_relations_and_carries_a_relation_type()
     {
         var trackId = TrackId.New();

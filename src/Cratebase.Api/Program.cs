@@ -5,7 +5,7 @@ using Cratebase.Infrastructure;
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCratebaseApplication();
-builder.Services.AddCratebaseInfrastructure();
+builder.Services.AddCratebaseInfrastructure(builder.Configuration);
 
 WebApplication app = builder.Build();
 

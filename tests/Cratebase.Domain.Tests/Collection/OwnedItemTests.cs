@@ -106,6 +106,16 @@ public sealed class OwnedItemTests
     }
 
     [Fact]
+    public void Digital_file_rejects_undefined_formats()
+    {
+        var path = FilePath.FromAbsolutePath("/music/New Order/Blue Monday.flac");
+
+        Assert.Equal(
+            "digital_file.format_invalid",
+            Assert.Throws<DomainException>(() => DigitalFile.Create(path, (AudioFileFormat)999)).Code);
+    }
+
+    [Fact]
     public void Owned_item_can_store_condition_and_storage_location()
     {
         OwnedItem item = OwnedItem.Create(
