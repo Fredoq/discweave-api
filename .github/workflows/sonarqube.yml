@@ -59,7 +59,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml"
+          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Persistence/Migrations/**"
           dotnet restore Cratebase.slnx
           dotnet build Cratebase.slnx --configuration Release --no-restore
           dotnet test Cratebase.slnx --configuration Release --no-build --logger trx --results-directory artifacts/test-results --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover

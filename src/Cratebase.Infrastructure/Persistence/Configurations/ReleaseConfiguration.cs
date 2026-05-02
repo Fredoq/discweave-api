@@ -9,6 +9,8 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
+    private const string ReleaseIdColumn = "release_id";
+
     public void Configure(EntityTypeBuilder<Release> builder)
     {
         _ = builder.ToTable("releases");
@@ -20,12 +22,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         _ = builder.HasKey("id");
 
         _ = builder.Property(release => release.Id)
-            .HasColumnName("release_id")
+            .HasColumnName(ReleaseIdColumn)
             .HasConversion(PersistenceValueConverters.ReleaseId)
             .ValueGeneratedNever();
 
         _ = builder.HasAlternateKey(release => release.Id)
-            .HasName("release_id");
+            .HasName(ReleaseIdColumn);
 
         _ = builder.Ignore(release => release.DisplayName);
         _ = builder.Ignore(release => release.Cataloging);
@@ -98,12 +100,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasKey("id");
 
-            _ = track.Property<ReleaseId>("release_id")
-                .HasColumnName("release_id")
+            _ = track.Property<ReleaseId>(ReleaseIdColumn)
+                .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = track.WithOwner()
-                .HasForeignKey("release_id")
+                .HasForeignKey(ReleaseIdColumn)
                 .HasPrincipalKey(release => release.Id);
 
             _ = track.Property(releaseTrack => releaseTrack.TrackId)
@@ -143,7 +145,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .IsRequired(false);
             titleOverrideProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalStringComparer);
 
-            _ = track.HasIndex("release_id");
+            _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
         });
 
@@ -157,12 +159,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         {
             _ = genre.ToTable("release_genres");
 
-            _ = genre.Property<ReleaseId>("release_id")
-                .HasColumnName("release_id")
+            _ = genre.Property<ReleaseId>(ReleaseIdColumn)
+                .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = genre.WithOwner()
-                .HasForeignKey("release_id")
+                .HasForeignKey(ReleaseIdColumn)
                 .HasPrincipalKey(release => release.Id);
 
             _ = genre.Property(value => value.Name)
@@ -170,7 +172,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = genre.HasKey("release_id", nameof(Genre.Name));
+            _ = genre.HasKey(ReleaseIdColumn, nameof(Genre.Name));
         });
 
         _ = builder.Navigation("_genres")
@@ -180,12 +182,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         {
             _ = tag.ToTable("release_tags");
 
-            _ = tag.Property<ReleaseId>("release_id")
-                .HasColumnName("release_id")
+            _ = tag.Property<ReleaseId>(ReleaseIdColumn)
+                .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = tag.WithOwner()
-                .HasForeignKey("release_id")
+                .HasForeignKey(ReleaseIdColumn)
                 .HasPrincipalKey(release => release.Id);
 
             _ = tag.Property(value => value.Name)
@@ -193,7 +195,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = tag.HasKey("release_id", nameof(Tag.Name));
+            _ = tag.HasKey(ReleaseIdColumn, nameof(Tag.Name));
         });
 
         _ = builder.Navigation("_tags")

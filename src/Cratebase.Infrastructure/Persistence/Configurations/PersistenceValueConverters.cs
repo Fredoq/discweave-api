@@ -126,11 +126,6 @@ internal static class PersistenceValueConverters
         return value is null ? 0 : EqualityComparer<TProvider>.Default.GetHashCode(value);
     }
 
-    private static IOptionalValue<string> OptionalStringValue(string? value)
-    {
-        return value is null ? Optional.Missing<string>() : Optional.From(value);
-    }
-
     private static TValue? OptionalStructValue<TOptional, TValue>(
         IOptionalValue<TOptional> optionalValue,
         Func<TOptional, TValue> selector)
@@ -140,6 +135,11 @@ internal static class PersistenceValueConverters
         return optionalValue is PresentOptionalValue<TOptional> present
             ? selector(present.Value)
             : null;
+    }
+
+    private static IOptionalValue<string> OptionalStringValue(string? value)
+    {
+        return value is null ? Optional.Missing<string>() : Optional.From(value);
     }
 
     private static string? OptionalStringValue<TOptional>(

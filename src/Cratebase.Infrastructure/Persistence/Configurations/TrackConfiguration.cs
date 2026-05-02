@@ -9,6 +9,8 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
 {
+    private const string TrackIdColumn = "track_id";
+
     public void Configure(EntityTypeBuilder<Track> builder)
     {
         _ = builder.ToTable("tracks");
@@ -20,12 +22,12 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
         _ = builder.HasKey("id");
 
         _ = builder.Property(track => track.Id)
-            .HasColumnName("track_id")
+            .HasColumnName(TrackIdColumn)
             .HasConversion(PersistenceValueConverters.TrackId)
             .ValueGeneratedNever();
 
         _ = builder.HasAlternateKey(track => track.Id)
-            .HasName("track_id");
+            .HasName(TrackIdColumn);
 
         _ = builder.Property(track => track.Title)
             .HasColumnName("title")
@@ -63,12 +65,12 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
         {
             _ = genre.ToTable("track_genres");
 
-            _ = genre.Property<TrackId>("track_id")
-                .HasColumnName("track_id")
+            _ = genre.Property<TrackId>(TrackIdColumn)
+                .HasColumnName(TrackIdColumn)
                 .HasConversion(PersistenceValueConverters.TrackId);
 
             _ = genre.WithOwner()
-                .HasForeignKey("track_id")
+                .HasForeignKey(TrackIdColumn)
                 .HasPrincipalKey(track => track.Id);
 
             _ = genre.Property(value => value.Name)
@@ -76,7 +78,7 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = genre.HasKey("track_id", nameof(Genre.Name));
+            _ = genre.HasKey(TrackIdColumn, nameof(Genre.Name));
         });
 
         _ = builder.Navigation("_genres")
@@ -86,12 +88,12 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
         {
             _ = tag.ToTable("track_tags");
 
-            _ = tag.Property<TrackId>("track_id")
-                .HasColumnName("track_id")
+            _ = tag.Property<TrackId>(TrackIdColumn)
+                .HasColumnName(TrackIdColumn)
                 .HasConversion(PersistenceValueConverters.TrackId);
 
             _ = tag.WithOwner()
-                .HasForeignKey("track_id")
+                .HasForeignKey(TrackIdColumn)
                 .HasPrincipalKey(track => track.Id);
 
             _ = tag.Property(value => value.Name)
@@ -99,7 +101,7 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = tag.HasKey("track_id", nameof(Tag.Name));
+            _ = tag.HasKey(TrackIdColumn, nameof(Tag.Name));
         });
 
         _ = builder.Navigation("_tags")
