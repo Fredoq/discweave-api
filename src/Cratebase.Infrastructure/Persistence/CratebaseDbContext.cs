@@ -1,3 +1,4 @@
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
@@ -42,16 +43,17 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
         {
             return await base.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferentialIntegrityViolation(exception))
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferencedResourceMissing(exception))
         {
-            throw new PersistenceConflictException(
-                PostgresPersistenceErrors.GetReferentialIntegrityKind(exception),
-                PostgresPersistenceErrors.GetReferentialIntegrityConstraintName(exception),
-                exception);
+            throw new ReferencedResourceMissingException(exception);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsResourceHasDependents(exception))
+        {
+            throw new ResourceHasDependentsException(exception);
         }
         catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
         {
-            throw new PersistenceConflictException(PersistenceConflictKind.ReferentialIntegrityViolation, exception);
+            throw new ResourceHasDependentsException(exception);
         }
     }
 

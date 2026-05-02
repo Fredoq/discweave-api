@@ -1,4 +1,5 @@
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -134,7 +135,7 @@ public static class LabelsEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("label.delete_conflict", "Label has dependent data");
         }
@@ -145,8 +146,4 @@ public static class LabelsEndpointRouteBuilderExtensions
         return new LabelResponse(label.Id.Value, label.Name);
     }
 
-    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
-    {
-        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
-    }
 }

@@ -1,4 +1,5 @@
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -53,7 +54,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest("owned_item.request_invalid", "Owned item request is invalid");
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ReferencedResourceMissingException)
         {
             return EndpointErrors.Conflict("owned_item.target_conflict", "Owned item target does not exist");
         }
@@ -163,14 +164,9 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
 
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("owned_item.delete_conflict", "Owned item has dependent data");
         }
-    }
-
-    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
-    {
-        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
     }
 }

@@ -1,4 +1,5 @@
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -10,7 +11,6 @@ namespace Cratebase.Api.Features.Releases;
 
 public static class ReleasesEndpointRouteBuilderExtensions
 {
-    private const string LabelForeignKeyConstraintName = "FK_releases_labels_label_id";
     private const string OtherTypeCode = "other";
 
     public static IEndpointRouteBuilder MapReleasesEndpoints(this IEndpointRouteBuilder endpoints)
@@ -45,7 +45,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
-        catch (PersistenceConflictException exception) when (IsLabelConflict(exception))
+        catch (ReferencedResourceMissingException)
         {
             return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
         }
@@ -114,7 +114,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
-        catch (PersistenceConflictException exception) when (IsLabelConflict(exception))
+        catch (ReferencedResourceMissingException)
         {
             return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
         }
@@ -144,7 +144,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("release.delete_conflict", "Release has dependent data");
         }
@@ -218,14 +218,4 @@ public static class ReleasesEndpointRouteBuilderExtensions
         };
     }
 
-    private static bool IsLabelConflict(PersistenceConflictException exception)
-    {
-        return IsReferentialIntegrityConflict(exception) &&
-            string.Equals(exception.ConstraintName, LabelForeignKeyConstraintName, StringComparison.Ordinal);
-    }
-
-    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
-    {
-        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
-    }
 }

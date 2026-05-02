@@ -1,4 +1,5 @@
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -141,7 +142,7 @@ public static class TracksEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
         }
@@ -176,8 +177,4 @@ public static class TracksEndpointRouteBuilderExtensions
             [.. track.Cataloging.Tags.Select(tag => tag.Name)]);
     }
 
-    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
-    {
-        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
-    }
 }

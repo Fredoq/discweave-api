@@ -1,5 +1,6 @@
 using Cratebase.Api.Http;
 using Cratebase.Application.Catalog.Artists;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -157,7 +158,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
+        catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("artist.delete_conflict", "Artist has dependent data");
         }
@@ -193,11 +194,6 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static bool IsKnownArtistType(string type)
     {
         return type is "person" or "group";
-    }
-
-    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
-    {
-        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
     }
 
 }
