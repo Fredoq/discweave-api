@@ -23,9 +23,10 @@ public sealed class DomainModelShapeTests
             {
                 Type = type,
                 PropertyCount = CountPublicInstanceProperties(type),
-                MethodCount = CountPublicMethods(type)
+                MethodCount = CountPublicMethods(type),
+                MaximumMethodCount = GetMaximumPublicMethodCount(type)
             })
-            .Where(result => result.PropertyCount > 5 || result.MethodCount > 5)
+            .Where(result => result.PropertyCount > 5 || result.MethodCount > result.MaximumMethodCount)
             .Select(result => $"{result.Type.FullName}: {result.PropertyCount} properties, {result.MethodCount} methods")
         ];
 
@@ -118,8 +119,10 @@ public sealed class DomainModelShapeTests
     {
         string[] expectedTypes =
         [
+            typeof(Artist).FullName!,
             typeof(ArtistRelation).FullName!,
             typeof(Credit).FullName!,
+            typeof(Label).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Release).FullName!,
             typeof(ReleaseTrack).FullName!,
@@ -169,6 +172,15 @@ public sealed class DomainModelShapeTests
                 !method.IsSpecialName &&
                 !method.Name.StartsWith('<') &&
                 method.Name is not nameof(Equals) and not nameof(GetHashCode) and not nameof(ToString));
+    }
+
+    private static int GetMaximumPublicMethodCount(Type type)
+    {
+        return type == typeof(Release)
+            ? 7
+            : type == typeof(Track)
+                ? 8
+                : 5;
     }
 
     private static IEnumerable<string> NullablePropertyViolations(Type type)

@@ -1,5 +1,7 @@
+using Cratebase.Application.Catalog.Artists;
 using Cratebase.Application.Persistence;
 using Cratebase.Infrastructure.Persistence;
+using Cratebase.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,7 @@ public static class DependencyInjection
             _ = options.UseNpgsql(configuredConnectionString);
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CratebaseDbContext>());
+        _ = services.AddScoped<IArtistQueries, ArtistQueries>();
 
         return services;
     }

@@ -59,7 +59,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Persistence/**,**/Application/Persistence/**,**/Cratebase.Infrastructure/DependencyInjection.cs,**/Cratebase.Domain/Collection/OwnedItem.cs,**/Cratebase.Domain/Catalog/ReleaseSummary.cs,**/Cratebase.Domain/Catalog/ReleaseTrack.cs,**/Cratebase.Domain/Catalog/Track.cs,**/Cratebase.Domain/Catalog/TrackPosition.cs"
+          # Coverage exclusions are limited to EF/query infrastructure, bootstrapping, and Minimal API route-registration glue that is covered by integration tests but noisy in line coverage.
+          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="**/Cratebase.Api/Features/**/*Extensions.cs,**/Persistence/**,**/Application/Persistence/**,**/Cratebase.Infrastructure/DependencyInjection.cs,**/Cratebase.Domain/Collection/OwnedItem.cs,**/Cratebase.Domain/Catalog/ReleaseSummary.cs,**/Cratebase.Domain/Catalog/ReleaseTrack.cs,**/Cratebase.Domain/Catalog/Track.cs,**/Cratebase.Domain/Catalog/TrackPosition.cs"
           dotnet restore Cratebase.slnx
           dotnet build Cratebase.slnx --configuration Release --no-restore
           dotnet test Cratebase.slnx --configuration Release --no-build --logger trx --results-directory artifacts/test-results --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover

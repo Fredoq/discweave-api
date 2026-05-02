@@ -9,10 +9,20 @@ public abstract class Artist : IEntity<ArtistId>, INamedEntity
     protected Artist(ArtistId id, string name)
     {
         Id = id;
-        Name = Guard.RequiredText(name, nameof(name), "artist.name_required");
+        Name = ValidateName(name);
     }
 
     public ArtistId Id { get; }
 
-    public string Name { get; }
+    public string Name { get; private set; }
+
+    public void Rename(string name)
+    {
+        Name = ValidateName(name);
+    }
+
+    private static string ValidateName(string name)
+    {
+        return Guard.RequiredText(name, nameof(name), "artist.name_required");
+    }
 }

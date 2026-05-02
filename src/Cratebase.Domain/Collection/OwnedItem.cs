@@ -74,6 +74,11 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         return new OwnedItem(Id, Target, Holding.WithDetails(Holding.Details.WithStorageLocation(storageLocation)));
     }
 
+    public void UpdateHolding(OwnedItemHolding holding)
+    {
+        SetHolding(holding);
+    }
+
     private void SetTarget(OwnedItemTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);

@@ -21,6 +21,60 @@ public sealed class CatalogModelTests
     }
 
     [Fact]
+    public void Artists_can_be_renamed_without_changing_identity_or_type()
+    {
+        var artistId = ArtistId.New();
+        Artist person = Person.Create(artistId, "  Bernard Sumner  ");
+        Artist group = Group.Create(ArtistId.New(), "New Order");
+
+        person.Rename("  Bernard Dicken  ");
+        group.Rename("  Joy Division  ");
+
+        Assert.Equal(artistId, person.Id);
+        _ = Assert.IsType<Person>(person);
+        Assert.Equal("Bernard Dicken", person.Name);
+        Assert.Equal("Joy Division", group.Name);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Artist_rename_rejects_blank_names(string value)
+    {
+        Artist artist = Person.Create(ArtistId.New(), "Bernard Sumner");
+
+        DomainException exception = Assert.Throws<DomainException>(() => artist.Rename(value));
+
+        Assert.Equal("artist.name_required", exception.Code);
+        Assert.Equal("Bernard Sumner", artist.Name);
+    }
+
+    [Fact]
+    public void Labels_can_be_renamed_without_changing_identity()
+    {
+        var labelId = LabelId.New();
+        var label = Label.Create(labelId, "  Factory  ");
+
+        label.Rename("  Factory Records  ");
+
+        Assert.Equal(labelId, label.Id);
+        Assert.Equal("Factory Records", label.Name);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Label_rename_rejects_blank_names(string value)
+    {
+        var label = Label.Create(LabelId.New(), "Factory");
+
+        DomainException exception = Assert.Throws<DomainException>(() => label.Rename(value));
+
+        Assert.Equal("label.name_required", exception.Code);
+        Assert.Equal("Factory", label.Name);
+    }
+
+    [Fact]
     public void The_same_track_can_appear_on_multiple_releases_and_keep_one_canonical_rating()
     {
         Track track = Track.Create(TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
@@ -160,6 +214,30 @@ public sealed class CatalogModelTests
             Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.Path);
         Assert.Contains(release.Cataloging.Genres, genre => genre.Name == "Alternative Dance");
         Assert.Contains(release.Cataloging.Tags, tag => tag.Name == "favorite");
+    }
+
+    [Fact]
+    public void Release_can_update_summary_and_cataloging_without_changing_identity()
+    {
+        var releaseId = ReleaseId.New();
+        Release release = Release.Create(releaseId, "Technique")
+            .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Alternative Dance")));
+        ReleaseSummary updatedSummary = ReleaseSummary.Create("Technique 2020")
+            .WithMetadata(ReleaseMetadata.Empty.WithType(ReleaseType.Album).WithReleaseYear(2020));
+        Cataloging updatedCataloging = Cataloging.Empty
+            .WithGenre(Genre.FromName("Dance-rock"))
+            .WithTag(Tag.FromName("remaster"));
+
+        release.UpdateSummary(updatedSummary);
+        release.UpdateCataloging(updatedCataloging);
+
+        Assert.Equal(releaseId, release.Id);
+        Assert.Equal("Technique 2020", release.Summary.Title);
+        Assert.Equal(ReleaseType.Album, release.Summary.Metadata.Type);
+        Assert.Equal(2020, Assert.IsType<PresentOptionalValue<int>>(release.Summary.Metadata.Year).Value);
+        Assert.Contains(release.Cataloging.Genres, genre => genre.Name == "Dance-rock");
+        Assert.Contains(release.Cataloging.Tags, tag => tag.Name == "remaster");
+        Assert.DoesNotContain(release.Cataloging.Genres, genre => genre.Name == "Alternative Dance");
     }
 
     [Fact]

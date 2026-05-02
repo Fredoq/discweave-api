@@ -14,10 +14,15 @@ public sealed class Label : IEntity<LabelId>, INamedEntity
 
     public LabelId Id { get; }
 
-    public string Name { get; }
+    public string Name { get; private set; }
 
     public static Label Create(LabelId id, string name)
     {
         return new Label(id, Guard.RequiredText(name, nameof(name), "label.name_required"));
+    }
+
+    public void Rename(string name)
+    {
+        Name = Guard.RequiredText(name, nameof(name), "label.name_required");
     }
 }

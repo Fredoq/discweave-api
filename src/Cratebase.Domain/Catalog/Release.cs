@@ -62,6 +62,23 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         return new Release(id, ReleaseSummary.Create(title), [], Cataloging.Empty);
     }
 
+    public void UpdateSummary(ReleaseSummary summary)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+
+        Summary = summary;
+    }
+
+    public void UpdateCataloging(Cataloging cataloging)
+    {
+        ArgumentNullException.ThrowIfNull(cataloging);
+
+        _genres.Clear();
+        _genres.AddRange(cataloging.Genres);
+        _tags.Clear();
+        _tags.AddRange(cataloging.Tags);
+    }
+
     public Release WithSummary(ReleaseSummary summary)
     {
         ArgumentNullException.ThrowIfNull(summary);

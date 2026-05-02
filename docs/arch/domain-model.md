@@ -92,6 +92,8 @@ classDiagram
             ReleaseSummary Summary
             ReleaseTrack[] Tracklist
             Cataloging Cataloging
+            UpdateSummary(ReleaseSummary) void
+            UpdateCataloging(Cataloging) void
         }
 
         class ReleaseSummary {
@@ -118,6 +120,9 @@ classDiagram
             string Title
             TrackDetails Details
             Cataloging Cataloging
+            Rename(string) void
+            UpdateDetails(TrackDetails) void
+            UpdateCataloging(Cataloging) void
         }
 
         class TrackDetails {
@@ -159,6 +164,7 @@ classDiagram
             OwnedItemId Id
             OwnedItemTarget Target
             OwnedItemHolding Holding
+            UpdateHolding(OwnedItemHolding) void
         }
 
         class OwnedItemHolding {
@@ -417,5 +423,6 @@ classDiagram
 - Digital file import identity supports idempotent local audio folder imports.
 - Optional domain data uses `OptionalValue<T>` instead of nullable properties, nullable parameters, or `null` sentinel values.
 - Variant references such as owned-item targets and credit targets use distinct subtypes instead of nullable paired identifiers.
+- Public mutation paths preserve aggregate identity and keep invariants inside the domain model: `Track.Rename`, `Track.UpdateDetails`, `Track.UpdateCataloging`, `Release.UpdateSummary`, `Release.UpdateCataloging`, and `OwnedItem.UpdateHolding`.
 - Closed domain choices with no variant-specific behavior use enums. Domain choices must not be open string-code value objects; string representations belong at API, persistence, import, and export boundaries.
 - SharedKernel contains typed identifiers, optional values, capability interfaces, validation support, and domain exceptions.

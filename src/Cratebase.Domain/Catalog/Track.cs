@@ -56,6 +56,28 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
             Cataloging.Empty);
     }
 
+    public void Rename(string title)
+    {
+        Title = Guard.RequiredText(title, nameof(title), "track.title_required");
+    }
+
+    public void UpdateDetails(TrackDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        Details = details;
+    }
+
+    public void UpdateCataloging(Cataloging cataloging)
+    {
+        ArgumentNullException.ThrowIfNull(cataloging);
+
+        _genres.Clear();
+        _genres.AddRange(cataloging.Genres);
+        _tags.Clear();
+        _tags.AddRange(cataloging.Tags);
+    }
+
     public Track WithDetails(TrackDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);

@@ -1,4 +1,5 @@
 using Cratebase.Api;
+using Cratebase.Api.Features;
 using Cratebase.Application;
 using Cratebase.Infrastructure;
 
@@ -8,6 +9,8 @@ builder.Services.AddCratebaseApplication();
 builder.Services.AddCratebaseInfrastructure(builder.Configuration);
 
 WebApplication app = builder.Build();
+
+app.MapCratebaseEndpoints();
 
 app.MapGet("/health", () =>
 {
