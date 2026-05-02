@@ -205,9 +205,20 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     {
         var path = FilePath.FromAbsolutePath(_digitalFilePath ?? throw new InvalidOperationException("Digital file path is required"));
 
-        if (_importIdentityPath is null || _importIdentitySizeBytes is null || _importIdentityLastModifiedAt is null)
+        bool hasAnyImportIdentityField =
+            _importIdentityPath is not null ||
+            _importIdentitySizeBytes is not null ||
+            _importIdentityLastModifiedAt is not null ||
+            _importIdentityContentHash is not null;
+
+        if (!hasAnyImportIdentityField)
         {
             return DigitalFile.Create(path, format);
+        }
+
+        if (_importIdentityPath is null || _importIdentitySizeBytes is null || _importIdentityLastModifiedAt is null)
+        {
+            throw new InvalidOperationException("Digital file import identity payload is not valid");
         }
 
         var identityPath = FilePath.FromAbsolutePath(_importIdentityPath);

@@ -1,5 +1,6 @@
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Optional;
+using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Collection;
 
@@ -24,16 +25,20 @@ public sealed record DigitalFile : IMedium
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        return new DigitalFile(path, format, Optional.Missing<FileImportIdentity>());
+        return new DigitalFile(
+            path,
+            Guard.DefinedEnum(format, nameof(format), "digital_file.format_invalid"),
+            Optional.Missing<FileImportIdentity>());
     }
 
     public static DigitalFile Create(FilePath path, AudioFileFormat format, FileImportIdentity importIdentity)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(importIdentity);
+        AudioFileFormat validatedFormat = Guard.DefinedEnum(format, nameof(format), "digital_file.format_invalid");
 
         return importIdentity.Path != path
             ? throw new DomainException("digital_file.import_identity_path_mismatch", "Digital file import identity path must match the file path")
-            : new DigitalFile(path, format, Optional.From(importIdentity));
+            : new DigitalFile(path, validatedFormat, Optional.From(importIdentity));
     }
 }

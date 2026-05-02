@@ -13,12 +13,15 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        string connectionString = configuration.GetConnectionString("Cratebase")
-            ?? throw new InvalidOperationException("Connection string 'Cratebase' is not configured");
+        string? configuredConnectionString = configuration.GetConnectionString("Cratebase");
+        if (string.IsNullOrWhiteSpace(configuredConnectionString))
+        {
+            throw new InvalidOperationException("Connection string 'Cratebase' is not configured");
+        }
 
         _ = services.AddDbContext<CratebaseDbContext>(options =>
         {
-            _ = options.UseNpgsql(connectionString);
+            _ = options.UseNpgsql(configuredConnectionString);
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CratebaseDbContext>());
 

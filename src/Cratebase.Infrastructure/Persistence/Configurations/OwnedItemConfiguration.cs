@@ -10,7 +10,12 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
 {
     public void Configure(EntityTypeBuilder<OwnedItem> builder)
     {
-        _ = builder.ToTable("owned_items");
+        _ = builder.ToTable(
+            "owned_items",
+            table => table.HasCheckConstraint(
+                "ck_owned_items_target_consistency",
+                "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR " +
+                "(target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)"));
 
         _ = builder.Property<long>("id")
             .HasColumnName("id")
@@ -116,5 +121,14 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
         _ = builder.HasIndex("_targetTrackId");
         _ = builder.HasIndex("_mediumType");
         _ = builder.HasIndex("_status");
+        _ = builder.HasIndex(
+                "_importIdentityPath",
+                "_importIdentitySizeBytes",
+                "_importIdentityLastModifiedAt",
+                "_importIdentityContentHash")
+            .IsUnique()
+            .AreNullsDistinct(false)
+            .HasFilter("import_identity_path IS NOT NULL")
+            .HasDatabaseName("ix_owned_items_import_identity");
     }
 }

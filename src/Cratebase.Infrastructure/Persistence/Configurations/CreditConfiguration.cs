@@ -10,7 +10,12 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
 {
     public void Configure(EntityTypeBuilder<Credit> builder)
     {
-        _ = builder.ToTable("credits");
+        _ = builder.ToTable(
+            "credits",
+            table => table.HasCheckConstraint(
+                "ck_credits_target_consistency",
+                "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR " +
+                "(target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)"));
 
         _ = builder.Property<long>("id")
             .HasColumnName("id")

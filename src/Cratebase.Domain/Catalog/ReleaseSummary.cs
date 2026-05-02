@@ -26,7 +26,7 @@ public sealed record ReleaseSummary
 
     public IOptionalValue<Rating> Rating { get; }
 
-    public static ReleaseSummary Empty { get; } = new();
+    internal static ReleaseSummary Empty { get; } = new();
 
     public static ReleaseSummary Create(string title)
     {

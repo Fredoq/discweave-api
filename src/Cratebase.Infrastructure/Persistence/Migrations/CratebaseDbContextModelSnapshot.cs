@@ -299,7 +299,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("_targetTrackId");
 
-                    b.ToTable("owned_items", (string)null);
+                    b.HasIndex("_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_owned_items_import_identity")
+                        .HasFilter("import_identity_path IS NOT NULL");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("_importIdentityPath", "_importIdentitySizeBytes", "_importIdentityLastModifiedAt", "_importIdentityContentHash"), false);
+
+                    b.ToTable("owned_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_owned_items_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Credits.Credit", b =>
@@ -358,7 +368,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("_targetTrackId");
 
-                    b.ToTable("credits", (string)null);
+                    b.ToTable("credits", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_credits_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Relations.ArtistRelation", b =>

@@ -63,6 +63,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_releases", x => x.id);
                     table.UniqueConstraint("release_id", x => x.release_id);
+                    table.ForeignKey(
+                        name: "FK_releases_labels_label_id",
+                        column: x => x.label_id,
+                        principalTable: "labels",
+                        principalColumn: "label_id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -167,6 +173,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_credits", x => x.id);
                     table.UniqueConstraint("credit_id", x => x.credit_id);
+                    table.CheckConstraint("ck_credits_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
                     table.ForeignKey(
                         name: "FK_credits_artists_contributor_artist_id",
                         column: x => x.contributor_artist_id,
@@ -216,6 +223,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_owned_items", x => x.id);
                     table.UniqueConstraint("owned_item_id", x => x.owned_item_id);
+                    table.CheckConstraint("ck_owned_items_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
                     table.ForeignKey(
                         name: "FK_owned_items_releases_target_release_id",
                         column: x => x.target_release_id,
@@ -356,6 +364,14 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "target_track_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_owned_items_import_identity",
+                table: "owned_items",
+                columns: new[] { "import_identity_path", "import_identity_size_bytes", "import_identity_last_modified_at", "import_identity_content_hash" },
+                unique: true,
+                filter: "import_identity_path IS NOT NULL")
+                .Annotation("Npgsql:NullsDistinct", false);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_owned_items_medium_type",
                 table: "owned_items",
                 column: "medium_type");
@@ -376,9 +392,16 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "target_track_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_release_tracks_release_id",
+                name: "IX_releases_label_id",
+                table: "releases",
+                column: "label_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_release_tracks_release_id_position",
                 table: "release_tracks",
-                column: "release_id");
+                columns: new[] { "release_id", "position_number", "position_disc", "position_side" },
+                unique: true)
+                .Annotation("Npgsql:NullsDistinct", false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_release_tracks_track_id",

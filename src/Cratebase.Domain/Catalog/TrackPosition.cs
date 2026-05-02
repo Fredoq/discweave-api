@@ -24,7 +24,7 @@ public sealed record TrackPosition
 
     public IOptionalValue<string> Side { get; private set; }
 
-    public static TrackPosition Empty { get; } = new();
+    internal static TrackPosition Empty { get; } = new();
 
     public static TrackPosition FromNumber(int number)
     {
