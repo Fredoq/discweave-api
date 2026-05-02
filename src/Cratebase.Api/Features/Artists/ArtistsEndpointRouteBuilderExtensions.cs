@@ -157,7 +157,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
+        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
         {
             return EndpointErrors.Conflict("artist.delete_conflict", "Artist has dependent data");
         }
@@ -193,6 +193,11 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static bool IsKnownArtistType(string type)
     {
         return type is "person" or "group";
+    }
+
+    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
+    {
+        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
     }
 
 }

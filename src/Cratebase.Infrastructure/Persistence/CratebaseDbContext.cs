@@ -42,9 +42,16 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
         {
             return await base.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsForeignKeyViolation(exception))
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferentialIntegrityViolation(exception))
         {
-            throw new PersistenceConflictException(PersistenceConflictKind.ForeignKeyViolation, exception);
+            throw new PersistenceConflictException(
+                PostgresPersistenceErrors.GetReferentialIntegrityKind(exception),
+                PostgresPersistenceErrors.GetReferentialIntegrityConstraintName(exception),
+                exception);
+        }
+        catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
+        {
+            throw new PersistenceConflictException(PersistenceConflictKind.ReferentialIntegrityViolation, exception);
         }
     }
 

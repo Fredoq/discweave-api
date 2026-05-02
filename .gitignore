@@ -11,6 +11,7 @@
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
+# Root-level release output folders only; feature folders named Releases contain source code.
 /[Rr]eleases/
 x64/
 x86/

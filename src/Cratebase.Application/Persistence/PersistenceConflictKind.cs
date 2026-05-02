@@ -2,5 +2,6 @@ namespace Cratebase.Application.Persistence;
 
 public enum PersistenceConflictKind
 {
-    ForeignKeyViolation
+    ForeignKeyViolation,
+    ReferentialIntegrityViolation
 }

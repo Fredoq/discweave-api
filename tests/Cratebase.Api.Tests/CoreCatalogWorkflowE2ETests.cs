@@ -26,6 +26,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync("/api/labels", new { name = "  Factory  " });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid labelId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage getResponse = await client.GetAsync($"/api/labels/{labelId}");
@@ -41,7 +42,6 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"label:{labelId}");
         using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
 
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal("Factory", createDocument.RootElement.GetProperty("name").GetString());
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         Assert.Equal(labelId, getDocument.RootElement.GetProperty("id").GetGuid());
@@ -62,6 +62,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
             "/api/tracks",
             new { title = "  Age of Consent  ", durationSeconds = 316, genres = PostPunkGenres, tags = OpenerTags });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid trackId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
@@ -75,7 +76,6 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         using HttpResponseMessage listResponse = await client.GetAsync("/api/tracks?search=consent&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
 
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal("Age of Consent", createDocument.RootElement.GetProperty("title").GetString());
         Assert.Equal(316, createDocument.RootElement.GetProperty("durationSeconds").GetInt32());
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
@@ -100,6 +100,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
             "/api/releases",
             new { title = "  Power, Corruption & Lies  ", type = "album", labelId, year = 1983, genres = PostPunkGenres, tags = FactoryTags });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid releaseId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
@@ -113,7 +114,6 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         using HttpResponseMessage listResponse = await client.GetAsync("/api/releases?search=power&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
 
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal("Power, Corruption & Lies", createDocument.RootElement.GetProperty("title").GetString());
         Assert.Equal("album", createDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(labelId, createDocument.RootElement.GetProperty("labelId").GetGuid());
@@ -146,6 +146,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
                 storageLocation = "Shelf A"
             });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid ownedItemId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
@@ -160,7 +161,6 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"owned-item:{ownedItemId}");
         using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
 
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal("owned", createDocument.RootElement.GetProperty("status").GetString());
         Assert.Equal("vinyl", createDocument.RootElement.GetProperty("medium").GetProperty("type").GetString());
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
@@ -219,6 +219,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/labels", new { name = "Factory" });
         using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }
@@ -227,6 +228,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Power, Corruption & Lies", type = "album", year = 1983 });
         using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }

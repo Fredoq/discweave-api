@@ -244,7 +244,15 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
-        return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        string content = await response.Content.ReadAsStringAsync();
+        try
+        {
+            return JsonDocument.Parse(content);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException(content, exception);
+        }
     }
 
 }

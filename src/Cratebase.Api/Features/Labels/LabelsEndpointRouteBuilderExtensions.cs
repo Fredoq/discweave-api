@@ -134,7 +134,7 @@ public static class LabelsEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
+        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
         {
             return EndpointErrors.Conflict("label.delete_conflict", "Label has dependent data");
         }
@@ -143,5 +143,10 @@ public static class LabelsEndpointRouteBuilderExtensions
     private static LabelResponse ToLabelResponse(Label label)
     {
         return new LabelResponse(label.Id.Value, label.Name);
+    }
+
+    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
+    {
+        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
     }
 }

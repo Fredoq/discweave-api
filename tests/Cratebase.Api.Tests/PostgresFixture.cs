@@ -23,16 +23,16 @@ public sealed class PostgresFixture : IAsyncLifetime
         await _container.DisposeAsync();
     }
 
-    public async Task<string> CreateDatabaseAsync()
+    public async Task<string> CreateDatabaseAsync(CancellationToken cancellationToken = default)
     {
         string databaseName = $"cratebase_{Guid.CreateVersion7():N}";
 
         await using NpgsqlConnection connection = new(ConnectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(cancellationToken);
 
         await using NpgsqlCommand command = connection.CreateCommand();
         command.CommandText = $"""CREATE DATABASE "{databaseName}";""";
-        _ = await command.ExecuteNonQueryAsync();
+        _ = await command.ExecuteNonQueryAsync(cancellationToken);
 
         return new NpgsqlConnectionStringBuilder(ConnectionString)
         {

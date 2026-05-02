@@ -20,7 +20,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public static async Task<ApiTestHost> CreateAsync(PostgresFixture postgres, CancellationToken cancellationToken = default)
     {
-        string connectionString = await postgres.CreateDatabaseAsync();
+        string connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
         WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString);
 
         var host = new ApiTestHost(factory);

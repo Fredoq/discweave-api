@@ -42,6 +42,10 @@ public static class TracksEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+        catch (ArgumentException)
+        {
+            return EndpointErrors.BadRequest("track.request_invalid", "Track request is invalid");
+        }
     }
 
     private static async Task<IResult> GetTrackAsync(Guid trackId, CratebaseDbContext context, CancellationToken cancellationToken)
@@ -107,6 +111,10 @@ public static class TracksEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+        catch (ArgumentException)
+        {
+            return EndpointErrors.BadRequest("track.request_invalid", "Track request is invalid");
+        }
     }
 
     private static async Task<IResult> DeleteTrackAsync(
@@ -133,7 +141,7 @@ public static class TracksEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
+        catch (PersistenceConflictException exception) when (IsReferentialIntegrityConflict(exception))
         {
             return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
         }
@@ -166,5 +174,10 @@ public static class TracksEndpointRouteBuilderExtensions
             durationSeconds,
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)]);
+    }
+
+    private static bool IsReferentialIntegrityConflict(PersistenceConflictException exception)
+    {
+        return exception.Kind is PersistenceConflictKind.ForeignKeyViolation or PersistenceConflictKind.ReferentialIntegrityViolation;
     }
 }
