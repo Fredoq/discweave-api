@@ -429,9 +429,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "credits");
 
             migrationBuilder.DropTable(
-                name: "labels");
-
-            migrationBuilder.DropTable(
                 name: "owned_items");
 
             migrationBuilder.DropTable(
@@ -453,10 +450,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "track_tags");
 
             migrationBuilder.DropTable(
+                name: "releases");
+
+            migrationBuilder.DropTable(
                 name: "artists");
 
             migrationBuilder.DropTable(
-                name: "releases");
+                name: "labels");
 
             migrationBuilder.DropTable(
                 name: "tracks");
