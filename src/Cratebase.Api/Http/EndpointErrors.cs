@@ -24,4 +24,9 @@ public static class EndpointErrors
     {
         return Results.NotFound(new ErrorResponse(code, message));
     }
+
+    public static IResult Unauthorized(string code, string message)
+    {
+        return Results.Json(new ErrorResponse(code, message), statusCode: StatusCodes.Status401Unauthorized);
+    }
 }

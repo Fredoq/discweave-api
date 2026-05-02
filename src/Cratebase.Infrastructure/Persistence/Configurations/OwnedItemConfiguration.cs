@@ -28,6 +28,11 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
             .HasConversion(PersistenceValueConverters.OwnedItemId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(item => item.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(item => item.Id)
             .HasName("owned_item_id");
 
@@ -107,21 +112,23 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
 
         _ = builder.HasOne<Release>()
             .WithMany()
-            .HasForeignKey("_targetReleaseId")
-            .HasPrincipalKey(release => release.Id)
+            .HasForeignKey(nameof(OwnedItem.CollectionId), "_targetReleaseId")
+            .HasPrincipalKey(nameof(Release.CollectionId), nameof(Release.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Track>()
             .WithMany()
-            .HasForeignKey("_targetTrackId")
-            .HasPrincipalKey(track => track.Id)
+            .HasForeignKey(nameof(OwnedItem.CollectionId), "_targetTrackId")
+            .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasIndex("_targetReleaseId");
         _ = builder.HasIndex("_targetTrackId");
+        _ = builder.HasIndex(item => item.CollectionId);
         _ = builder.HasIndex("_mediumType");
         _ = builder.HasIndex("_status");
         _ = builder.HasIndex(
+                nameof(OwnedItem.CollectionId),
                 "_importIdentityPath",
                 "_importIdentitySizeBytes",
                 "_importIdentityLastModifiedAt",

@@ -20,13 +20,16 @@ public sealed class Credit : IEntity<CreditId>
     {
     }
 
-    private Credit(CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
+    private Credit(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
     {
+        CollectionId = collectionId;
         Id = id;
         SetContributor(contributor);
         Role = role;
         SetTarget(target);
     }
+
+    public CollectionId CollectionId { get; private set; }
 
     public CreditId Id { get; private set; }
 
@@ -36,14 +39,14 @@ public sealed class Credit : IEntity<CreditId>
 
     public CreditRole Role { get; private set; }
 
-    public static Credit Create(CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
+    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
     {
         ArgumentNullException.ThrowIfNull(contributor);
         ArgumentNullException.ThrowIfNull(target);
 
         CreditRole validatedRole = Guard.DefinedEnum(role, nameof(role), "credit.role_invalid");
 
-        return new Credit(id, contributor, target, validatedRole);
+        return new Credit(collectionId, id, contributor, target, validatedRole);
     }
 
     private void SetTarget(CreditTarget target)

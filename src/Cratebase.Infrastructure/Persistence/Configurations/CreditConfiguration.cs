@@ -28,6 +28,11 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
             .HasConversion(PersistenceValueConverters.CreditId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(credit => credit.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(credit => credit.Id)
             .HasName("credit_id");
 
@@ -66,25 +71,26 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
 
         _ = builder.HasOne<Artist>()
             .WithMany()
-            .HasForeignKey("_contributorArtistId")
-            .HasPrincipalKey(artist => artist.Id)
+            .HasForeignKey(nameof(Credit.CollectionId), "_contributorArtistId")
+            .HasPrincipalKey(nameof(Artist.CollectionId), nameof(Artist.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Release>()
             .WithMany()
-            .HasForeignKey("_targetReleaseId")
-            .HasPrincipalKey(release => release.Id)
+            .HasForeignKey(nameof(Credit.CollectionId), "_targetReleaseId")
+            .HasPrincipalKey(nameof(Release.CollectionId), nameof(Release.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Track>()
             .WithMany()
-            .HasForeignKey("_targetTrackId")
-            .HasPrincipalKey(track => track.Id)
+            .HasForeignKey(nameof(Credit.CollectionId), "_targetTrackId")
+            .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasIndex("_contributorArtistId");
         _ = builder.HasIndex("_targetReleaseId");
         _ = builder.HasIndex("_targetTrackId");
+        _ = builder.HasIndex(credit => credit.CollectionId);
         _ = builder.HasIndex(credit => credit.Role);
     }
 }

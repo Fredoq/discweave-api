@@ -4,13 +4,13 @@ namespace Cratebase.Domain.Catalog;
 
 public sealed class Person : Artist
 {
-    private Person(ArtistId id, string name)
-        : base(id, name)
+    private Person(CollectionId collectionId, ArtistId id, string name)
+        : base(collectionId, id, name)
     {
     }
 
-    public static Person Create(ArtistId id, string name)
+    public static Person Create(CollectionId collectionId, ArtistId id, string name)
     {
-        return new Person(id, name);
+        return new Person(collectionId, id, name);
     }
 }

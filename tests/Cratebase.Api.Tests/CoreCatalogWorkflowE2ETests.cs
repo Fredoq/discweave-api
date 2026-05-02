@@ -22,7 +22,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Label_endpoints_support_the_full_cataloging_workflow()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync("/api/labels", new { name = "  Factory  " });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
@@ -56,7 +56,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Track_endpoints_support_the_full_cataloging_workflow()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/tracks",
@@ -93,7 +93,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Release_endpoints_support_the_full_cataloging_workflow()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid labelId = await CreateLabelAsync(client);
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -131,7 +131,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Owned_item_endpoints_support_the_full_collection_workflow()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client);
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
@@ -175,7 +175,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Creating_an_owned_item_without_a_medium_returns_a_validation_error()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
         Guid releaseId = await CreateReleaseAsync(client);
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -198,7 +198,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Creating_an_owned_item_for_a_missing_target_returns_a_conflict()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/owned-items",

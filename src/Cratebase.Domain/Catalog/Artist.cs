@@ -6,11 +6,14 @@ namespace Cratebase.Domain.Catalog;
 
 public abstract class Artist : IEntity<ArtistId>, INamedEntity
 {
-    protected Artist(ArtistId id, string name)
+    protected Artist(CollectionId collectionId, ArtistId id, string name)
     {
+        CollectionId = collectionId;
         Id = id;
         Name = ValidateName(name);
     }
+
+    public CollectionId CollectionId { get; }
 
     public ArtistId Id { get; }
 

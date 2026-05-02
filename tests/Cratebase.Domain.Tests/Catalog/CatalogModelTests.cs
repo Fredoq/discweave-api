@@ -13,19 +13,19 @@ public sealed class CatalogModelTests
     [InlineData("   ")]
     public void Named_catalog_models_reject_blank_names_and_titles(string value)
     {
-        Assert.Equal("artist.name_required", Assert.Throws<DomainException>(() => Person.Create(ArtistId.New(), value)).Code);
-        Assert.Equal("artist.name_required", Assert.Throws<DomainException>(() => Group.Create(ArtistId.New(), value)).Code);
-        Assert.Equal("label.name_required", Assert.Throws<DomainException>(() => Label.Create(LabelId.New(), value)).Code);
-        Assert.Equal("track.title_required", Assert.Throws<DomainException>(() => Track.Create(TrackId.New(), value)).Code);
-        Assert.Equal("release.title_required", Assert.Throws<DomainException>(() => Release.Create(ReleaseId.New(), value)).Code);
+        Assert.Equal("artist.name_required", Assert.Throws<DomainException>(() => Person.Create(CollectionId.New(), ArtistId.New(), value)).Code);
+        Assert.Equal("artist.name_required", Assert.Throws<DomainException>(() => Group.Create(CollectionId.New(), ArtistId.New(), value)).Code);
+        Assert.Equal("label.name_required", Assert.Throws<DomainException>(() => Label.Create(CollectionId.New(), LabelId.New(), value)).Code);
+        Assert.Equal("track.title_required", Assert.Throws<DomainException>(() => Track.Create(CollectionId.New(), TrackId.New(), value)).Code);
+        Assert.Equal("release.title_required", Assert.Throws<DomainException>(() => Release.Create(CollectionId.New(), ReleaseId.New(), value)).Code);
     }
 
     [Fact]
     public void Artists_can_be_renamed_without_changing_identity_or_type()
     {
         var artistId = ArtistId.New();
-        Artist person = Person.Create(artistId, "  Bernard Sumner  ");
-        Artist group = Group.Create(ArtistId.New(), "New Order");
+        Artist person = Person.Create(CollectionId.New(), artistId, "  Bernard Sumner  ");
+        Artist group = Group.Create(CollectionId.New(), ArtistId.New(), "New Order");
 
         person.Rename("  Bernard Dicken  ");
         group.Rename("  Joy Division  ");
@@ -41,7 +41,7 @@ public sealed class CatalogModelTests
     [InlineData("   ")]
     public void Artist_rename_rejects_blank_names(string value)
     {
-        Artist artist = Person.Create(ArtistId.New(), "Bernard Sumner");
+        Artist artist = Person.Create(CollectionId.New(), ArtistId.New(), "Bernard Sumner");
 
         DomainException exception = Assert.Throws<DomainException>(() => artist.Rename(value));
 
@@ -53,7 +53,7 @@ public sealed class CatalogModelTests
     public void Labels_can_be_renamed_without_changing_identity()
     {
         var labelId = LabelId.New();
-        var label = Label.Create(labelId, "  Factory  ");
+        var label = Label.Create(CollectionId.New(), labelId, "  Factory  ");
 
         label.Rename("  Factory Records  ");
 
@@ -66,7 +66,7 @@ public sealed class CatalogModelTests
     [InlineData("   ")]
     public void Label_rename_rejects_blank_names(string value)
     {
-        var label = Label.Create(LabelId.New(), "Factory");
+        var label = Label.Create(CollectionId.New(), LabelId.New(), "Factory");
 
         DomainException exception = Assert.Throws<DomainException>(() => label.Rename(value));
 
@@ -77,12 +77,12 @@ public sealed class CatalogModelTests
     [Fact]
     public void The_same_track_can_appear_on_multiple_releases_and_keep_one_canonical_rating()
     {
-        Track track = Track.Create(TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
+        Track track = Track.Create(CollectionId.New(), TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
         var firstReleaseId = ReleaseId.New();
         var secondReleaseId = ReleaseId.New();
-        Release firstRelease = Release.Create(firstReleaseId, "Blue Monday")
+        Release firstRelease = Release.Create(CollectionId.New(), firstReleaseId, "Blue Monday")
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1)));
-        Release secondRelease = Release.Create(secondReleaseId, "Substance")
+        Release secondRelease = Release.Create(CollectionId.New(), secondReleaseId, "Substance")
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(5)));
 
         Assert.Equal(track.Id, firstRelease.Tracklist.Single().TrackId);
@@ -123,10 +123,10 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_rating_is_independent_from_average_track_rating()
     {
-        Track firstTrack = Track.Create(TrackId.New(), "Age of Consent").WithRating(Rating.FromValue(10));
-        Track secondTrack = Track.Create(TrackId.New(), "We All Stand").WithRating(Rating.FromValue(8));
+        Track firstTrack = Track.Create(CollectionId.New(), TrackId.New(), "Age of Consent").WithRating(Rating.FromValue(10));
+        Track secondTrack = Track.Create(CollectionId.New(), TrackId.New(), "We All Stand").WithRating(Rating.FromValue(8));
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(releaseId, "Power, Corruption & Lies")
+        Release release = Release.Create(CollectionId.New(), releaseId, "Power, Corruption & Lies")
             .WithRating(Rating.FromValue(7))
             .WithTrack(ReleaseTrack.Create(firstTrack.Id, TrackPosition.FromNumber(1)))
             .WithTrack(ReleaseTrack.Create(secondTrack.Id, TrackPosition.FromNumber(2)));
@@ -141,10 +141,10 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_track_rating_summary_ignores_unrated_tracks_and_can_be_empty()
     {
-        Track ratedTrack = Track.Create(TrackId.New(), "Leave Me Alone").WithRating(Rating.FromValue(9));
-        var unratedTrack = Track.Create(TrackId.New(), "The Village");
+        Track ratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "Leave Me Alone").WithRating(Rating.FromValue(9));
+        var unratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "The Village");
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(releaseId, "Power, Corruption & Lies")
+        Release release = Release.Create(CollectionId.New(), releaseId, "Power, Corruption & Lies")
             .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(8)))
             .WithTrack(ReleaseTrack.Create(unratedTrack.Id, TrackPosition.FromNumber(9)));
 
@@ -160,10 +160,10 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_track_rating_summary_tolerates_duplicate_track_snapshots()
     {
-        Track ratedTrack = Track.Create(TrackId.New(), "Ceremony").WithRating(Rating.FromValue(10));
-        Track duplicateSnapshot = Track.Create(ratedTrack.Id, "Ceremony").WithRating(Rating.FromValue(8));
+        Track ratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "Ceremony").WithRating(Rating.FromValue(10));
+        Track duplicateSnapshot = Track.Create(CollectionId.New(), ratedTrack.Id, "Ceremony").WithRating(Rating.FromValue(8));
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(releaseId, "Ceremony")
+        Release release = Release.Create(CollectionId.New(), releaseId, "Ceremony")
             .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(1)));
 
         ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [ratedTrack, duplicateSnapshot]);
@@ -176,7 +176,7 @@ public sealed class CatalogModelTests
     public void Release_rejects_duplicate_track_positions()
     {
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(releaseId, "Low-Life")
+        Release release = Release.Create(CollectionId.New(), releaseId, "Low-Life")
             .WithTrack(ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1)));
         var duplicatePosition = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1));
 
@@ -199,7 +199,7 @@ public sealed class CatalogModelTests
         Cataloging cataloging = Cataloging.Empty
             .WithGenre(Genre.FromName("Alternative Dance"))
             .WithTag(Tag.FromName("favorite"));
-        Release release = Release.Create(ReleaseId.New(), "Technique")
+        Release release = Release.Create(CollectionId.New(), ReleaseId.New(), "Technique")
             .WithSummary(ReleaseSummary.Create("Technique").WithMetadata(metadata))
             .WithCataloging(cataloging);
 
@@ -220,7 +220,7 @@ public sealed class CatalogModelTests
     public void Release_can_update_summary_and_cataloging_without_changing_identity()
     {
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(releaseId, "Technique")
+        Release release = Release.Create(CollectionId.New(), releaseId, "Technique")
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Alternative Dance")));
         ReleaseSummary updatedSummary = ReleaseSummary.Create("Technique 2020")
             .WithMetadata(ReleaseMetadata.Empty.WithType(ReleaseType.Album).WithReleaseYear(2020));
@@ -256,7 +256,7 @@ public sealed class CatalogModelTests
     [Fact]
     public void Track_duration_must_be_positive_when_present()
     {
-        var track = Track.Create(TrackId.New(), "Dreams Never End");
+        var track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End");
 
         DomainException exception = Assert.Throws<DomainException>(() => track.WithDuration(TimeSpan.Zero));
 
@@ -266,7 +266,7 @@ public sealed class CatalogModelTests
     [Fact]
     public void Track_can_store_duration_genres_and_tags()
     {
-        Track track = Track.Create(TrackId.New(), "Dreams Never End")
+        Track track = Track.Create(CollectionId.New(), TrackId.New(), "Dreams Never End")
             .WithDuration(TimeSpan.FromMinutes(3))
             .WithCataloging(
                 Cataloging.Empty

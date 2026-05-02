@@ -15,18 +15,22 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
     }
 
     private ArtistRelation(
+        CollectionId collectionId,
         ArtistRelationId id,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
         ArtistRelationType type,
         IOptionalValue<ArtistRelationPeriod> period)
     {
+        CollectionId = collectionId;
         Id = id;
         SourceArtistId = sourceArtistId;
         TargetArtistId = targetArtistId;
         Type = type;
         SetPeriod(period);
     }
+
+    public CollectionId CollectionId { get; private set; }
 
     public ArtistRelationId Id { get; private set; }
 
@@ -40,17 +44,19 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     public static ArtistRelation Create(
         ArtistRelationId id,
+        CollectionId collectionId,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
         ArtistRelationType type)
     {
         return sourceArtistId == targetArtistId
             ? throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice")
-            : new ArtistRelation(id, sourceArtistId, targetArtistId, type, Optional.Missing<ArtistRelationPeriod>());
+            : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.Missing<ArtistRelationPeriod>());
     }
 
     public static ArtistRelation Create(
         ArtistRelationId id,
+        CollectionId collectionId,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
         ArtistRelationType type,
@@ -60,7 +66,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
         return sourceArtistId == targetArtistId
             ? throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice")
-            : new ArtistRelation(id, sourceArtistId, targetArtistId, type, Optional.From(period));
+            : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.From(period));
     }
 
     private void SetPeriod(IOptionalValue<ArtistRelationPeriod> period)

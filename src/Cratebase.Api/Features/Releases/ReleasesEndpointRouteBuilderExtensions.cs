@@ -1,6 +1,7 @@
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -17,10 +18,10 @@ public static class ReleasesEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/releases").WithTags("Releases");
+        RouteGroupBuilder group = endpoints.MapGroup("/api/releases").WithTags("Releases").RequireAuthorization();
         _ = group.MapPost("/", CreateReleaseAsync).WithName("CreateRelease");
         _ = group.MapGet("/{releaseId:guid}", GetReleaseAsync).WithName("GetRelease");
-        _ = group.MapGet("/", ListReleasesAsync).WithName("ListReleases");
+        _ = group.MapGet("", ListReleasesAsync).WithName("ListReleases");
         _ = group.MapPut("/{releaseId:guid}", UpdateReleaseAsync).WithName("UpdateRelease");
         _ = group.MapDelete("/{releaseId:guid}", DeleteReleaseAsync).WithName("DeleteRelease");
 
@@ -30,11 +31,18 @@ public static class ReleasesEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateReleaseAsync(
         ReleaseRequest request,
         IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            Release release = ApplyReleaseRequest(Release.Create(ReleaseId.New(), request.Title), request);
+            Release release = ApplyReleaseRequest(Release.Create(currentCollection.CollectionId, ReleaseId.New(), request.Title), request);
+            if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
+            {
+                return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+            }
+
             IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
             releases.Add(release);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -94,6 +102,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         Guid releaseId,
         ReleaseRequest request,
         IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         CancellationToken cancellationToken)
     {
         IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
@@ -106,6 +115,11 @@ public static class ReleasesEndpointRouteBuilderExtensions
         try
         {
             _ = ApplyReleaseRequest(release, request);
+            if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
+            {
+                return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+            }
+
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(ToReleaseResponse(release));
@@ -167,6 +181,23 @@ public static class ReleasesEndpointRouteBuilderExtensions
         release.UpdateCataloging(CatalogingMapper.Create(request.Genres, request.Tags));
 
         return release;
+    }
+
+    private static async Task<bool> LabelExistsAsync(
+        ReleaseMetadata metadata,
+        CratebaseDbContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!metadata.LabelId.HasValue)
+        {
+            return true;
+        }
+
+        LabelId labelId = metadata.LabelId.Match(
+            value => value,
+            () => throw new InvalidOperationException("Label id should be present"));
+
+        return await context.Labels.AnyAsync(label => label.Id == labelId, cancellationToken);
     }
 
     private static ReleaseResponse ToReleaseResponse(Release release)

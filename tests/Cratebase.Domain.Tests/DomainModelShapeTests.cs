@@ -24,9 +24,10 @@ public sealed class DomainModelShapeTests
                 Type = type,
                 PropertyCount = CountPublicInstanceProperties(type),
                 MethodCount = CountPublicMethods(type),
+                MaximumPropertyCount = GetMaximumPublicPropertyCount(type),
                 MaximumMethodCount = GetMaximumPublicMethodCount(type)
             })
-            .Where(result => result.PropertyCount > 5 || result.MethodCount > result.MaximumMethodCount)
+            .Where(result => result.PropertyCount > result.MaximumPropertyCount || result.MethodCount > result.MaximumMethodCount)
             .Select(result => $"{result.Type.FullName}: {result.PropertyCount} properties, {result.MethodCount} methods")
         ];
 
@@ -123,6 +124,7 @@ public sealed class DomainModelShapeTests
             typeof(ArtistRelation).FullName!,
             typeof(Credit).FullName!,
             typeof(Label).FullName!,
+            typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Release).FullName!,
             typeof(ReleaseTrack).FullName!,
@@ -172,6 +174,15 @@ public sealed class DomainModelShapeTests
                 !method.IsSpecialName &&
                 !method.Name.StartsWith('<') &&
                 method.Name is not nameof(Equals) and not nameof(GetHashCode) and not nameof(ToString));
+    }
+
+    private static int GetMaximumPublicPropertyCount(Type type)
+    {
+        return type == typeof(Release) ||
+            type == typeof(Track) ||
+            type == typeof(ArtistRelation)
+            ? 6
+            : 5;
     }
 
     private static int GetMaximumPublicMethodCount(Type type)

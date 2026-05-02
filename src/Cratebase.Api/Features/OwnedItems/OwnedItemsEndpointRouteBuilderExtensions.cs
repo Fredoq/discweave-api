@@ -1,6 +1,7 @@
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -15,10 +16,10 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/owned-items").WithTags("Owned Items");
+        RouteGroupBuilder group = endpoints.MapGroup("/api/owned-items").WithTags("Owned Items").RequireAuthorization();
         _ = group.MapPost("/", CreateOwnedItemAsync).WithName("CreateOwnedItem");
         _ = group.MapGet("/{ownedItemId:guid}", GetOwnedItemAsync).WithName("GetOwnedItem");
-        _ = group.MapGet("/", ListOwnedItemsAsync).WithName("ListOwnedItems");
+        _ = group.MapGet("", ListOwnedItemsAsync).WithName("ListOwnedItems");
         _ = group.MapPut("/{ownedItemId:guid}", UpdateOwnedItemAsync).WithName("UpdateOwnedItem");
         _ = group.MapDelete("/{ownedItemId:guid}", DeleteOwnedItemAsync).WithName("DeleteOwnedItem");
 
@@ -28,6 +29,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateOwnedItemAsync(
         CreateOwnedItemRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
@@ -35,6 +37,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
             ArgumentNullException.ThrowIfNull(request.Medium);
             IMedium medium = OwnedItemMapper.CreateMedium(request.Medium);
             var item = OwnedItem.Create(
+                currentCollection.CollectionId,
                 OwnedItemId.New(),
                 OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId),
                 OwnedItemMapper.ParseOwnershipStatus(request.Status),

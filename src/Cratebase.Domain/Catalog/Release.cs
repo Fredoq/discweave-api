@@ -17,17 +17,21 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     }
 
     private Release(
+        CollectionId collectionId,
         ReleaseId id,
         ReleaseSummary summary,
         IReadOnlyList<ReleaseTrack> tracklist,
         Cataloging cataloging)
     {
+        CollectionId = collectionId;
         Id = id;
         Summary = summary;
         _tracklist = [.. tracklist];
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
     }
+
+    public CollectionId CollectionId { get; private set; }
 
     public ReleaseId Id { get; private set; }
 
@@ -57,9 +61,9 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     public string DisplayName => Summary.Title;
 
-    public static Release Create(ReleaseId id, string title)
+    public static Release Create(CollectionId collectionId, ReleaseId id, string title)
     {
-        return new Release(id, ReleaseSummary.Create(title), [], Cataloging.Empty);
+        return new Release(collectionId, id, ReleaseSummary.Create(title), [], Cataloging.Empty);
     }
 
     public void UpdateSummary(ReleaseSummary summary)
@@ -83,7 +87,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        return new Release(Id, summary, _tracklist, Cataloging);
+        return new Release(CollectionId, Id, summary, _tracklist, Cataloging);
     }
 
     public Release WithRating(Rating rating)
@@ -97,14 +101,14 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         EnsureTrackPositionIsUnique(releaseTrack.Position);
 
-        return new Release(Id, Summary, [.. _tracklist, releaseTrack], Cataloging);
+        return new Release(CollectionId, Id, Summary, [.. _tracklist, releaseTrack], Cataloging);
     }
 
     public Release WithCataloging(Cataloging cataloging)
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Release(Id, Summary, _tracklist, cataloging);
+        return new Release(CollectionId, Id, Summary, _tracklist, cataloging);
     }
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)

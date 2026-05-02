@@ -1,7 +1,9 @@
 using Cratebase.Application.Catalog.Artists;
 using Cratebase.Application.Persistence;
+using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
 using Cratebase.Infrastructure.Persistence.Queries;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +29,20 @@ public static class DependencyInjection
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CratebaseDbContext>());
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
+        _ = services.AddIdentityCore<CratebaseUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<CratebaseDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+        _ = services.AddScoped<IUserClaimsPrincipalFactory<CratebaseUser>, CratebaseUserClaimsPrincipalFactory>();
 
         return services;
     }

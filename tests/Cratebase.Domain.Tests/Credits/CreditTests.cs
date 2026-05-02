@@ -10,16 +10,16 @@ public sealed class CreditTests
     [Fact]
     public void Credit_links_an_artist_contributor_to_a_release_or_track_target_through_a_role()
     {
-        var person = Person.Create(ArtistId.New(), "Arthur Baker");
-        var group = Group.Create(ArtistId.New(), "New Order");
+        var person = Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker");
+        var group = Group.Create(CollectionId.New(), ArtistId.New(), "New Order");
         var releaseId = ReleaseId.New();
         var trackId = TrackId.New();
-        var releaseCredit = Credit.Create(
+        var releaseCredit = Credit.Create(CollectionId.New(),
             CreditId.New(),
             CreditContributor.FromArtist(group),
             CreditTarget.ForRelease(releaseId),
             CreditRole.MainArtist);
-        var trackCredit = Credit.Create(
+        var trackCredit = Credit.Create(CollectionId.New(),
             CreditId.New(),
             CreditContributor.FromArtist(person),
             CreditTarget.ForTrack(trackId),
@@ -55,9 +55,9 @@ public sealed class CreditTests
     public void Credit_rejects_undefined_roles()
     {
         DomainException exception = Assert.Throws<DomainException>(() =>
-            Credit.Create(
+            Credit.Create(CollectionId.New(),
                 CreditId.New(),
-                CreditContributor.FromArtist(Person.Create(ArtistId.New(), "Arthur Baker")),
+                CreditContributor.FromArtist(Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker")),
                 CreditTarget.ForRelease(ReleaseId.New()),
                 default));
 

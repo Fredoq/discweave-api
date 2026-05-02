@@ -1,4 +1,6 @@
 using Cratebase.Api.Features.Artists;
+using Cratebase.Api.Features.Admin;
+using Cratebase.Api.Features.Auth;
 using Cratebase.Api.Features.Labels;
 using Cratebase.Api.Features.OwnedItems;
 using Cratebase.Api.Features.Releases;
@@ -12,6 +14,8 @@ public static class CratebaseEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
+        _ = endpoints.MapAuthEndpoints();
+        _ = endpoints.MapAdminUsersEndpoints();
         _ = endpoints.MapArtistsEndpoints();
         _ = endpoints.MapLabelsEndpoints();
         _ = endpoints.MapTracksEndpoints();

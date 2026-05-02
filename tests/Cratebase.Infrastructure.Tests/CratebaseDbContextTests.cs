@@ -65,12 +65,13 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
     public async Task The_context_persists_catalog_aggregates()
     {
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
+        var collectionId = CollectionId.New();
         var labelId = LabelId.New();
-        Track track = Track.Create(TrackId.New(), "Age of Consent")
+        Track track = Track.Create(collectionId, TrackId.New(), "Age of Consent")
             .WithDuration(TimeSpan.FromSeconds(316))
             .WithRating(Rating.FromValue(10))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("opener")));
-        Release release = Release.Create(ReleaseId.New(), "Power, Corruption & Lies")
+        Release release = Release.Create(collectionId, ReleaseId.New(), "Power, Corruption & Lies")
             .WithSummary(
                 ReleaseSummary.Create("Power, Corruption & Lies")
                     .WithMetadata(
@@ -84,9 +85,9 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1, "1", "A"), "Age of Consent"))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("factory")));
 
-        _ = context.Artists.Add(Person.Create(ArtistId.New(), "Bernard Sumner"));
-        _ = context.Artists.Add(Group.Create(ArtistId.New(), "New Order"));
-        _ = context.Labels.Add(Label.Create(labelId, "Factory"));
+        _ = context.Artists.Add(Person.Create(collectionId, ArtistId.New(), "Bernard Sumner"));
+        _ = context.Artists.Add(Group.Create(collectionId, ArtistId.New(), "New Order"));
+        _ = context.Labels.Add(Label.Create(collectionId, labelId, "Factory"));
         _ = context.Tracks.Add(track);
         _ = context.Releases.Add(release);
         _ = await context.SaveChangesAsync();
@@ -115,20 +116,21 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
     public async Task The_context_persists_collection_credits_and_relations()
     {
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
-        Artist artist = Person.Create(ArtistId.New(), "Arthur Baker");
-        Artist alias = Person.Create(ArtistId.New(), "Arthur Baker Alias");
-        var sourceTrack = Track.Create(TrackId.New(), "Confusion Instrumental");
-        var targetTrack = Track.Create(TrackId.New(), "Confusion");
+        var collectionId = CollectionId.New();
+        Artist artist = Person.Create(collectionId, ArtistId.New(), "Arthur Baker");
+        Artist alias = Person.Create(collectionId, ArtistId.New(), "Arthur Baker Alias");
+        var sourceTrack = Track.Create(collectionId, TrackId.New(), "Confusion Instrumental");
+        var targetTrack = Track.Create(collectionId, TrackId.New(), "Confusion");
         var releaseId = ReleaseId.New();
-        var release = Release.Create(releaseId, "Confusion");
-        OwnedItem releaseItem = OwnedItem.Create(
+        var release = Release.Create(collectionId, releaseId, "Confusion");
+        OwnedItem releaseItem = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
                 OwnedItemTarget.ForRelease(releaseId),
                 OwnershipStatus.NeedsDigitization,
                 VinylRecord.Create("12-inch"))
             .WithCondition(ItemCondition.VeryGoodPlus)
             .WithStorageLocation(StorageLocation.FromName("Shelf A"));
-        var digitalItem = OwnedItem.Create(
+        var digitalItem = OwnedItem.Create(collectionId,
             OwnedItemId.New(),
             OwnedItemTarget.ForTrack(targetTrack.Id),
             OwnershipStatus.Owned,
@@ -149,13 +151,13 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         _ = await context.SaveChangesAsync();
         _ = context.OwnedItems.Add(releaseItem);
         _ = context.OwnedItems.Add(digitalItem);
-        _ = context.OwnedItems.Add(OwnedItem.Create(OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Owned, CompactDisc.Create(1)));
-        _ = context.OwnedItems.Add(OwnedItem.Create(OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Wanted, CassetteTape.Create("Chrome")));
-        _ = context.OwnedItems.Add(OwnedItem.Create(OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Sold, OtherMedium.Create("DAT")));
-        _ = context.Credits.Add(Credit.Create(CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForRelease(releaseId), CreditRole.Producer));
-        _ = context.Credits.Add(Credit.Create(CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(targetTrack.Id), CreditRole.Remixer));
-        _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), alias.Id, artist.Id, ArtistRelationType.Alias, ArtistRelationPeriod.StartingAt(1983)));
-        _ = context.TrackRelations.Add(TrackRelation.Create(TrackRelationId.New(), sourceTrack.Id, targetTrack.Id, TrackRelationType.RemixOf));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Owned, CompactDisc.Create(1)));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Wanted, CassetteTape.Create("Chrome")));
+        _ = context.OwnedItems.Add(OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), OwnershipStatus.Sold, OtherMedium.Create("DAT")));
+        _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForRelease(releaseId), CreditRole.Producer));
+        _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artist), CreditTarget.ForTrack(targetTrack.Id), CreditRole.Remixer));
+        _ = context.ArtistRelations.Add(ArtistRelation.Create(ArtistRelationId.New(), collectionId, alias.Id, artist.Id, ArtistRelationType.Alias, ArtistRelationPeriod.StartingAt(1983)));
+        _ = context.TrackRelations.Add(TrackRelation.Create(TrackRelationId.New(), collectionId, sourceTrack.Id, targetTrack.Id, TrackRelationType.RemixOf));
         _ = await context.SaveChangesAsync();
         context.ChangeTracker.Clear();
 
@@ -217,7 +219,7 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
         IRepository<Label, LabelId> labels = ((IUnitOfWork)context).GetRepository<Label, LabelId>();
         var labelId = LabelId.New();
-        var label = Label.Create(labelId, "Factory");
+        var label = Label.Create(CollectionId.New(), labelId, "Factory");
 
         labels.Add(label);
         _ = await context.SaveChangesAsync();

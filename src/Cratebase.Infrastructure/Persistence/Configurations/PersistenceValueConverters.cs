@@ -13,6 +13,14 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ArtistId(value));
 
+    public static readonly ValueConverter<CollectionId, Guid> CollectionId = new(
+        id => id.Value,
+        value => new CollectionId(value));
+
+    public static readonly ValueConverter<UserId, Guid> UserId = new(
+        id => id.Value,
+        value => new UserId(value));
+
     public static readonly ValueConverter<LabelId, Guid> LabelId = new(
         id => id.Value,
         value => new LabelId(value));

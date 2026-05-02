@@ -1,6 +1,7 @@
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -15,10 +16,10 @@ public static class LabelsEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/labels").WithTags("Labels");
+        RouteGroupBuilder group = endpoints.MapGroup("/api/labels").WithTags("Labels").RequireAuthorization();
         _ = group.MapPost("/", CreateLabelAsync).WithName("CreateLabel");
         _ = group.MapGet("/{labelId:guid}", GetLabelAsync).WithName("GetLabel");
-        _ = group.MapGet("/", ListLabelsAsync).WithName("ListLabels");
+        _ = group.MapGet("", ListLabelsAsync).WithName("ListLabels");
         _ = group.MapPut("/{labelId:guid}", UpdateLabelAsync).WithName("UpdateLabel");
         _ = group.MapDelete("/{labelId:guid}", DeleteLabelAsync).WithName("DeleteLabel");
 
@@ -28,11 +29,12 @@ public static class LabelsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateLabelAsync(
         NameRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            var label = Label.Create(LabelId.New(), request.Name);
+            var label = Label.Create(currentCollection.CollectionId, LabelId.New(), request.Name);
             IRepository<Label, LabelId> labels = unitOfWork.GetRepository<Label, LabelId>();
             labels.Add(label);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);

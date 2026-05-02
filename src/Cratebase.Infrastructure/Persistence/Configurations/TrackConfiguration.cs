@@ -26,8 +26,16 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
             .HasConversion(PersistenceValueConverters.TrackId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(track => track.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(track => track.Id)
             .HasName(TrackIdColumn);
+
+        _ = builder.HasAlternateKey(track => new { track.CollectionId, track.Id })
+            .HasName("ak_tracks_collection_track_id");
 
         _ = builder.Property(track => track.Title)
             .HasColumnName("title")
@@ -39,6 +47,8 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
 
         ConfigureDetails(builder);
         ConfigureCataloging(builder);
+
+        _ = builder.HasIndex(track => track.CollectionId);
     }
 
     private static void ConfigureDetails(EntityTypeBuilder<Track> builder)

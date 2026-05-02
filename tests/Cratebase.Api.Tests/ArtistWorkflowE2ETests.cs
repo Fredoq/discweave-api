@@ -17,7 +17,7 @@ public sealed class ArtistWorkflowE2ETests : IClassFixture<PostgresFixture>
     public async Task Artist_endpoints_support_the_full_cataloging_workflow()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = host.CreateClient();
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/artists",

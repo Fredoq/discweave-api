@@ -37,14 +37,18 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     }
 
     private OwnedItem(
+        CollectionId collectionId,
         OwnedItemId id,
         OwnedItemTarget target,
         OwnedItemHolding holding)
     {
+        CollectionId = collectionId;
         Id = id;
         SetTarget(target);
         SetHolding(holding);
     }
+
+    public CollectionId CollectionId { get; private set; }
 
     public OwnedItemId Id { get; private set; }
 
@@ -52,26 +56,26 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
 
     public OwnedItemHolding Holding => CreateHolding();
 
-    public static OwnedItem Create(OwnedItemId id, OwnedItemTarget target, OwnershipStatus status, IMedium medium)
+    public static OwnedItem Create(CollectionId collectionId, OwnedItemId id, OwnedItemTarget target, OwnershipStatus status, IMedium medium)
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        return new OwnedItem(id, target, OwnedItemHolding.Create(status, medium));
+        return new OwnedItem(collectionId, id, target, OwnedItemHolding.Create(status, medium));
     }
 
     public OwnedItem WithStatus(OwnershipStatus status)
     {
-        return new OwnedItem(Id, Target, Holding.WithStatus(status));
+        return new OwnedItem(CollectionId, Id, Target, Holding.WithStatus(status));
     }
 
     public OwnedItem WithCondition(ItemCondition condition)
     {
-        return new OwnedItem(Id, Target, Holding.WithDetails(Holding.Details.WithCondition(condition)));
+        return new OwnedItem(CollectionId, Id, Target, Holding.WithDetails(Holding.Details.WithCondition(condition)));
     }
 
     public OwnedItem WithStorageLocation(StorageLocation storageLocation)
     {
-        return new OwnedItem(Id, Target, Holding.WithDetails(Holding.Details.WithStorageLocation(storageLocation)));
+        return new OwnedItem(CollectionId, Id, Target, Holding.WithDetails(Holding.Details.WithStorageLocation(storageLocation)));
     }
 
     public void UpdateHolding(OwnedItemHolding holding)

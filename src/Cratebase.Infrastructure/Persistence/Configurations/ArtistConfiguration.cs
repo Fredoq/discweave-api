@@ -21,8 +21,16 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
             .HasConversion(PersistenceValueConverters.ArtistId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(artist => artist.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(artist => artist.Id)
             .HasName("artist_id");
+
+        _ = builder.HasAlternateKey(artist => new { artist.CollectionId, artist.Id })
+            .HasName("ak_artists_collection_artist_id");
 
         _ = builder.Property(artist => artist.Name)
             .HasColumnName("name")
@@ -32,5 +40,7 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         _ = builder.HasDiscriminator<string>("artist_type")
             .HasValue<Person>("person")
             .HasValue<Group>("group");
+
+        _ = builder.HasIndex(artist => artist.CollectionId);
     }
 }

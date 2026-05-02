@@ -26,8 +26,16 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             .HasConversion(PersistenceValueConverters.ReleaseId)
             .ValueGeneratedNever();
 
+        _ = builder.Property(release => release.CollectionId)
+            .HasColumnName("collection_id")
+            .HasConversion(PersistenceValueConverters.CollectionId)
+            .ValueGeneratedNever();
+
         _ = builder.HasAlternateKey(release => release.Id)
             .HasName(ReleaseIdColumn);
+
+        _ = builder.HasAlternateKey(release => new { release.CollectionId, release.Id })
+            .HasName("ak_releases_collection_release_id");
 
         _ = builder.Ignore(release => release.DisplayName);
         _ = builder.Ignore(release => release.Cataloging);
@@ -35,6 +43,8 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         ConfigureSummary(builder);
         ConfigureTracklist(builder);
         ConfigureCataloging(builder);
+
+        _ = builder.HasIndex(release => release.CollectionId);
     }
 
     private static void ConfigureSummary(EntityTypeBuilder<Release> builder)
@@ -104,9 +114,13 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
+            _ = track.Property<CollectionId>("CollectionId")
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = track.WithOwner()
-                .HasForeignKey(ReleaseIdColumn)
-                .HasPrincipalKey(release => release.Id);
+                .HasForeignKey("CollectionId", ReleaseIdColumn)
+                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
 
             _ = track.Property(releaseTrack => releaseTrack.TrackId)
                 .HasColumnName("track_id")
@@ -114,8 +128,8 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasOne<Track>()
                 .WithMany()
-                .HasForeignKey(releaseTrack => releaseTrack.TrackId)
-                .HasPrincipalKey(track => track.Id)
+                .HasForeignKey("CollectionId", nameof(ReleaseTrack.TrackId))
+                .HasPrincipalKey(track => new { track.CollectionId, track.Id })
                 .OnDelete(DeleteBehavior.Restrict);
 
             _ = track.OwnsOne(releaseTrack => releaseTrack.Position, position =>
@@ -147,6 +161,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
+            _ = track.HasIndex("CollectionId");
         });
 
         _ = builder.Navigation(release => release.Tracklist)

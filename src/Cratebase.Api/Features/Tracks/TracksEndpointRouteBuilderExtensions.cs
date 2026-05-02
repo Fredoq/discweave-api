@@ -1,6 +1,7 @@
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -15,10 +16,10 @@ public static class TracksEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/tracks").WithTags("Tracks");
+        RouteGroupBuilder group = endpoints.MapGroup("/api/tracks").WithTags("Tracks").RequireAuthorization();
         _ = group.MapPost("/", CreateTrackAsync).WithName("CreateTrack");
         _ = group.MapGet("/{trackId:guid}", GetTrackAsync).WithName("GetTrack");
-        _ = group.MapGet("/", ListTracksAsync).WithName("ListTracks");
+        _ = group.MapGet("", ListTracksAsync).WithName("ListTracks");
         _ = group.MapPut("/{trackId:guid}", UpdateTrackAsync).WithName("UpdateTrack");
         _ = group.MapDelete("/{trackId:guid}", DeleteTrackAsync).WithName("DeleteTrack");
 
@@ -28,11 +29,12 @@ public static class TracksEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateTrackAsync(
         TrackRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            Track track = ApplyTrackRequest(Track.Create(TrackId.New(), request.Title), request);
+            Track track = ApplyTrackRequest(Track.Create(currentCollection.CollectionId, TrackId.New(), request.Title), request);
             IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
             tracks.Add(track);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);

@@ -1,4 +1,5 @@
 using Cratebase.Application.Catalog.Artists;
+using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
@@ -9,16 +10,25 @@ public sealed class ArtistQueries : IArtistQueries
 {
     private const string ArtistTypePropertyName = "artist_type";
     private readonly CratebaseDbContext _context;
+    private readonly CollectionId _collectionId;
+    private readonly bool _hasCollection;
 
-    public ArtistQueries(CratebaseDbContext context)
+    public ArtistQueries(CratebaseDbContext context, ICurrentCollection currentCollection)
     {
         _context = context;
+        try
+        {
+            _collectionId = currentCollection.CollectionId;
+            _hasCollection = true;
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     public async Task<ArtistReadModel?> TryGetAsync(ArtistId artistId, CancellationToken cancellationToken = default)
     {
-        return await _context.Artists
-            .AsNoTracking()
+        return await ApplyCollectionFilter(_context.Artists.AsNoTracking())
             .Where(artist => artist.Id == artistId)
             .Select(artist => new ArtistReadModel(artist.Id, EF.Property<string>(artist, ArtistTypePropertyName), artist.Name))
             .SingleOrDefaultAsync(cancellationToken);
@@ -28,7 +38,7 @@ public sealed class ArtistQueries : IArtistQueries
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        IQueryable<Artist> artists = _context.Artists.AsNoTracking();
+        IQueryable<Artist> artists = ApplyCollectionFilter(_context.Artists.AsNoTracking());
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -51,5 +61,12 @@ public sealed class ArtistQueries : IArtistQueries
             .ToArrayAsync(cancellationToken);
 
         return new ArtistListResult(items, query.Limit, query.Offset, total);
+    }
+
+    private IQueryable<Artist> ApplyCollectionFilter(IQueryable<Artist> artists)
+    {
+        return _hasCollection
+            ? artists.Where(artist => artist.CollectionId == _collectionId)
+            : artists;
     }
 }

@@ -72,3 +72,8 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+[src/Cratebase.Infrastructure/Persistence/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.category-Style.severity = none
+dotnet_analyzer_diagnostic.category-Performance.severity = none

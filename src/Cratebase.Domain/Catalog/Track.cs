@@ -17,17 +17,21 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     }
 
     private Track(
+        CollectionId collectionId,
         TrackId id,
         string title,
         TrackDetails details,
         Cataloging cataloging)
     {
+        CollectionId = collectionId;
         Id = id;
         Title = title;
         Details = details;
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
     }
+
+    public CollectionId CollectionId { get; private set; }
 
     public TrackId Id { get; private set; }
 
@@ -47,9 +51,10 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         }
     }
 
-    public static Track Create(TrackId id, string title)
+    public static Track Create(CollectionId collectionId, TrackId id, string title)
     {
         return new Track(
+            collectionId,
             id,
             Guard.RequiredText(title, nameof(title), "track.title_required"),
             TrackDetails.Empty,
@@ -82,7 +87,7 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(details);
 
-        return new Track(Id, Title, details, Cataloging);
+        return new Track(CollectionId, Id, Title, details, Cataloging);
     }
 
     public Track WithDuration(TimeSpan duration)
@@ -99,6 +104,6 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Track(Id, Title, Details, cataloging);
+        return new Track(CollectionId, Id, Title, Details, cataloging);
     }
 }
