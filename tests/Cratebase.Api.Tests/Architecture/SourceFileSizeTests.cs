@@ -7,7 +7,7 @@ public sealed class SourceFileSizeTests
     [Fact(DisplayName = "Manually maintained C# source files stay under the size limit")]
     public void ManuallyMaintainedCSharpSourceFilesStayUnderTheSizeLimit()
     {
-        DirectoryInfo repositoryRoot = FindRepositoryRoot();
+        DirectoryInfo repositoryRoot = RepositoryRoot.Find();
         FileInfo[] oversizedFiles =
         [
             .. repositoryRoot
@@ -18,22 +18,6 @@ public sealed class SourceFileSizeTests
         ];
 
         Assert.Empty(oversizedFiles.Select(repositoryRoot.ToRelativePath));
-    }
-
-    private static DirectoryInfo FindRepositoryRoot()
-    {
-        DirectoryInfo? current = new(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "Cratebase.slnx")))
-            {
-                return current;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new InvalidOperationException("Repository root was not found");
     }
 
     private static bool IsManualSourceFile(FileInfo file)

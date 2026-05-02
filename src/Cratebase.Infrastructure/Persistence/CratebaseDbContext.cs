@@ -36,6 +36,18 @@ public partial class CratebaseDbContext : DbContext, IUnitOfWork
         return (IRepository<TAggregate, TKey>)this;
     }
 
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsForeignKeyViolation(exception))
+        {
+            throw new PersistenceConflictException(PersistenceConflictKind.ForeignKeyViolation, exception);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         _ = modelBuilder.ApplyConfiguration(new ArtistConfiguration());

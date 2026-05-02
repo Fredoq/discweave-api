@@ -194,6 +194,27 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
         Assert.Equal("Owned item request is invalid", document.RootElement.GetProperty("message").GetString());
     }
 
+    [Fact(DisplayName = "Creating an owned item for a missing target returns a conflict")]
+    public async Task Creating_an_owned_item_for_a_missing_target_returns_a_conflict()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = host.CreateClient();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/owned-items",
+            new
+            {
+                targetType = "release",
+                targetId = Guid.CreateVersion7(),
+                status = "owned",
+                medium = new { type = "vinyl", description = "LP" }
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("owned_item.target_conflict", document.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<Guid> CreateLabelAsync(HttpClient client)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/labels", new { name = "Factory" });

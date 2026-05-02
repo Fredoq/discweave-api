@@ -133,7 +133,7 @@ public static class TracksEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (DbUpdateException exception) when (PersistenceErrors.IsForeignKeyViolation(exception))
+        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
         {
             return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
         }

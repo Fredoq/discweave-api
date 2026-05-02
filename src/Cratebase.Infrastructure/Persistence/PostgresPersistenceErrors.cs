@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace Cratebase.Api.Http;
+namespace Cratebase.Infrastructure.Persistence;
 
-public static class PersistenceErrors
+internal static class PostgresPersistenceErrors
 {
     public static bool IsForeignKeyViolation(DbUpdateException exception)
     {

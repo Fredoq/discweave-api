@@ -134,7 +134,7 @@ public static class LabelsEndpointRouteBuilderExtensions
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             return Results.NoContent();
         }
-        catch (DbUpdateException exception) when (PersistenceErrors.IsForeignKeyViolation(exception))
+        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
         {
             return EndpointErrors.Conflict("label.delete_conflict", "Label has dependent data");
         }

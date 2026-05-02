@@ -4,9 +4,6 @@ using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Primitives;
-using Npgsql;
 
 namespace Cratebase.Api.Features.Artists;
 
@@ -14,7 +11,6 @@ public static class ArtistsEndpointRouteBuilderExtensions
 {
     private const int DefaultLimit = 50;
     private const int MaximumLimit = 100;
-    private const string DeleteConfirmationHeaderName = "X-Cratebase-Confirm-Delete";
 
     public static IEndpointRouteBuilder MapArtistsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -48,7 +44,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
             Artist? artist = CreateArtist(normalizedType, request.Name);
             if (artist is null)
             {
-                return BadRequest("artist.type_invalid", "Artist type is invalid");
+                return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
             }
 
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
@@ -60,7 +56,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         }
         catch (DomainException exception)
         {
-            return BadRequest(exception.Code, exception.Message);
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
     }
 
@@ -72,7 +68,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         ArtistReadModel? artist = await artistQueries.TryGetAsync(new ArtistId(artistId), cancellationToken);
 
         return artist is null
-            ? NotFound("artist.not_found", "Artist was not found")
+            ? EndpointErrors.NotFound("artist.not_found", "Artist was not found")
             : Results.Ok(ToResponse(artist));
     }
 
@@ -87,14 +83,14 @@ public static class ArtistsEndpointRouteBuilderExtensions
         string normalizedType = string.IsNullOrWhiteSpace(type) ? string.Empty : type.Trim();
         if (!string.IsNullOrEmpty(normalizedType) && !IsKnownArtistType(normalizedType))
         {
-            return BadRequest("artist.type_invalid", "Artist type is invalid");
+            return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
         }
 
         int normalizedLimit = limit ?? DefaultLimit;
         int normalizedOffset = offset ?? 0;
         if (normalizedLimit < 1 || normalizedLimit > MaximumLimit || normalizedOffset < 0)
         {
-            return BadRequest("pagination.invalid", "Pagination values are invalid");
+            return EndpointErrors.BadRequest("pagination.invalid", "Pagination values are invalid");
         }
 
         ArtistListResult result = await artistQueries.ListAsync(
@@ -120,7 +116,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         Artist? artist = await artists.TryFindAsync(new ArtistId(artistId), cancellationToken);
         if (artist is null)
         {
-            return NotFound("artist.not_found", "Artist was not found");
+            return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
         }
 
         try
@@ -132,7 +128,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         }
         catch (DomainException exception)
         {
-            return BadRequest(exception.Code, exception.Message);
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
     }
 
@@ -142,19 +138,16 @@ public static class ArtistsEndpointRouteBuilderExtensions
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken)
     {
-        string expectedConfirmation = $"artist:{artistId}";
-        if (!request.Headers.TryGetValue(DeleteConfirmationHeaderName, out StringValues confirmationValues) ||
-            confirmationValues.Count != 1 ||
-            !string.Equals(confirmationValues[0], expectedConfirmation, StringComparison.Ordinal))
+        if (!DeleteConfirmation.Matches(request, "artist", artistId))
         {
-            return BadRequest("delete.confirmation_required", "Delete confirmation is required");
+            return EndpointErrors.DeleteConfirmationRequired();
         }
 
         IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
         Artist? artist = await artists.TryFindAsync(new ArtistId(artistId), cancellationToken);
         if (artist is null)
         {
-            return NotFound("artist.not_found", "Artist was not found");
+            return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
         }
 
         try
@@ -164,9 +157,9 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
             return Results.NoContent();
         }
-        catch (DbUpdateException exception) when (IsForeignKeyViolation(exception))
+        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
         {
-            return Results.Conflict(new ErrorResponse("artist.delete_conflict", "Artist has dependent data"));
+            return EndpointErrors.Conflict("artist.delete_conflict", "Artist has dependent data");
         }
     }
 
@@ -202,31 +195,4 @@ public static class ArtistsEndpointRouteBuilderExtensions
         return type is "person" or "group";
     }
 
-    private static bool IsForeignKeyViolation(DbUpdateException exception)
-    {
-        Exception? current = exception;
-        while (current is not null)
-        {
-            if (current is PostgresException postgresException &&
-                (postgresException.SqlState == PostgresErrorCodes.ForeignKeyViolation ||
-                    postgresException.MessageText.Contains("foreign key", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-
-            current = current.InnerException;
-        }
-
-        return exception.ToString().Contains("foreign key", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static IResult BadRequest(string code, string message)
-    {
-        return Results.BadRequest(new ErrorResponse(code, message));
-    }
-
-    private static IResult NotFound(string code, string message)
-    {
-        return Results.NotFound(new ErrorResponse(code, message));
-    }
 }

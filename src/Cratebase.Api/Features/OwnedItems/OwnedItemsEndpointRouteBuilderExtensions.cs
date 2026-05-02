@@ -53,7 +53,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest("owned_item.request_invalid", "Owned item request is invalid");
         }
-        catch (DbUpdateException exception) when (PersistenceErrors.IsForeignKeyViolation(exception))
+        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
         {
             return EndpointErrors.Conflict("owned_item.target_conflict", "Owned item target does not exist");
         }
@@ -156,9 +156,16 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found");
         }
 
-        items.Delete(item);
-        _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            items.Delete(item);
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Results.NoContent();
+            return Results.NoContent();
+        }
+        catch (PersistenceConflictException exception) when (exception.Kind == PersistenceConflictKind.ForeignKeyViolation)
+        {
+            return EndpointErrors.Conflict("owned_item.delete_conflict", "Owned item has dependent data");
+        }
     }
 }
