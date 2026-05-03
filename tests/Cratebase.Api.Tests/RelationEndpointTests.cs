@@ -136,6 +136,19 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("artist_relation.type_invalid", invalidTypeDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Artist relation list returns a validation error for invalid type filters")]
+    public async Task Artist_relation_list_returns_a_validation_error_for_invalid_type_filters()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/artist-relations?type=influencedBy&limit=10&offset=0");
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("artist_relation.type_invalid", document.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Track relation endpoints validate references and support edit relations")]
     public async Task Track_relation_endpoints_validate_references_and_support_edit_relations()
     {
@@ -165,6 +178,19 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("track_relation.track_conflict", missingTrackDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, invalidTypeResponse.StatusCode);
         Assert.Equal("track_relation.type_invalid", invalidTypeDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact(DisplayName = "Track relation list returns a validation error for invalid type filters")]
+    public async Task Track_relation_list_returns_a_validation_error_for_invalid_type_filters()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/track-relations?type=coverOf&limit=10&offset=0");
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("track_relation.type_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name, string type = "person")

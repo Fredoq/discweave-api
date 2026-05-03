@@ -84,15 +84,22 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<TrackRelation> relations = ApplyFilters(
-            context.TrackRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
-            request.SourceTrackId,
-            request.TargetTrackId,
-            request.Type);
-        int total = await relations.CountAsync(cancellationToken);
-        TrackRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
+        try
+        {
+            IQueryable<TrackRelation> relations = ApplyFilters(
+                context.TrackRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
+                request.SourceTrackId,
+                request.TargetTrackId,
+                request.Type);
+            int total = await relations.CountAsync(cancellationToken);
+            TrackRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-        return Results.Ok(new ListResponse<TrackRelationResponse>([.. page.Select(TrackRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<TrackRelationResponse>([.. page.Select(TrackRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
     }
 
     private static async Task<IResult> UpdateTrackRelationAsync(

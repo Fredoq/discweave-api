@@ -94,16 +94,23 @@ public static class CreditsEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Credit> credits = ApplyFilters(
-            context.Credits.AsNoTracking().Where(credit => credit.CollectionId == currentCollection.CollectionId),
-            request.ContributorArtistId,
-            request.TargetType,
-            request.TargetId,
-            request.Role);
-        int total = await credits.CountAsync(cancellationToken);
-        Credit[] page = await credits.OrderBy(credit => credit.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
+        try
+        {
+            IQueryable<Credit> credits = ApplyFilters(
+                context.Credits.AsNoTracking().Where(credit => credit.CollectionId == currentCollection.CollectionId),
+                request.ContributorArtistId,
+                request.TargetType,
+                request.TargetId,
+                request.Role);
+            int total = await credits.CountAsync(cancellationToken);
+            Credit[] page = await credits.OrderBy(credit => credit.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-        return Results.Ok(new ListResponse<CreditResponse>([.. page.Select(CreditMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<CreditResponse>([.. page.Select(CreditMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
     }
 
     private static async Task<IResult> UpdateCreditAsync(

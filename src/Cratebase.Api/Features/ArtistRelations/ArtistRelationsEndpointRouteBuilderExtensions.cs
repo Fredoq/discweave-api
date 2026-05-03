@@ -84,15 +84,22 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<ArtistRelation> relations = ApplyFilters(
-            context.ArtistRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
-            request.SourceArtistId,
-            request.TargetArtistId,
-            request.Type);
-        int total = await relations.CountAsync(cancellationToken);
-        ArtistRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
+        try
+        {
+            IQueryable<ArtistRelation> relations = ApplyFilters(
+                context.ArtistRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
+                request.SourceArtistId,
+                request.TargetArtistId,
+                request.Type);
+            int total = await relations.CountAsync(cancellationToken);
+            ArtistRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-        return Results.Ok(new ListResponse<ArtistRelationResponse>([.. page.Select(ArtistRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<ArtistRelationResponse>([.. page.Select(ArtistRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
     }
 
     private static async Task<IResult> UpdateArtistRelationAsync(

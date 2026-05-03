@@ -108,6 +108,19 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("credit.role_invalid", invalidRoleDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Credit list returns a validation error for invalid role filters")]
+    public async Task Credit_list_returns_a_validation_error_for_invalid_role_filters()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/credits?role=sleeveDesigner&limit=10&offset=0");
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("credit.role_invalid", document.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Credit endpoints expose supported role codes")]
     public async Task Credit_endpoints_expose_supported_role_codes()
     {
