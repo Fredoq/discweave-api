@@ -59,27 +59,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          # Coverage exclusions are limited to generated persistence, bootstrapping, Identity POCO/claims glue, and Minimal API boundary glue. Endpoint behavior is covered by integration tests; DTOs, route registration, and HTTP result helpers do not carry independent branch behavior worth gating on line coverage.
+          # Coverage exclusions are limited to application bootstrap and generated EF Core migrations.
           $coverageExclusions = @(
             "**/Cratebase.Api/Program.cs",
-            "**/Cratebase.Api/Auth/CratebaseAuthorizationPolicies.cs",
-            "**/Cratebase.Api/Features/**/*Extensions.cs",
-            "**/Cratebase.Api/Features/**/*Request.cs",
-            "**/Cratebase.Api/Features/**/*Response.cs",
-            "**/Cratebase.Api/Features/**/*Mapper.cs",
-            "**/Cratebase.Api/Features/CatalogingMapper.cs",
-            "**/Cratebase.Api/Http/**",
-            "**/Persistence/**",
-            "**/Application/Persistence/**",
-            "**/Cratebase.Infrastructure/DependencyInjection.cs",
-            "**/Cratebase.Infrastructure/Identity/CratebaseRoles.cs",
-            "**/Cratebase.Infrastructure/Identity/CratebaseUser.cs",
-            "**/Cratebase.Infrastructure/Identity/CratebaseUserClaimsPrincipalFactory.cs",
-            "**/Cratebase.Domain/Collection/OwnedItem.cs",
-            "**/Cratebase.Domain/Catalog/ReleaseSummary.cs",
-            "**/Cratebase.Domain/Catalog/ReleaseTrack.cs",
-            "**/Cratebase.Domain/Catalog/Track.cs",
-            "**/Cratebase.Domain/Catalog/TrackPosition.cs"
+            "**/Persistence/Migrations/**"
           ) -join ","
           $duplicationExclusions = @(
             "**/Persistence/Migrations/**"
