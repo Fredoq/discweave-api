@@ -37,7 +37,8 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
             new { contributorArtistId = artistId, targetType = "track", targetId = trackId, role = "remixer" });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
-        using HttpResponseMessage listResponse = await client.GetAsync($"/api/credits?contributorArtistId={artistId}&role=remixer&limit=10&offset=0");
+        using HttpResponseMessage listResponse = await client.GetAsync(
+            $"/api/credits?contributorArtistId={artistId}&targetType=track&targetId={trackId}&role=remixer&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
 
         using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/credits/{creditId}");
@@ -75,9 +76,71 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("credit.target_conflict", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Credit endpoints validate references and request codes")]
+    public async Task Credit_endpoints_validate_references_and_request_codes()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Arthur Baker");
+        Guid releaseId = await CreateReleaseAsync(client, "Confusion");
+        var missingArtistId = Guid.CreateVersion7();
+
+        using HttpResponseMessage missingContributorResponse = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId = missingArtistId, targetType = "release", targetId = releaseId, role = "producer" });
+        using JsonDocument missingContributorDocument = await ReadJsonAsync(missingContributorResponse);
+
+        using HttpResponseMessage invalidTargetResponse = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId = artistId, targetType = "video", targetId = releaseId, role = "producer" });
+        using JsonDocument invalidTargetDocument = await ReadJsonAsync(invalidTargetResponse);
+
+        using HttpResponseMessage invalidRoleResponse = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role = "sleeveDesigner" });
+        using JsonDocument invalidRoleDocument = await ReadJsonAsync(invalidRoleResponse);
+
+        Assert.Equal(HttpStatusCode.Conflict, missingContributorResponse.StatusCode);
+        Assert.Equal("credit.contributor_conflict", missingContributorDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, invalidTargetResponse.StatusCode);
+        Assert.Equal("credit.target_type_invalid", invalidTargetDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, invalidRoleResponse.StatusCode);
+        Assert.Equal("credit.role_invalid", invalidRoleDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact(DisplayName = "Credit endpoints expose supported role codes")]
+    public async Task Credit_endpoints_expose_supported_role_codes()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "New Order", "group");
+        Guid releaseId = await CreateReleaseAsync(client, "Technique");
+        string[] roles = ["mainArtist", "featuredArtist", "composer", "performer", "engineer"];
+
+        foreach (string role in roles)
+        {
+            using HttpResponseMessage response = await client.PostAsJsonAsync(
+                "/api/credits",
+                new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role });
+            using JsonDocument document = await ReadJsonAsync(response);
+
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal(role, document.RootElement.GetProperty("role").GetString());
+        }
+    }
+
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type = "person", name });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name, string type)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type, name });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
