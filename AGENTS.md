@@ -237,6 +237,7 @@ When RabbitMQ is introduced:
 
 ## CI and Code Quality
 
+- Pull requests opened by Codex must be ready for review by default. Do not open draft pull requests unless the project owner explicitly asks for a draft.
 - SonarCloud quality gates must be satisfied by tests and focused code changes, not by broad exclusions.
 - Sonar coverage exclusions must stay narrow. Only application bootstrap (`Program.cs`) and generated EF Core migrations are acceptable by default.
 - Sonar duplication exclusions may exclude generated EF Core migrations.
