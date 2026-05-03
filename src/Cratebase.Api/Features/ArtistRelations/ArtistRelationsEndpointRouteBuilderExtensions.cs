@@ -13,6 +13,9 @@ namespace Cratebase.Api.Features.ArtistRelations;
 
 public static class ArtistRelationsEndpointRouteBuilderExtensions
 {
+    private const string ArtistRelationNotFoundCode = "artist_relation.not_found";
+    private const string ArtistRelationNotFoundMessage = "Artist relation was not found";
+
     public static IEndpointRouteBuilder MapArtistRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -66,30 +69,26 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
             cancellationToken);
 
         return relation is null
-            ? EndpointErrors.NotFound("artist_relation.not_found", "Artist relation was not found")
+            ? EndpointErrors.NotFound(ArtistRelationNotFoundCode, ArtistRelationNotFoundMessage)
             : Results.Ok(ArtistRelationMapper.ToResponse(relation));
     }
 
     private static async Task<IResult> ListArtistRelationsAsync(
-        Guid? sourceArtistId,
-        Guid? targetArtistId,
-        string? type,
-        int? limit,
-        int? offset,
+        [AsParameters] ArtistRelationListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
 
         IQueryable<ArtistRelation> relations = ApplyFilters(
             context.ArtistRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
-            sourceArtistId,
-            targetArtistId,
-            type);
+            request.SourceArtistId,
+            request.TargetArtistId,
+            request.Type);
         int total = await relations.CountAsync(cancellationToken);
         ArtistRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -108,14 +107,14 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
         ArtistRelation? relation = await relations.TryFindAsync(new ArtistRelationId(relationId), cancellationToken);
         if (relation is null)
         {
-            return EndpointErrors.NotFound("artist_relation.not_found", "Artist relation was not found");
+            return EndpointErrors.NotFound(ArtistRelationNotFoundCode, ArtistRelationNotFoundMessage);
         }
 
         try
         {
             if (relation.CollectionId != currentCollection.CollectionId)
             {
-                return EndpointErrors.NotFound("artist_relation.not_found", "Artist relation was not found");
+                return EndpointErrors.NotFound(ArtistRelationNotFoundCode, ArtistRelationNotFoundMessage);
             }
 
             if (!await ArtistsExistAsync(request.SourceArtistId, request.TargetArtistId, context, currentCollection.CollectionId, cancellationToken))
@@ -159,7 +158,7 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
         ArtistRelation? relation = await relations.TryFindAsync(new ArtistRelationId(relationId), cancellationToken);
         if (relation is null || relation.CollectionId != currentCollection.CollectionId)
         {
-            return EndpointErrors.NotFound("artist_relation.not_found", "Artist relation was not found");
+            return EndpointErrors.NotFound(ArtistRelationNotFoundCode, ArtistRelationNotFoundMessage);
         }
 
         try

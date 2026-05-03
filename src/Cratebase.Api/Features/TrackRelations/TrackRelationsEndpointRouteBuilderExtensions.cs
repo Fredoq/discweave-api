@@ -13,6 +13,9 @@ namespace Cratebase.Api.Features.TrackRelations;
 
 public static class TrackRelationsEndpointRouteBuilderExtensions
 {
+    private const string TrackRelationNotFoundCode = "track_relation.not_found";
+    private const string TrackRelationNotFoundMessage = "Track relation was not found";
+
     public static IEndpointRouteBuilder MapTrackRelationsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -66,30 +69,26 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
             cancellationToken);
 
         return relation is null
-            ? EndpointErrors.NotFound("track_relation.not_found", "Track relation was not found")
+            ? EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage)
             : Results.Ok(TrackRelationMapper.ToResponse(relation));
     }
 
     private static async Task<IResult> ListTrackRelationsAsync(
-        Guid? sourceTrackId,
-        Guid? targetTrackId,
-        string? type,
-        int? limit,
-        int? offset,
+        [AsParameters] TrackRelationListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
 
         IQueryable<TrackRelation> relations = ApplyFilters(
             context.TrackRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
-            sourceTrackId,
-            targetTrackId,
-            type);
+            request.SourceTrackId,
+            request.TargetTrackId,
+            request.Type);
         int total = await relations.CountAsync(cancellationToken);
         TrackRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -108,14 +107,14 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
         TrackRelation? relation = await relations.TryFindAsync(new TrackRelationId(relationId), cancellationToken);
         if (relation is null)
         {
-            return EndpointErrors.NotFound("track_relation.not_found", "Track relation was not found");
+            return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
         }
 
         try
         {
             if (relation.CollectionId != currentCollection.CollectionId)
             {
-                return EndpointErrors.NotFound("track_relation.not_found", "Track relation was not found");
+                return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
             }
 
             if (!await TracksExistAsync(request.SourceTrackId, request.TargetTrackId, context, currentCollection.CollectionId, cancellationToken))
@@ -150,7 +149,7 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
         TrackRelation? relation = await relations.TryFindAsync(new TrackRelationId(relationId), cancellationToken);
         if (relation is null || relation.CollectionId != currentCollection.CollectionId)
         {
-            return EndpointErrors.NotFound("track_relation.not_found", "Track relation was not found");
+            return EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage);
         }
 
         try

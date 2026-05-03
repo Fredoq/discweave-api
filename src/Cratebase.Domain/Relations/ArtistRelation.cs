@@ -7,6 +7,9 @@ namespace Cratebase.Domain.Relations;
 
 public sealed class ArtistRelation : IEntity<ArtistRelationId>
 {
+    private const string SelfRelationCode = "artist_relation.self_relation";
+    private const string SelfRelationMessage = "Artist relation cannot reference the same artist twice";
+
     private int? _periodStartYear;
     private int? _periodEndYear;
 
@@ -50,7 +53,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         ArtistRelationType type)
     {
         return sourceArtistId == targetArtistId
-            ? throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice")
+            ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
             : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.Missing<ArtistRelationPeriod>());
     }
 
@@ -65,7 +68,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         ArgumentNullException.ThrowIfNull(period);
 
         return sourceArtistId == targetArtistId
-            ? throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice")
+            ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
             : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.From(period));
     }
 
@@ -76,7 +79,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
     {
         if (sourceArtistId == targetArtistId)
         {
-            throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice");
+            throw new DomainException(SelfRelationCode, SelfRelationMessage);
         }
 
         SourceArtistId = sourceArtistId;
@@ -95,7 +98,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
         if (sourceArtistId == targetArtistId)
         {
-            throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice");
+            throw new DomainException(SelfRelationCode, SelfRelationMessage);
         }
 
         SourceArtistId = sourceArtistId;

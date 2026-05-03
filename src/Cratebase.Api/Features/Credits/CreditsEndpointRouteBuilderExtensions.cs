@@ -14,6 +14,9 @@ namespace Cratebase.Api.Features.Credits;
 
 public static class CreditsEndpointRouteBuilderExtensions
 {
+    private const string CreditNotFoundCode = "credit.not_found";
+    private const string CreditNotFoundMessage = "Credit was not found";
+
     public static IEndpointRouteBuilder MapCreditsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -76,32 +79,27 @@ public static class CreditsEndpointRouteBuilderExtensions
             cancellationToken);
 
         return credit is null
-            ? EndpointErrors.NotFound("credit.not_found", "Credit was not found")
+            ? EndpointErrors.NotFound(CreditNotFoundCode, CreditNotFoundMessage)
             : Results.Ok(CreditMapper.ToResponse(credit));
     }
 
     private static async Task<IResult> ListCreditsAsync(
-        Guid? contributorArtistId,
-        string? targetType,
-        Guid? targetId,
-        string? role,
-        int? limit,
-        int? offset,
+        [AsParameters] CreditListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
 
         IQueryable<Credit> credits = ApplyFilters(
             context.Credits.AsNoTracking().Where(credit => credit.CollectionId == currentCollection.CollectionId),
-            contributorArtistId,
-            targetType,
-            targetId,
-            role);
+            request.ContributorArtistId,
+            request.TargetType,
+            request.TargetId,
+            request.Role);
         int total = await credits.CountAsync(cancellationToken);
         Credit[] page = await credits.OrderBy(credit => credit.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -120,14 +118,14 @@ public static class CreditsEndpointRouteBuilderExtensions
         Credit? credit = await credits.TryFindAsync(new CreditId(creditId), cancellationToken);
         if (credit is null)
         {
-            return EndpointErrors.NotFound("credit.not_found", "Credit was not found");
+            return EndpointErrors.NotFound(CreditNotFoundCode, CreditNotFoundMessage);
         }
 
         try
         {
             if (credit.CollectionId != currentCollection.CollectionId)
             {
-                return EndpointErrors.NotFound("credit.not_found", "Credit was not found");
+                return EndpointErrors.NotFound(CreditNotFoundCode, CreditNotFoundMessage);
             }
 
             Artist? contributor = await context.Artists.SingleOrDefaultAsync(
@@ -171,7 +169,7 @@ public static class CreditsEndpointRouteBuilderExtensions
         Credit? credit = await credits.TryFindAsync(new CreditId(creditId), cancellationToken);
         if (credit is null || credit.CollectionId != currentCollection.CollectionId)
         {
-            return EndpointErrors.NotFound("credit.not_found", "Credit was not found");
+            return EndpointErrors.NotFound(CreditNotFoundCode, CreditNotFoundMessage);
         }
 
         try
