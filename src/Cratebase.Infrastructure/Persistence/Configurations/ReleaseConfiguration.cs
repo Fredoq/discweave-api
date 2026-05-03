@@ -10,6 +10,7 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
+    private const string CollectionIdProperty = nameof(Release.CollectionId);
     private const string ReleaseIdColumn = "release_id";
 
     public void Configure(EntityTypeBuilder<Release> builder)
@@ -121,12 +122,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
-            _ = track.Property<CollectionId>("CollectionId")
+            _ = track.Property<CollectionId>(CollectionIdProperty)
                 .HasColumnName("collection_id")
                 .HasConversion(PersistenceValueConverters.CollectionId);
 
             _ = track.WithOwner()
-                .HasForeignKey("CollectionId", ReleaseIdColumn)
+                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
                 .HasPrincipalKey(release => new { release.CollectionId, release.Id });
 
             _ = track.Property(releaseTrack => releaseTrack.TrackId)
@@ -135,7 +136,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasOne<Track>()
                 .WithMany()
-                .HasForeignKey("CollectionId", nameof(ReleaseTrack.TrackId))
+                .HasForeignKey(CollectionIdProperty, nameof(ReleaseTrack.TrackId))
                 .HasPrincipalKey(track => new { track.CollectionId, track.Id })
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -168,7 +169,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 
             _ = track.HasIndex(ReleaseIdColumn);
             _ = track.HasIndex(releaseTrack => releaseTrack.TrackId);
-            _ = track.HasIndex("CollectionId");
+            _ = track.HasIndex(CollectionIdProperty);
         });
 
         _ = builder.Navigation(release => release.Tracklist)

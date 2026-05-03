@@ -81,15 +81,13 @@ builder.Services.AddScoped(provider =>
         ? new CratebaseDbContext(options, provider.GetRequiredService<ICurrentCollection>())
         : new CratebaseDbContext(options);
 });
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(CratebaseAuthorizationPolicies.Admin, policy => policy.RequireRole(CratebaseRoles.Admin));
-    options.AddPolicy(CratebaseAuthorizationPolicies.CollectionMember, policy =>
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(CratebaseAuthorizationPolicies.Admin, policy => policy.RequireRole(CratebaseRoles.Admin))
+    .AddPolicy(CratebaseAuthorizationPolicies.CollectionMember, policy =>
     {
         _ = policy.RequireAuthenticatedUser();
         _ = policy.RequireAssertion(context => HasValidCollectionScope(context.User));
     });
-});
 
 WebApplication app = builder.Build();
 

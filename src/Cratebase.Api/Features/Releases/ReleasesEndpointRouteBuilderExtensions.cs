@@ -13,6 +13,8 @@ namespace Cratebase.Api.Features.Releases;
 
 public static class ReleasesEndpointRouteBuilderExtensions
 {
+    private const string LabelConflictCode = "release.label_conflict";
+    private const string LabelMissingMessage = "Release label does not exist";
     private const string OtherTypeCode = "other";
 
     public static IEndpointRouteBuilder MapReleasesEndpoints(this IEndpointRouteBuilder endpoints)
@@ -43,7 +45,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
             Release release = ApplyReleaseRequest(Release.Create(currentCollection.CollectionId, ReleaseId.New(), request.Title), request);
             if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
             {
-                return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+                return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
             }
 
             IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
@@ -58,7 +60,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         }
         catch (ReferencedResourceMissingException)
         {
-            return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+            return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
         }
     }
 
@@ -120,7 +122,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
             _ = ApplyReleaseRequest(release, request);
             if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
             {
-                return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+                return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
             }
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -133,7 +135,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         }
         catch (ReferencedResourceMissingException)
         {
-            return EndpointErrors.Conflict("release.label_conflict", "Release label does not exist");
+            return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
         }
     }
 
