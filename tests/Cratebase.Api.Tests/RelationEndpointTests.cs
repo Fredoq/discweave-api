@@ -36,6 +36,11 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
             new { sourceArtistId = artistId, targetArtistId = groupId, type = "collaboration", startYear = 1980, endYear = 1983 });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
+        using HttpResponseMessage selfUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/artist-relations/{relationId}",
+            new { sourceArtistId = artistId, targetArtistId = artistId, type = "alias" });
+        using JsonDocument selfUpdateDocument = await ReadJsonAsync(selfUpdateResponse);
+
         using HttpResponseMessage listResponse = await client.GetAsync($"/api/artist-relations?sourceArtistId={artistId}&type=collaboration&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
 
@@ -50,6 +55,8 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.Equal("collaboration", updateDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(1983, updateDocument.RootElement.GetProperty("endYear").GetInt32());
+        Assert.Equal(HttpStatusCode.BadRequest, selfUpdateResponse.StatusCode);
+        Assert.Equal("artist_relation.self_relation", selfUpdateDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(relationId, listDocument.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid());
@@ -79,6 +86,11 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
             new { sourceTrackId = remixId, targetTrackId = originalId, type = "versionOf" });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
+        using HttpResponseMessage selfUpdateResponse = await client.PutAsJsonAsync(
+            $"/api/track-relations/{relationId}",
+            new { sourceTrackId = remixId, targetTrackId = remixId, type = "versionOf" });
+        using JsonDocument selfUpdateDocument = await ReadJsonAsync(selfUpdateResponse);
+
         using HttpResponseMessage listResponse = await client.GetAsync($"/api/track-relations?targetTrackId={originalId}&type=versionOf&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
 
@@ -91,6 +103,8 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(relationId, getDocument.RootElement.GetProperty("id").GetGuid());
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.Equal("versionOf", updateDocument.RootElement.GetProperty("type").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, selfUpdateResponse.StatusCode);
+        Assert.Equal("track_relation.self_relation", selfUpdateDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(relationId, listDocument.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid());
@@ -120,6 +134,11 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
             new { sourceArtistId = artistId, targetArtistId = Guid.CreateVersion7(), type = "memberOf" });
         using JsonDocument missingArtistDocument = await ReadJsonAsync(missingArtistResponse);
 
+        using HttpResponseMessage selfRelationResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = artistId, targetArtistId = artistId, type = "alias" });
+        using JsonDocument selfRelationDocument = await ReadJsonAsync(selfRelationResponse);
+
         using HttpResponseMessage invalidTypeResponse = await client.PostAsJsonAsync(
             "/api/artist-relations",
             new { sourceArtistId = artistId, targetArtistId = aliasId, type = "influencedBy" });
@@ -132,6 +151,8 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("soloProject", soloProjectDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(HttpStatusCode.Conflict, missingArtistResponse.StatusCode);
         Assert.Equal("artist_relation.artist_conflict", missingArtistDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, selfRelationResponse.StatusCode);
+        Assert.Equal("artist_relation.self_relation", selfRelationDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, invalidTypeResponse.StatusCode);
         Assert.Equal("artist_relation.type_invalid", invalidTypeDocument.RootElement.GetProperty("code").GetString());
     }
@@ -167,6 +188,11 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
             new { sourceTrackId = editId, targetTrackId = Guid.CreateVersion7(), type = "remixOf" });
         using JsonDocument missingTrackDocument = await ReadJsonAsync(missingTrackResponse);
 
+        using HttpResponseMessage selfRelationResponse = await client.PostAsJsonAsync(
+            "/api/track-relations",
+            new { sourceTrackId = editId, targetTrackId = editId, type = "remixOf" });
+        using JsonDocument selfRelationDocument = await ReadJsonAsync(selfRelationResponse);
+
         using HttpResponseMessage invalidTypeResponse = await client.PostAsJsonAsync(
             "/api/track-relations",
             new { sourceTrackId = editId, targetTrackId = originalId, type = "coverOf" });
@@ -176,6 +202,8 @@ public sealed class RelationEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("editOf", editDocument.RootElement.GetProperty("type").GetString());
         Assert.Equal(HttpStatusCode.Conflict, missingTrackResponse.StatusCode);
         Assert.Equal("track_relation.track_conflict", missingTrackDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, selfRelationResponse.StatusCode);
+        Assert.Equal("track_relation.self_relation", selfRelationDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, invalidTypeResponse.StatusCode);
         Assert.Equal("track_relation.type_invalid", invalidTypeDocument.RootElement.GetProperty("code").GetString());
     }

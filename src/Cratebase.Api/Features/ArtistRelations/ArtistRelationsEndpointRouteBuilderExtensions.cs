@@ -220,6 +220,8 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
         ArtistId sourceId = new(sourceArtistId);
         ArtistId targetId = new(targetArtistId);
 
-        return await context.Artists.CountAsync(artist => artist.CollectionId == collectionId && (artist.Id == sourceId || artist.Id == targetId), cancellationToken) == 2;
+        return sourceArtistId == targetArtistId
+            ? await context.Artists.AnyAsync(artist => artist.CollectionId == collectionId && artist.Id == sourceId, cancellationToken)
+            : await context.Artists.CountAsync(artist => artist.CollectionId == collectionId && (artist.Id == sourceId || artist.Id == targetId), cancellationToken) == 2;
     }
 }

@@ -202,6 +202,8 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
         TrackId sourceId = new(sourceTrackId);
         TrackId targetId = new(targetTrackId);
 
-        return await context.Tracks.CountAsync(track => track.CollectionId == collectionId && (track.Id == sourceId || track.Id == targetId), cancellationToken) == 2;
+        return sourceTrackId == targetTrackId
+            ? await context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == sourceId, cancellationToken)
+            : await context.Tracks.CountAsync(track => track.CollectionId == collectionId && (track.Id == sourceId || track.Id == targetId), cancellationToken) == 2;
     }
 }

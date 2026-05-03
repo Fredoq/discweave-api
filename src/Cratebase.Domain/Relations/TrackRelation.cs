@@ -6,6 +6,9 @@ namespace Cratebase.Domain.Relations;
 
 public sealed class TrackRelation : IEntity<TrackRelationId>
 {
+    private const string SelfRelationCode = "track_relation.self_relation";
+    private const string SelfRelationMessage = "Track relation cannot reference the same track twice";
+
     private TrackRelation()
     {
     }
@@ -42,7 +45,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         TrackRelationType type)
     {
         return sourceTrackId == targetTrackId
-            ? throw new DomainException("track_relation.self_relation", "Track relation cannot reference the same track twice")
+            ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
             : new TrackRelation(collectionId, id, sourceTrackId, targetTrackId, type);
     }
 
@@ -50,7 +53,7 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
     {
         if (sourceTrackId == targetTrackId)
         {
-            throw new DomainException("track_relation.self_relation", "Track relation cannot reference the same track twice");
+            throw new DomainException(SelfRelationCode, SelfRelationMessage);
         }
 
         SourceTrackId = sourceTrackId;
