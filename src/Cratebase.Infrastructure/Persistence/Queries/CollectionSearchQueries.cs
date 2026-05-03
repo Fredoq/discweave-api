@@ -10,6 +10,9 @@ namespace Cratebase.Infrastructure.Persistence.Queries;
 
 public sealed class CollectionSearchQueries : ICollectionSearchQueries
 {
+    private const string ReleaseResultType = "release";
+    private const string TrackResultType = "track";
+
     private readonly CratebaseDbContext _context;
     private readonly CollectionId _collectionId;
 
@@ -80,23 +83,17 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
     private static void AddArtists(string term, SearchResultAccumulator accumulator, IReadOnlyList<Artist> artists)
     {
-        foreach (Artist artist in artists)
+        foreach (Artist artist in artists.Where(artist => ContainsTerm(artist.Name, term)))
         {
-            if (ContainsTerm(artist.Name, term))
-            {
-                accumulator.Add(artist.Id.Value, "artist", artist.Name, SearchResultCodes.ArtistType(artist), "name", 100);
-            }
+            accumulator.Add(artist.Id.Value, "artist", artist.Name, SearchResultCodes.ArtistType(artist), "name", 100);
         }
     }
 
     private static void AddLabels(string term, SearchResultAccumulator accumulator, IReadOnlyList<Label> labels)
     {
-        foreach (Label label in labels)
+        foreach (Label label in labels.Where(label => ContainsTerm(label.Name, term)))
         {
-            if (ContainsTerm(label.Name, term))
-            {
-                accumulator.Add(label.Id.Value, "label", label.Name, null, "name", 90);
-            }
+            accumulator.Add(label.Id.Value, "label", label.Name, null, "name", 90);
         }
     }
 
@@ -108,21 +105,22 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     {
         foreach (Release release in releases)
         {
-            AddIfContains(accumulator, term, release.Id.Value, "release", release.Summary.Title, ReleaseSubtitle(release, labelNames), "title", release.Summary.Title, 100);
+            SearchTarget target = new(release.Id.Value, ReleaseResultType, release.Summary.Title, ReleaseSubtitle(release, labelNames));
+            AddIfContains(accumulator, term, target, "title", release.Summary.Title, 100);
 
             if (TryGetReleaseLabelName(release, labelNames, out string? labelName) && labelName is not null)
             {
-                AddIfContains(accumulator, term, release.Id.Value, "release", release.Summary.Title, ReleaseSubtitle(release, labelNames), "label", labelName, 80);
+                AddIfContains(accumulator, term, target, "label", labelName, 80);
             }
 
             foreach (Genre genre in release.Cataloging.Genres)
             {
-                AddIfContains(accumulator, term, release.Id.Value, "release", release.Summary.Title, ReleaseSubtitle(release, labelNames), "genre", genre.Name, 60);
+                AddIfContains(accumulator, term, target, "genre", genre.Name, 60);
             }
 
             foreach (Tag tag in release.Cataloging.Tags)
             {
-                AddIfContains(accumulator, term, release.Id.Value, "release", release.Summary.Title, ReleaseSubtitle(release, labelNames), "tag", tag.Name, 70);
+                AddIfContains(accumulator, term, target, "tag", tag.Name, 70);
             }
         }
     }
@@ -131,16 +129,17 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     {
         foreach (Track track in tracks)
         {
-            AddIfContains(accumulator, term, track.Id.Value, "track", track.Title, null, "title", track.Title, 100);
+            SearchTarget target = new(track.Id.Value, TrackResultType, track.Title, null);
+            AddIfContains(accumulator, term, target, "title", track.Title, 100);
 
             foreach (Genre genre in track.Cataloging.Genres)
             {
-                AddIfContains(accumulator, term, track.Id.Value, "track", track.Title, null, "genre", genre.Name, 60);
+                AddIfContains(accumulator, term, target, "genre", genre.Name, 60);
             }
 
             foreach (Tag tag in track.Cataloging.Tags)
             {
-                AddIfContains(accumulator, term, track.Id.Value, "track", track.Title, null, "tag", tag.Name, 70);
+                AddIfContains(accumulator, term, target, "tag", tag.Name, 70);
             }
         }
     }
@@ -165,8 +164,8 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
             (Guid id, string type, string title) = target switch
             {
-                ReleaseCreditTarget releaseTarget when releases.TryGetValue(releaseTarget.ReleaseId, out Release? release) => (release.Id.Value, "release", release.Summary.Title),
-                TrackCreditTarget trackTarget when tracks.TryGetValue(trackTarget.TrackId, out Track? track) => (track.Id.Value, "track", track.Title),
+                ReleaseCreditTarget releaseTarget when releases.TryGetValue(releaseTarget.ReleaseId, out Release? release) => (release.Id.Value, ReleaseResultType, release.Summary.Title),
+                TrackCreditTarget trackTarget when tracks.TryGetValue(trackTarget.TrackId, out Track? track) => (track.Id.Value, TrackResultType, track.Title),
                 _ => (Guid.Empty, string.Empty, string.Empty)
             };
             if (id == Guid.Empty)
@@ -222,17 +221,14 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     private static void AddIfContains(
         SearchResultAccumulator accumulator,
         string term,
-        Guid id,
-        string type,
-        string title,
-        string? subtitle,
+        SearchTarget target,
         string matchedField,
         string value,
         int score)
     {
         if (ContainsTerm(value, term))
         {
-            accumulator.Add(id, type, title, subtitle, matchedField, score);
+            accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
         }
     }
 
@@ -268,4 +264,5 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         };
     }
 
+    private readonly record struct SearchTarget(Guid Id, string Type, string Title, string? Subtitle);
 }
