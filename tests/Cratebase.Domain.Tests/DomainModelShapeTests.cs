@@ -99,6 +99,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
+            typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!
         ];
         string[] actualTypes =
@@ -129,6 +130,7 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
+            typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!
         ];
         string[] actualTypes =

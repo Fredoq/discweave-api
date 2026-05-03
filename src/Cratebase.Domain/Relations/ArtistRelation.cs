@@ -69,6 +69,41 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
             : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.From(period));
     }
 
+    public void Update(
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type)
+    {
+        if (sourceArtistId == targetArtistId)
+        {
+            throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice");
+        }
+
+        SourceArtistId = sourceArtistId;
+        TargetArtistId = targetArtistId;
+        Type = type;
+        SetPeriod(Optional.Missing<ArtistRelationPeriod>());
+    }
+
+    public void Update(
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type,
+        ArtistRelationPeriod period)
+    {
+        ArgumentNullException.ThrowIfNull(period);
+
+        if (sourceArtistId == targetArtistId)
+        {
+            throw new DomainException("artist_relation.self_relation", "Artist relation cannot reference the same artist twice");
+        }
+
+        SourceArtistId = sourceArtistId;
+        TargetArtistId = targetArtistId;
+        Type = type;
+        SetPeriod(Optional.From(period));
+    }
+
     private void SetPeriod(IOptionalValue<ArtistRelationPeriod> period)
     {
         if (period is not PresentOptionalValue<ArtistRelationPeriod> presentPeriod)

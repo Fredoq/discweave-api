@@ -6,6 +6,10 @@ namespace Cratebase.Domain.Relations;
 
 public sealed class TrackRelation : IEntity<TrackRelationId>
 {
+    private TrackRelation()
+    {
+    }
+
     private TrackRelation(
         CollectionId collectionId,
         TrackRelationId id,
@@ -20,15 +24,15 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         RelationType = relationType;
     }
 
-    public CollectionId CollectionId { get; }
+    public CollectionId CollectionId { get; private set; }
 
-    public TrackRelationId Id { get; }
+    public TrackRelationId Id { get; private set; }
 
-    public TrackId SourceTrackId { get; }
+    public TrackId SourceTrackId { get; private set; }
 
-    public TrackId TargetTrackId { get; }
+    public TrackId TargetTrackId { get; private set; }
 
-    public TrackRelationType RelationType { get; }
+    public TrackRelationType RelationType { get; private set; }
 
     public static TrackRelation Create(
         TrackRelationId id,
@@ -40,5 +44,17 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         return sourceTrackId == targetTrackId
             ? throw new DomainException("track_relation.self_relation", "Track relation cannot reference the same track twice")
             : new TrackRelation(collectionId, id, sourceTrackId, targetTrackId, type);
+    }
+
+    public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)
+    {
+        if (sourceTrackId == targetTrackId)
+        {
+            throw new DomainException("track_relation.self_relation", "Track relation cannot reference the same track twice");
+        }
+
+        SourceTrackId = sourceTrackId;
+        TargetTrackId = targetTrackId;
+        RelationType = type;
     }
 }
