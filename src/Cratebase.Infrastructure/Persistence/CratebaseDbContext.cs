@@ -26,14 +26,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
     {
         ArgumentNullException.ThrowIfNull(currentCollection);
 
-        try
-        {
-            CurrentCollectionId = currentCollection.CollectionId;
-            HasCurrentCollection = true;
-        }
-        catch (InvalidOperationException)
-        {
-        }
+        CurrentCollectionId = currentCollection.CollectionId;
+        HasCurrentCollection = true;
     }
 
     public DbSet<MusicCollection> MusicCollections => Set<MusicCollection>();
@@ -97,7 +91,25 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 
+        ConfigureIdentity(builder);
         ConfigureCollectionFilters(builder);
+    }
+
+    private static void ConfigureIdentity(ModelBuilder builder)
+    {
+        _ = builder.Entity<CratebaseUser>(user =>
+        {
+            _ = user.Property(value => value.DefaultCollectionId)
+                .HasConversion(
+                    value => value.HasValue ? value.Value.Value : (Guid?)null,
+                    value => value.HasValue ? new CollectionId(value.Value) : null);
+
+            _ = user.HasOne<MusicCollection>()
+                .WithMany()
+                .HasForeignKey(value => value.DefaultCollectionId)
+                .HasPrincipalKey(collection => collection.Id)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 
     private void ConfigureCollectionFilters(ModelBuilder modelBuilder)

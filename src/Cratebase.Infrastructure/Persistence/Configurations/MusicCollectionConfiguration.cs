@@ -38,6 +38,7 @@ internal sealed class MusicCollectionConfiguration : IEntityTypeConfiguration<Mu
             .HasColumnName("created_at")
             .IsRequired();
 
-        _ = builder.HasIndex(collection => collection.OwnerUserId);
+        _ = builder.HasIndex(collection => collection.OwnerUserId)
+            .IsUnique();
     }
 }

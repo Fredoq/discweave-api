@@ -118,7 +118,8 @@ public sealed class OwnedItemTests
     [Fact]
     public void Owned_item_can_store_condition_and_storage_location()
     {
-        OwnedItem item = OwnedItem.Create(CollectionId.New(),
+        var collectionId = CollectionId.New();
+        OwnedItem item = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
                 OwnedItemTarget.ForRelease(ReleaseId.New()),
                 OwnershipStatus.Wanted,
@@ -128,6 +129,7 @@ public sealed class OwnedItemTests
             .WithStorageLocation(StorageLocation.FromName("Shelf A"));
 
         Assert.Equal(OwnershipStatus.Owned, item.Holding.Status);
+        Assert.Equal(collectionId, item.CollectionId);
         Assert.Equal(
             ItemCondition.VeryGoodPlus,
             Assert.IsType<PresentOptionalValue<ItemCondition>>(item.Holding.Details.Condition).Value);

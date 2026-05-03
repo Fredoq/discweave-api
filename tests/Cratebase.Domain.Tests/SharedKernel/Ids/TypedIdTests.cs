@@ -36,4 +36,11 @@ public sealed class TypedIdTests
     {
         Assert.Equal(7, Guid.Parse(value).Version);
     }
+
+    [Fact]
+    public void User_and_collection_ids_reject_empty_guids()
+    {
+        _ = Assert.Throws<ArgumentException>(() => new CollectionId(Guid.Empty));
+        _ = Assert.Throws<ArgumentException>(() => new UserId(Guid.Empty));
+    }
 }

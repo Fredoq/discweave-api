@@ -18,7 +18,10 @@ public sealed class CratebaseUserClaimsPrincipalFactory : UserClaimsPrincipalFac
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(CratebaseUser user)
     {
         ClaimsIdentity identity = await base.GenerateClaimsAsync(user);
-        identity.AddClaim(new Claim(CratebaseClaimTypes.DefaultCollectionId, user.DefaultCollectionId.ToString()));
+        if (user.DefaultCollectionId is { } defaultCollectionId)
+        {
+            identity.AddClaim(new Claim(CratebaseClaimTypes.DefaultCollectionId, defaultCollectionId.Value.ToString()));
+        }
 
         return identity;
     }

@@ -10,16 +10,17 @@ public sealed class CreditTests
     [Fact]
     public void Credit_links_an_artist_contributor_to_a_release_or_track_target_through_a_role()
     {
-        var person = Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker");
-        var group = Group.Create(CollectionId.New(), ArtistId.New(), "New Order");
+        var collectionId = CollectionId.New();
+        var person = Person.Create(collectionId, ArtistId.New(), "Arthur Baker");
+        var group = Group.Create(collectionId, ArtistId.New(), "New Order");
         var releaseId = ReleaseId.New();
         var trackId = TrackId.New();
-        var releaseCredit = Credit.Create(CollectionId.New(),
+        var releaseCredit = Credit.Create(collectionId,
             CreditId.New(),
             CreditContributor.FromArtist(group),
             CreditTarget.ForRelease(releaseId),
             CreditRole.MainArtist);
-        var trackCredit = Credit.Create(CollectionId.New(),
+        var trackCredit = Credit.Create(collectionId,
             CreditId.New(),
             CreditContributor.FromArtist(person),
             CreditTarget.ForTrack(trackId),

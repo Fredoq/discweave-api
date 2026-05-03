@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -42,5 +43,11 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
             .HasValue<Group>("group");
 
         _ = builder.HasIndex(artist => artist.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(artist => artist.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

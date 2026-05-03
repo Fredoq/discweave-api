@@ -10,6 +10,8 @@ namespace Cratebase.Api.Features.Auth;
 
 public static class AuthEndpointRouteBuilderExtensions
 {
+    private const long FirstUserBootstrapLockKey = 807719852889734940;
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -34,28 +36,46 @@ public static class AuthEndpointRouteBuilderExtensions
         CratebaseDbContext context,
         CancellationToken cancellationToken)
     {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+        _ = await context.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({FirstUserBootstrapLockKey})", cancellationToken);
+
         if (await userManager.Users.AnyAsync(cancellationToken))
         {
             return EndpointErrors.Conflict("auth.registration_closed", "Public registration is closed");
         }
 
-        CratebaseUser user = CreateUser(request.Email, CollectionId.New());
+        IdentityResult rolesResult = await EnsureRolesAsync(roleManager);
+        if (!rolesResult.Succeeded)
+        {
+            return IdentityError(rolesResult);
+        }
+
+        var collectionId = CollectionId.New();
+        CratebaseUser user = CreateUser(request.Email);
         IdentityResult createResult = await userManager.CreateAsync(user, request.Password);
         if (!createResult.Succeeded)
         {
             return IdentityError(createResult);
         }
 
-        await EnsureRolesAsync(roleManager);
         IdentityResult roleResult = await userManager.AddToRolesAsync(user, [CratebaseRoles.Admin, CratebaseRoles.User]);
         if (!roleResult.Succeeded)
         {
             return IdentityError(roleResult);
         }
 
-        _ = context.MusicCollections.Add(MusicCollection.Create(new CollectionId(user.DefaultCollectionId), new UserId(user.Id), "Main collection"));
+        _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
         _ = await context.SaveChangesAsync(cancellationToken);
 
+        user.DefaultCollectionId = collectionId;
+        IdentityResult updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return IdentityError(updateResult);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         await signInManager.SignInAsync(user, isPersistent: true);
 
         return Results.Created("/api/auth/me", await ToResponseAsync(user, userManager));
@@ -67,7 +87,7 @@ public static class AuthEndpointRouteBuilderExtensions
         SignInManager<CratebaseUser> signInManager)
     {
         CratebaseUser? user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null || user.IsDisabled || !await userManager.CheckPasswordAsync(user, request.Password))
+        if (user is null || user.IsDisabled || user.DefaultCollectionId is null || !await userManager.CheckPasswordAsync(user, request.Password))
         {
             return EndpointErrors.Unauthorized("auth.invalid_credentials", "Email or password is invalid");
         }
@@ -87,12 +107,12 @@ public static class AuthEndpointRouteBuilderExtensions
     private static async Task<IResult> GetMeAsync(UserManager<CratebaseUser> userManager, HttpContext httpContext)
     {
         CratebaseUser? user = await userManager.GetUserAsync(httpContext.User);
-        return user is null || user.IsDisabled
+        return user is null || user.IsDisabled || user.DefaultCollectionId is null
             ? EndpointErrors.Unauthorized("auth.unauthenticated", "User is not authenticated")
             : Results.Ok(await ToResponseAsync(user, userManager));
     }
 
-    private static CratebaseUser CreateUser(string email, CollectionId collectionId)
+    private static CratebaseUser CreateUser(string email)
     {
         string normalizedEmail = email.Trim();
 
@@ -100,27 +120,37 @@ public static class AuthEndpointRouteBuilderExtensions
         {
             Id = Guid.CreateVersion7(),
             Email = normalizedEmail,
-            UserName = normalizedEmail,
-            DefaultCollectionId = collectionId.Value
+            UserName = normalizedEmail
         };
     }
 
-    private static async Task EnsureRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
+    private static async Task<IdentityResult> EnsureRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
         foreach (string roleName in new[] { CratebaseRoles.Admin, CratebaseRoles.User })
         {
             if (!await roleManager.RoleExistsAsync(roleName))
             {
-                _ = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+                IdentityResult result = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+                if (!result.Succeeded)
+                {
+                    return result;
+                }
             }
         }
+
+        return IdentityResult.Success;
     }
 
     private static async Task<AuthResponse> ToResponseAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
     {
         IReadOnlyList<string> roles = [.. await userManager.GetRolesAsync(user)];
 
-        return new AuthResponse(user.Id, user.Email ?? string.Empty, roles, user.DefaultCollectionId);
+        return new AuthResponse(user.Id, user.Email ?? string.Empty, roles, RequireDefaultCollectionId(user));
+    }
+
+    private static Guid RequireDefaultCollectionId(CratebaseUser user)
+    {
+        return user.DefaultCollectionId?.Value ?? throw new InvalidOperationException("Default collection is not initialized");
     }
 
     private static IResult IdentityError(IdentityResult result)

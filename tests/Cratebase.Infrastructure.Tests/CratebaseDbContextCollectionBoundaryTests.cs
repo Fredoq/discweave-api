@@ -24,7 +24,10 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         await AssertForeignKeyViolationAsync(async context =>
         {
             var releaseCollectionId = CollectionId.New();
-            var track = Track.Create(CollectionId.New(), TrackId.New(), "Confusion");
+            var trackCollectionId = CollectionId.New();
+            await TestCollectionFactory.AddCollectionAsync(context, releaseCollectionId);
+            await TestCollectionFactory.AddCollectionAsync(context, trackCollectionId);
+            var track = Track.Create(trackCollectionId, TrackId.New(), "Confusion");
             Release release = Release.Create(releaseCollectionId, ReleaseId.New(), "Confusion")
                 .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1)));
 
@@ -40,7 +43,10 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         await AssertForeignKeyViolationAsync(async context =>
         {
             var targetCollectionId = CollectionId.New();
-            Artist artist = Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker");
+            var artistCollectionId = CollectionId.New();
+            await TestCollectionFactory.AddCollectionAsync(context, targetCollectionId);
+            await TestCollectionFactory.AddCollectionAsync(context, artistCollectionId);
+            Artist artist = Person.Create(artistCollectionId, ArtistId.New(), "Arthur Baker");
             var release = Release.Create(targetCollectionId, ReleaseId.New(), "Confusion");
 
             _ = context.Artists.Add(artist);
@@ -56,8 +62,11 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         await AssertForeignKeyViolationAsync(async context =>
         {
             var relationCollectionId = CollectionId.New();
+            var targetCollectionId = CollectionId.New();
+            await TestCollectionFactory.AddCollectionAsync(context, relationCollectionId);
+            await TestCollectionFactory.AddCollectionAsync(context, targetCollectionId);
             Artist source = Person.Create(relationCollectionId, ArtistId.New(), "Arthur Baker");
-            Artist target = Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker Alias");
+            Artist target = Person.Create(targetCollectionId, ArtistId.New(), "Arthur Baker Alias");
 
             _ = context.Artists.Add(source);
             _ = context.Artists.Add(target);
@@ -72,7 +81,10 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         await AssertForeignKeyViolationAsync(async context =>
         {
             var itemCollectionId = CollectionId.New();
-            var release = Release.Create(CollectionId.New(), ReleaseId.New(), "Confusion");
+            var releaseCollectionId = CollectionId.New();
+            await TestCollectionFactory.AddCollectionAsync(context, itemCollectionId);
+            await TestCollectionFactory.AddCollectionAsync(context, releaseCollectionId);
+            var release = Release.Create(releaseCollectionId, ReleaseId.New(), "Confusion");
 
             _ = context.Releases.Add(release);
             _ = await context.SaveChangesAsync();
@@ -86,6 +98,8 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
         var firstCollectionId = CollectionId.New();
         var secondCollectionId = CollectionId.New();
+        await TestCollectionFactory.AddCollectionAsync(context, firstCollectionId);
+        await TestCollectionFactory.AddCollectionAsync(context, secondCollectionId);
         var firstRelease = Release.Create(firstCollectionId, ReleaseId.New(), "Confusion");
         var secondRelease = Release.Create(secondCollectionId, ReleaseId.New(), "Confusion");
 

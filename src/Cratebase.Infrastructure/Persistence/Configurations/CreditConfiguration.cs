@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
@@ -92,5 +93,11 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
         _ = builder.HasIndex("_targetTrackId");
         _ = builder.HasIndex(credit => credit.CollectionId);
         _ = builder.HasIndex(credit => credit.Role);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(credit => credit.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

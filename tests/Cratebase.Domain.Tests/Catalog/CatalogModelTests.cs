@@ -77,12 +77,13 @@ public sealed class CatalogModelTests
     [Fact]
     public void The_same_track_can_appear_on_multiple_releases_and_keep_one_canonical_rating()
     {
-        Track track = Track.Create(CollectionId.New(), TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
+        var collectionId = CollectionId.New();
+        Track track = Track.Create(collectionId, TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
         var firstReleaseId = ReleaseId.New();
         var secondReleaseId = ReleaseId.New();
-        Release firstRelease = Release.Create(CollectionId.New(), firstReleaseId, "Blue Monday")
+        Release firstRelease = Release.Create(collectionId, firstReleaseId, "Blue Monday")
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1)));
-        Release secondRelease = Release.Create(CollectionId.New(), secondReleaseId, "Substance")
+        Release secondRelease = Release.Create(collectionId, secondReleaseId, "Substance")
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(5)));
 
         Assert.Equal(track.Id, firstRelease.Tracklist.Single().TrackId);
@@ -123,10 +124,11 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_rating_is_independent_from_average_track_rating()
     {
-        Track firstTrack = Track.Create(CollectionId.New(), TrackId.New(), "Age of Consent").WithRating(Rating.FromValue(10));
-        Track secondTrack = Track.Create(CollectionId.New(), TrackId.New(), "We All Stand").WithRating(Rating.FromValue(8));
+        var collectionId = CollectionId.New();
+        Track firstTrack = Track.Create(collectionId, TrackId.New(), "Age of Consent").WithRating(Rating.FromValue(10));
+        Track secondTrack = Track.Create(collectionId, TrackId.New(), "We All Stand").WithRating(Rating.FromValue(8));
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(CollectionId.New(), releaseId, "Power, Corruption & Lies")
+        Release release = Release.Create(collectionId, releaseId, "Power, Corruption & Lies")
             .WithRating(Rating.FromValue(7))
             .WithTrack(ReleaseTrack.Create(firstTrack.Id, TrackPosition.FromNumber(1)))
             .WithTrack(ReleaseTrack.Create(secondTrack.Id, TrackPosition.FromNumber(2)));
@@ -141,10 +143,11 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_track_rating_summary_ignores_unrated_tracks_and_can_be_empty()
     {
-        Track ratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "Leave Me Alone").WithRating(Rating.FromValue(9));
-        var unratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "The Village");
+        var collectionId = CollectionId.New();
+        Track ratedTrack = Track.Create(collectionId, TrackId.New(), "Leave Me Alone").WithRating(Rating.FromValue(9));
+        var unratedTrack = Track.Create(collectionId, TrackId.New(), "The Village");
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(CollectionId.New(), releaseId, "Power, Corruption & Lies")
+        Release release = Release.Create(collectionId, releaseId, "Power, Corruption & Lies")
             .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(8)))
             .WithTrack(ReleaseTrack.Create(unratedTrack.Id, TrackPosition.FromNumber(9)));
 
@@ -160,10 +163,11 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_track_rating_summary_tolerates_duplicate_track_snapshots()
     {
-        Track ratedTrack = Track.Create(CollectionId.New(), TrackId.New(), "Ceremony").WithRating(Rating.FromValue(10));
-        Track duplicateSnapshot = Track.Create(CollectionId.New(), ratedTrack.Id, "Ceremony").WithRating(Rating.FromValue(8));
+        var collectionId = CollectionId.New();
+        Track ratedTrack = Track.Create(collectionId, TrackId.New(), "Ceremony").WithRating(Rating.FromValue(10));
+        Track duplicateSnapshot = Track.Create(collectionId, ratedTrack.Id, "Ceremony").WithRating(Rating.FromValue(8));
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(CollectionId.New(), releaseId, "Ceremony")
+        Release release = Release.Create(collectionId, releaseId, "Ceremony")
             .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(1)));
 
         ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [ratedTrack, duplicateSnapshot]);
@@ -175,8 +179,9 @@ public sealed class CatalogModelTests
     [Fact]
     public void Release_rejects_duplicate_track_positions()
     {
+        var collectionId = CollectionId.New();
         var releaseId = ReleaseId.New();
-        Release release = Release.Create(CollectionId.New(), releaseId, "Low-Life")
+        Release release = Release.Create(collectionId, releaseId, "Low-Life")
             .WithTrack(ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1)));
         var duplicatePosition = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1));
 

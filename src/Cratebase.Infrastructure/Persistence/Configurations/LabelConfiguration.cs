@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -38,5 +39,11 @@ internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
             .IsRequired();
 
         _ = builder.HasIndex(label => label.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(label => label.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

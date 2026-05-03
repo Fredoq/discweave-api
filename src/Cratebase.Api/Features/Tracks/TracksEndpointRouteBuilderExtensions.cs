@@ -1,3 +1,4 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
@@ -16,7 +17,9 @@ public static class TracksEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/tracks").WithTags("Tracks").RequireAuthorization();
+        RouteGroupBuilder group = endpoints.MapGroup("/api/tracks")
+            .WithTags("Tracks")
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateTrackAsync).WithName("CreateTrack");
         _ = group.MapGet("/{trackId:guid}", GetTrackAsync).WithName("GetTrack");
         _ = group.MapGet("", ListTracksAsync).WithName("ListTracks");

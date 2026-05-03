@@ -13,6 +13,17 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
         _postgres = postgres;
     }
 
+    [Fact(DisplayName = "Anonymous catalog requests are rejected")]
+    public async Task Anonymous_catalog_requests_are_rejected()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        using HttpClient client = host.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/releases");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact(DisplayName = "Creating a release with a missing label returns a conflict")]
     public async Task Creating_a_release_with_a_missing_label_returns_a_conflict()
     {

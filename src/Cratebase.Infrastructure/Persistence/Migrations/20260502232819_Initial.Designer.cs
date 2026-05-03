@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260502152325_Initial")]
+    [Migration("20260502232819_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -261,7 +261,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("collection_id");
 
-                    b.HasIndex("OwnerUserId");
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique();
 
                     b.ToTable("collections", (string)null);
                 });
@@ -591,7 +592,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("DefaultCollectionId")
+                    b.Property<Guid?>("DefaultCollectionId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Email")
@@ -638,6 +639,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DefaultCollectionId");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -793,8 +796,35 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasDiscriminator().HasValue("person");
                 });
 
+            modelBuilder.Entity("Cratebase.Domain.Catalog.Artist", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Catalog.Label", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Cratebase.Domain.Catalog.Release", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("Cratebase.Domain.Catalog.Genre", "_genres", b1 =>
                         {
                             b1.Property<Guid>("release_id")
@@ -926,6 +956,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Catalog.Track", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("Cratebase.Domain.Catalog.Genre", "_genres", b1 =>
                         {
                             b1.Property<Guid>("track_id")
@@ -973,6 +1010,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Collection.OwnedItem", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Release", null)
                         .WithMany()
                         .HasForeignKey("CollectionId", "_targetReleaseId")
@@ -988,6 +1032,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Credits.Credit", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Artist", null)
                         .WithMany()
                         .HasForeignKey("CollectionId", "_contributorArtistId")
@@ -1010,6 +1061,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Relations.ArtistRelation", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Artist", null)
                         .WithMany()
                         .HasForeignKey("CollectionId", "SourceArtistId")
@@ -1027,6 +1085,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Cratebase.Domain.Relations.TrackRelation", b =>
                 {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Cratebase.Domain.Catalog.Track", null)
                         .WithMany()
                         .HasForeignKey("CollectionId", "SourceTrackId")
@@ -1040,6 +1105,15 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Infrastructure.Identity.CratebaseUser", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultCollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

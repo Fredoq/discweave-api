@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Relations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -59,5 +60,11 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
         _ = builder.HasIndex(relation => relation.SourceTrackId);
         _ = builder.HasIndex(relation => relation.TargetTrackId);
         _ = builder.HasIndex(relation => relation.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(relation => relation.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

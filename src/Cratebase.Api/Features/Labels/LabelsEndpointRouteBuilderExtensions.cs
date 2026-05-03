@@ -1,3 +1,4 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
@@ -16,7 +17,9 @@ public static class LabelsEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/labels").WithTags("Labels").RequireAuthorization();
+        RouteGroupBuilder group = endpoints.MapGroup("/api/labels")
+            .WithTags("Labels")
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateLabelAsync).WithName("CreateLabel");
         _ = group.MapGet("/{labelId:guid}", GetLabelAsync).WithName("GetLabel");
         _ = group.MapGet("", ListLabelsAsync).WithName("ListLabels");

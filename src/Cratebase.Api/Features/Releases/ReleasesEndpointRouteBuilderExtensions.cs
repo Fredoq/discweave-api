@@ -1,3 +1,4 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
@@ -18,7 +19,9 @@ public static class ReleasesEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/releases").WithTags("Releases").RequireAuthorization();
+        RouteGroupBuilder group = endpoints.MapGroup("/api/releases")
+            .WithTags("Releases")
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateReleaseAsync).WithName("CreateRelease");
         _ = group.MapGet("/{releaseId:guid}", GetReleaseAsync).WithName("GetRelease");
         _ = group.MapGet("", ListReleasesAsync).WithName("ListReleases");

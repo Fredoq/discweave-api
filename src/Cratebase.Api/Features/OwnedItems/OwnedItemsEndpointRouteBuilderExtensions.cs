@@ -1,3 +1,4 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
@@ -16,7 +17,9 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        RouteGroupBuilder group = endpoints.MapGroup("/api/owned-items").WithTags("Owned Items").RequireAuthorization();
+        RouteGroupBuilder group = endpoints.MapGroup("/api/owned-items")
+            .WithTags("Owned Items")
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
         _ = group.MapPost("/", CreateOwnedItemAsync).WithName("CreateOwnedItem");
         _ = group.MapGet("/{ownedItemId:guid}", GetOwnedItemAsync).WithName("GetOwnedItem");
         _ = group.MapGet("", ListOwnedItemsAsync).WithName("ListOwnedItems");

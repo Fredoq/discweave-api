@@ -17,7 +17,13 @@ public sealed class HttpCurrentUser : ICurrentUser
     {
         get
         {
-            string? userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            ClaimsPrincipal? user = _httpContextAccessor.HttpContext?.User;
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                throw new InvalidOperationException("Current user is not authenticated");
+            }
+
+            string? userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
             return Guid.TryParse(userId, out Guid parsedUserId)
                 ? new UserId(parsedUserId)

@@ -66,6 +66,7 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
     {
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
         var collectionId = CollectionId.New();
+        await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         var labelId = LabelId.New();
         Track track = Track.Create(collectionId, TrackId.New(), "Age of Consent")
             .WithDuration(TimeSpan.FromSeconds(316))
@@ -117,6 +118,7 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
     {
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
         var collectionId = CollectionId.New();
+        await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         Artist artist = Person.Create(collectionId, ArtistId.New(), "Arthur Baker");
         Artist alias = Person.Create(collectionId, ArtistId.New(), "Arthur Baker Alias");
         var sourceTrack = Track.Create(collectionId, TrackId.New(), "Confusion Instrumental");
@@ -218,8 +220,10 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
     {
         await using CratebaseDbContext context = await CreateMigratedContextAsync();
         IRepository<Label, LabelId> labels = ((IUnitOfWork)context).GetRepository<Label, LabelId>();
+        var collectionId = CollectionId.New();
+        await TestCollectionFactory.AddCollectionAsync(context, collectionId);
         var labelId = LabelId.New();
-        var label = Label.Create(CollectionId.New(), labelId, "Factory");
+        var label = Label.Create(collectionId, labelId, "Factory");
 
         labels.Add(label);
         _ = await context.SaveChangesAsync();

@@ -16,14 +16,8 @@ public sealed class ArtistQueries : IArtistQueries
     public ArtistQueries(CratebaseDbContext context, ICurrentCollection currentCollection)
     {
         _context = context;
-        try
-        {
-            _collectionId = currentCollection.CollectionId;
-            _hasCollection = true;
-        }
-        catch (InvalidOperationException)
-        {
-        }
+        _collectionId = currentCollection.CollectionId;
+        _hasCollection = true;
     }
 
     public async Task<ArtistReadModel?> TryGetAsync(ArtistId artistId, CancellationToken cancellationToken = default)

@@ -1,3 +1,4 @@
+using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Catalog.Artists;
 using Cratebase.Application.Errors;
@@ -20,7 +21,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
 
         RouteGroupBuilder group = endpoints.MapGroup("/api/artists")
             .WithTags("Artists")
-            .RequireAuthorization();
+            .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
 
         _ = group.MapPost("/", CreateArtistAsync)
             .WithName("CreateArtist");
@@ -45,11 +46,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         try
         {
             string normalizedType = request.Type?.Trim() ?? string.Empty;
-            Artist? artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
-            if (artist is null)
-            {
-                return EndpointErrors.BadRequest("artist.type_invalid", "Artist type is invalid");
-            }
+            Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
 
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
@@ -167,7 +164,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         }
     }
 
-    private static Artist? CreateArtist(CollectionId collectionId, string type, string name)
+    private static Artist CreateArtist(CollectionId collectionId, string type, string name)
     {
         var artistId = ArtistId.New();
 
@@ -175,7 +172,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         {
             "person" => Person.Create(collectionId, artistId, name),
             "group" => Group.Create(collectionId, artistId, name),
-            _ => null
+            _ => throw new DomainException("artist.type_invalid", "Artist type is invalid")
         };
     }
 

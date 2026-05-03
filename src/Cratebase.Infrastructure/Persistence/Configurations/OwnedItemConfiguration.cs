@@ -127,6 +127,13 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
         _ = builder.HasIndex(item => item.CollectionId);
         _ = builder.HasIndex("_mediumType");
         _ = builder.HasIndex("_status");
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(item => item.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
+
         _ = builder.HasIndex(
                 nameof(OwnedItem.CollectionId),
                 "_importIdentityPath",

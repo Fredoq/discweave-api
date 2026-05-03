@@ -1,4 +1,5 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -45,6 +46,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         ConfigureCataloging(builder);
 
         _ = builder.HasIndex(release => release.CollectionId);
+
+        _ = builder.HasOne<MusicCollection>()
+            .WithMany()
+            .HasForeignKey(release => release.CollectionId)
+            .HasPrincipalKey(collection => collection.Id)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private static void ConfigureSummary(EntityTypeBuilder<Release> builder)
