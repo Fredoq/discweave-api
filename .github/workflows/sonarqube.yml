@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Build and analyze
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Set up JDK 17
@@ -35,7 +35,7 @@ jobs:
       - name: Cache SonarQube Cloud packages
         uses: actions/cache@v4
         with:
-          path: ~\sonar\cache
+          path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
@@ -43,32 +43,30 @@ jobs:
         id: cache-sonar-scanner
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}\scanner
+          path: ${{ runner.temp }}/scanner
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
 
       - name: Install SonarQube Cloud scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
+        shell: bash
         run: |
-          New-Item -Path "$env:RUNNER_TEMP\scanner" -ItemType Directory -Force
-          dotnet tool update dotnet-sonarscanner --tool-path "$env:RUNNER_TEMP\scanner"
+          mkdir -p "$RUNNER_TEMP/scanner"
+          dotnet tool update dotnet-sonarscanner --tool-path "$RUNNER_TEMP/scanner"
 
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
+        shell: bash
         run: |
+          set -euo pipefail
+
           # Coverage exclusions are limited to application bootstrap and generated EF Core migrations.
-          $coverageExclusions = @(
-            "**/Cratebase.Api/Program.cs",
-            "**/Persistence/Migrations/**"
-          ) -join ","
-          $duplicationExclusions = @(
-            "**/Persistence/Migrations/**"
-          ) -join ","
-          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="$coverageExclusions" /d:sonar.cpd.exclusions="$duplicationExclusions"
+          coverageExclusions="**/Cratebase.Api/Program.cs,**/Persistence/Migrations/**"
+          duplicationExclusions="**/Persistence/Migrations/**"
+
+          "$RUNNER_TEMP/scanner/dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="$coverageExclusions" /d:sonar.cpd.exclusions="$duplicationExclusions"
           dotnet restore Cratebase.slnx
           dotnet build Cratebase.slnx --configuration Release --no-restore
           dotnet test Cratebase.slnx --configuration Release --no-build --logger trx --results-directory artifacts/test-results --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-          & "$env:RUNNER_TEMP\scanner\dotnet-sonarscanner" end /d:sonar.token="$env:SONAR_TOKEN"
+          "$RUNNER_TEMP/scanner/dotnet-sonarscanner" end /d:sonar.token="$SONAR_TOKEN"
