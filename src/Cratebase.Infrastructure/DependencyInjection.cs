@@ -1,5 +1,6 @@
 using Cratebase.Application.Catalog.Artists;
 using Cratebase.Application.Persistence;
+using Cratebase.Application.Search;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
 using Cratebase.Infrastructure.Persistence.Queries;
@@ -29,6 +30,7 @@ public static class DependencyInjection
         });
         _ = services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CratebaseDbContext>());
         _ = services.AddScoped<IArtistQueries, ArtistQueries>();
+        _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.AddIdentityCore<CratebaseUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
