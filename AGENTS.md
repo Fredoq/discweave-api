@@ -237,6 +237,7 @@ When RabbitMQ is introduced:
 
 ## CI and Code Quality
 
+- Pull requests opened by Codex must be ready for review by default. Do not open draft pull requests unless the project owner explicitly asks for a draft.
 - SonarCloud quality gates must be satisfied by tests and focused code changes, not by broad exclusions.
 - Sonar coverage exclusions must stay narrow. Only application bootstrap (`Program.cs`) and generated EF Core migrations are acceptable by default.
 - Sonar duplication exclusions may exclude generated EF Core migrations.
@@ -307,8 +308,9 @@ Default agent workflow:
 4. Open a GitHub pull request for the branch when the work is ready for remote review.
 5. Inspect and resolve all actionable CodeRabbit comments.
 6. Inspect and resolve all actionable SonarQube or SonarCloud findings.
-7. Re-run or wait for all required GitHub checks.
-8. Hand the task back to the project owner only after the pull request is green and all required checks have completed successfully.
+7. If an unresolved `chatgpt-codex-connector` review thread describes a problem that was fixed in the current branch, resolve that thread after verifying the fix.
+8. Re-run or wait for all required GitHub checks.
+9. Hand the task back to the project owner only after the pull request is green and all required checks have completed successfully.
 
 If GitHub access, push permissions, or PR creation is unavailable, state the blocker clearly and keep the local branch ready for the project owner.
 

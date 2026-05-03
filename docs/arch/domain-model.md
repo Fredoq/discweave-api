@@ -272,6 +272,7 @@ classDiagram
             CreditContributor Contributor
             CreditTarget Target
             CreditRole Role
+            Update(CreditContributor, CreditTarget, CreditRole) void
         }
 
         class CreditContributor {
@@ -304,6 +305,8 @@ classDiagram
             ArtistId TargetArtistId
             ArtistRelationType Type
             OptionalValue~ArtistRelationPeriod~ Period
+            Update(ArtistId, ArtistId, ArtistRelationType) void
+            Update(ArtistId, ArtistId, ArtistRelationType, ArtistRelationPeriod) void
         }
 
         class ArtistRelationType {
@@ -321,6 +324,7 @@ classDiagram
             TrackId SourceTrackId
             TrackId TargetTrackId
             TrackRelationType RelationType
+            Update(TrackId, TrackId, TrackRelationType) void
         }
 
         class TrackRelationType {
@@ -458,6 +462,6 @@ classDiagram
 - Digital file import identity supports idempotent local audio folder imports.
 - Optional domain data uses `OptionalValue<T>` instead of nullable properties, nullable parameters, or `null` sentinel values.
 - Variant references such as owned-item targets and credit targets use distinct subtypes instead of nullable paired identifiers.
-- Public mutation paths preserve aggregate identity and keep invariants inside the domain model: `Track.Rename`, `Track.UpdateDetails`, `Track.UpdateCataloging`, `Release.UpdateSummary`, `Release.UpdateCataloging`, and `OwnedItem.UpdateHolding`.
+- Public mutation paths preserve aggregate identity and keep invariants inside the domain model: `Track.Rename`, `Track.UpdateDetails`, `Track.UpdateCataloging`, `Release.UpdateSummary`, `Release.UpdateCataloging`, `OwnedItem.UpdateHolding`, `Credit.Update`, `ArtistRelation.Update`, and `TrackRelation.Update`.
 - Closed domain choices with no variant-specific behavior use enums. Domain choices must not be open string-code value objects; string representations belong at API, persistence, import, and export boundaries.
 - SharedKernel contains typed identifiers, optional values, capability interfaces, validation support, and domain exceptions.

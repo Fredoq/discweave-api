@@ -49,6 +49,18 @@ public sealed class Credit : IEntity<CreditId>
         return new Credit(collectionId, id, contributor, target, validatedRole);
     }
 
+    public void Update(CreditContributor contributor, CreditTarget target, CreditRole role)
+    {
+        ArgumentNullException.ThrowIfNull(contributor);
+        ArgumentNullException.ThrowIfNull(target);
+
+        CreditRole validatedRole = Guard.DefinedEnum(role, nameof(role), "credit.role_invalid");
+
+        SetContributor(contributor);
+        SetTarget(target);
+        Role = validatedRole;
+    }
+
     private void SetTarget(CreditTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
