@@ -107,43 +107,6 @@ Credits and relations must support role-based search without adding one-off colu
 
 Statuses such as owned, wanted, sold, and needs digitization must be explicit data, not inferred from file presence.
 
-## Authentication and Authorization
-
-Cratebase API is collection-scoped and multi-user.
-
-Authentication and authorization rules:
-
-- Use ASP.NET Core Identity local accounts with secure HTTP-only cookies for the MVP.
-- Use `CratebaseUser : IdentityUser<Guid>` with role support for `User` and `Admin`.
-- Use local roles named exactly `User` and `Admin`.
-- The first public registration endpoint is only a bootstrap path. It must be available only while there are no users, and it must create the first admin plus that user's default `MusicCollection`.
-- Serialize first-user bootstrap with a database transaction and PostgreSQL advisory transaction lock so concurrent requests cannot create multiple first admins.
-- After bootstrap, user creation belongs behind admin-only endpoints.
-- Disabled users must not be able to log in or keep using an existing cookie. Rotate the security stamp when disabling a user and validate the cookie principal against `IsDisabled` and `DefaultCollectionId`.
-- Keep `/health` and required auth endpoints anonymous. Catalog, label, release, track, relation, credit, owned item, search, import, and export endpoints require authenticated collection access.
-- Admin user-management endpoints require the `Admin` role.
-- Use a collection-member authorization policy for collection endpoints. The policy must require an authenticated user and a valid non-empty default collection claim.
-- Return `404` for resources outside the current user's collection rather than `403`, so object existence is not leaked.
-- Keep cookie auth same-origin by default. Do not add JWT bearer auth, OAuth, OIDC, broad CORS, or external identity providers unless a task explicitly requires them.
-
-## Collection Scoping
-
-Every user owns one default `MusicCollection` in the MVP. Do not introduce shared collections, public collections, ACLs, or collection switching unless a task explicitly asks for that product change.
-
-Implementation rules:
-
-- Use typed IDs for `UserId` and `CollectionId`.
-- Generate typed IDs with `Guid.CreateVersion7()`.
-- All catalog, relation, credit, and ownership entities must carry `CollectionId`.
-- Resolve the active collection through `ICurrentCollection`, derived from the authenticated user's default collection claim.
-- Resolve authenticated user data through `ICurrentUser`.
-- Existing collection APIs stay collection-relative. Do not require or expose route/query `collectionId` for normal catalog operations.
-- Repositories and read queries must filter by the current `CollectionId`.
-- Create paths must stamp new domain objects with the current `CollectionId`.
-- File import deduplication must be scoped per collection, not global.
-- Do not trust client-supplied IDs to establish collection scope.
-- Cross-collection references for releases, tracks, credits, relations, and owned items must fail through database constraints, not only application checks.
-
 ## API Design
 
 - Keep endpoints resource-oriented and predictable.
@@ -170,11 +133,7 @@ Implementation rules:
 - Prefer specific query/application services over broad generic query abstractions.
 - Keep migrations readable.
 - Do not add incremental migrations before the initial schema is stable; update the baseline migration during early schema design.
-- During early schema design, update the baseline migration and model snapshot together. Do not add a migration-on-migration chain for unfinished MVP schema changes.
 - Model constraints in the database when they represent real invariants.
-- Add collection-aware composite alternate keys and foreign keys where needed so release-track, credit, relation, and owned-item rows cannot cross collection boundaries.
-- The `AspNetUsers.DefaultCollectionId -> collections.collection_id` relationship is modeled in EF and should clear the default collection with `SetNull` if needed.
-- The `collections.owner_user_id -> AspNetUsers.Id` relationship is a real database invariant and must exist in the baseline migration with cascade delete. Because the domain property is a `UserId` value object while Identity uses a `Guid` key, do not force an invalid EF runtime relationship that weakens typed IDs or breaks the model.
 - Avoid lazy loading by default.
 - Avoid N+1 queries; use projections and explicit includes where appropriate.
 - Use optimistic concurrency where user-owned mutable data needs conflict protection.
@@ -231,19 +190,6 @@ When RabbitMQ is introduced:
 - Tests should create temporary files in temporary directories, not inside the repository.
 - Integration tests must cleanly dispose containers and external resources.
 - Do not assert on full human-readable error messages when a stronger contract exists, such as status code, error code, or structured payload.
-- Auth tests must cover bootstrap registration, second registration rejection, login, logout, `me`, disabled-user cookie revocation, and admin-only user management.
-- Collection isolation tests must cover that user A cannot list, get, update, or delete user B's data.
-- Persistence tests must cover per-collection uniqueness and cross-collection foreign key failures for release-track, credit, relation, and owned-item references.
-
-## CI and Code Quality
-
-- SonarCloud quality gates must be satisfied by tests and focused code changes, not by broad exclusions.
-- Sonar coverage exclusions must stay narrow. Only application bootstrap (`Program.cs`) and generated EF Core migrations are acceptable by default.
-- Sonar duplication exclusions may exclude generated EF Core migrations.
-- Do not exclude DTOs, route builders, mappers, HTTP helpers, Identity glue, domain models, or persistence configurations from coverage unless the project owner explicitly approves that trade-off.
-- Run Sonar analysis on a runner where Testcontainers-backed tests can execute. The current expectation is Linux/Ubuntu.
-- Sonar workflows must fail if `dotnet test` fails. Shell scripts should use fail-fast behavior such as `set -euo pipefail`.
-- If Sonar reports unexpectedly low coverage while tests appear green, inspect the workflow logs for failed tests inside the Sonar job before adding exclusions.
 
 ## C# Design Rules
 
