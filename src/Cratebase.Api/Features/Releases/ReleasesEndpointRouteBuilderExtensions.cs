@@ -43,7 +43,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         try
         {
             Release release = ApplyReleaseRequest(Release.Create(currentCollection.CollectionId, ReleaseId.New(), request.Title), request);
-            if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
+            if (!await LabelExistsAsync(release.Summary.Metadata, context, currentCollection.CollectionId, cancellationToken))
             {
                 return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
             }
@@ -64,9 +64,15 @@ public static class ReleasesEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> GetReleaseAsync(Guid releaseId, CratebaseDbContext context, CancellationToken cancellationToken)
+    private static async Task<IResult> GetReleaseAsync(
+        Guid releaseId,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
     {
-        Release? release = await context.Releases.AsNoTracking().SingleOrDefaultAsync(entity => entity.Id == new ReleaseId(releaseId), cancellationToken);
+        Release? release = await context.Releases.AsNoTracking().SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
+            cancellationToken);
 
         return release is null
             ? EndpointErrors.NotFound("release.not_found", "Release was not found")
@@ -78,6 +84,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         int? limit,
         int? offset,
         CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
@@ -85,7 +92,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Release> releases = context.Releases.AsNoTracking();
+        IQueryable<Release> releases = context.Releases.AsNoTracking().Where(release => release.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
@@ -108,11 +115,12 @@ public static class ReleasesEndpointRouteBuilderExtensions
         ReleaseRequest request,
         IUnitOfWork unitOfWork,
         CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
         Release? release = await releases.TryFindAsync(new ReleaseId(releaseId), cancellationToken);
-        if (release is null)
+        if (release is null || release.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("release.not_found", "Release was not found");
         }
@@ -120,7 +128,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         try
         {
             _ = ApplyReleaseRequest(release, request);
-            if (!await LabelExistsAsync(release.Summary.Metadata, context, cancellationToken))
+            if (!await LabelExistsAsync(release.Summary.Metadata, context, currentCollection.CollectionId, cancellationToken))
             {
                 return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
             }
@@ -143,6 +151,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
         Guid releaseId,
         HttpRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "release", releaseId))
@@ -152,7 +161,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
 
         IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
         Release? release = await releases.TryFindAsync(new ReleaseId(releaseId), cancellationToken);
-        if (release is null)
+        if (release is null || release.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("release.not_found", "Release was not found");
         }
@@ -191,6 +200,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
     private static async Task<bool> LabelExistsAsync(
         ReleaseMetadata metadata,
         CratebaseDbContext context,
+        CollectionId collectionId,
         CancellationToken cancellationToken)
     {
         if (!metadata.LabelId.HasValue)
@@ -202,7 +212,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
             value => value,
             () => throw new InvalidOperationException("Label id should be present"));
 
-        return await context.Labels.AnyAsync(label => label.Id == labelId, cancellationToken);
+        return await context.Labels.AnyAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
     }
 
     private static ReleaseResponse ToReleaseResponse(Release release)

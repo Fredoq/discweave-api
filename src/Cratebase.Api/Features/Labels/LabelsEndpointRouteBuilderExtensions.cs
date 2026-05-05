@@ -50,9 +50,15 @@ public static class LabelsEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> GetLabelAsync(Guid labelId, CratebaseDbContext context, CancellationToken cancellationToken)
+    private static async Task<IResult> GetLabelAsync(
+        Guid labelId,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
     {
-        Label? label = await context.Labels.AsNoTracking().SingleOrDefaultAsync(entity => entity.Id == new LabelId(labelId), cancellationToken);
+        Label? label = await context.Labels.AsNoTracking().SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new LabelId(labelId),
+            cancellationToken);
 
         return label is null
             ? EndpointErrors.NotFound("label.not_found", "Label was not found")
@@ -64,6 +70,7 @@ public static class LabelsEndpointRouteBuilderExtensions
         int? limit,
         int? offset,
         CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
@@ -71,7 +78,7 @@ public static class LabelsEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Label> labels = context.Labels.AsNoTracking();
+        IQueryable<Label> labels = context.Labels.AsNoTracking().Where(label => label.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
@@ -94,11 +101,12 @@ public static class LabelsEndpointRouteBuilderExtensions
         Guid labelId,
         NameRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         IRepository<Label, LabelId> labels = unitOfWork.GetRepository<Label, LabelId>();
         Label? label = await labels.TryFindAsync(new LabelId(labelId), cancellationToken);
-        if (label is null)
+        if (label is null || label.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("label.not_found", "Label was not found");
         }
@@ -120,6 +128,7 @@ public static class LabelsEndpointRouteBuilderExtensions
         Guid labelId,
         HttpRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "label", labelId))
@@ -129,7 +138,7 @@ public static class LabelsEndpointRouteBuilderExtensions
 
         IRepository<Label, LabelId> labels = unitOfWork.GetRepository<Label, LabelId>();
         Label? label = await labels.TryFindAsync(new LabelId(labelId), cancellationToken);
-        if (label is null)
+        if (label is null || label.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("label.not_found", "Label was not found");
         }

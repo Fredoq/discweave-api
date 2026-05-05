@@ -66,9 +66,15 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> GetOwnedItemAsync(Guid ownedItemId, CratebaseDbContext context, CancellationToken cancellationToken)
+    private static async Task<IResult> GetOwnedItemAsync(
+        Guid ownedItemId,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
     {
-        OwnedItem? item = await context.OwnedItems.AsNoTracking().SingleOrDefaultAsync(entity => entity.Id == new OwnedItemId(ownedItemId), cancellationToken);
+        OwnedItem? item = await context.OwnedItems.AsNoTracking().SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new OwnedItemId(ownedItemId),
+            cancellationToken);
 
         return item is null
             ? EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found")
@@ -81,6 +87,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         int? limit,
         int? offset,
         CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
@@ -88,7 +95,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<OwnedItem> items = context.OwnedItems.AsNoTracking();
+        IQueryable<OwnedItem> items = context.OwnedItems.AsNoTracking().Where(item => item.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(status))
         {
             if (!OwnedItemMapper.TryParseOwnershipStatus(status, out OwnershipStatus normalizedStatus))
@@ -119,11 +126,12 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         Guid ownedItemId,
         UpdateOwnedItemRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         IRepository<OwnedItem, OwnedItemId> items = unitOfWork.GetRepository<OwnedItem, OwnedItemId>();
         OwnedItem? item = await items.TryFindAsync(new OwnedItemId(ownedItemId), cancellationToken);
-        if (item is null)
+        if (item is null || item.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found");
         }
@@ -149,6 +157,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         Guid ownedItemId,
         HttpRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "owned-item", ownedItemId))
@@ -158,7 +167,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
 
         IRepository<OwnedItem, OwnedItemId> items = unitOfWork.GetRepository<OwnedItem, OwnedItemId>();
         OwnedItem? item = await items.TryFindAsync(new OwnedItemId(ownedItemId), cancellationToken);
-        if (item is null)
+        if (item is null || item.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found");
         }

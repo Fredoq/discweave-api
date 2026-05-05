@@ -54,9 +54,15 @@ public static class TracksEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> GetTrackAsync(Guid trackId, CratebaseDbContext context, CancellationToken cancellationToken)
+    private static async Task<IResult> GetTrackAsync(
+        Guid trackId,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
     {
-        Track? track = await context.Tracks.AsNoTracking().SingleOrDefaultAsync(entity => entity.Id == new TrackId(trackId), cancellationToken);
+        Track? track = await context.Tracks.AsNoTracking().SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new TrackId(trackId),
+            cancellationToken);
 
         return track is null
             ? EndpointErrors.NotFound("track.not_found", "Track was not found")
@@ -68,6 +74,7 @@ public static class TracksEndpointRouteBuilderExtensions
         int? limit,
         int? offset,
         CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
@@ -75,7 +82,7 @@ public static class TracksEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Track> tracks = context.Tracks.AsNoTracking();
+        IQueryable<Track> tracks = context.Tracks.AsNoTracking().Where(track => track.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
@@ -97,11 +104,12 @@ public static class TracksEndpointRouteBuilderExtensions
         Guid trackId,
         TrackRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
         Track? track = await tracks.TryFindAsync(new TrackId(trackId), cancellationToken);
-        if (track is null)
+        if (track is null || track.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("track.not_found", "Track was not found");
         }
@@ -127,6 +135,7 @@ public static class TracksEndpointRouteBuilderExtensions
         Guid trackId,
         HttpRequest request,
         IUnitOfWork unitOfWork,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "track", trackId))
@@ -136,7 +145,7 @@ public static class TracksEndpointRouteBuilderExtensions
 
         IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
         Track? track = await tracks.TryFindAsync(new TrackId(trackId), cancellationToken);
-        if (track is null)
+        if (track is null || track.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("track.not_found", "Track was not found");
         }
