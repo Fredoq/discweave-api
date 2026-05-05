@@ -149,6 +149,42 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("auth.invalid_credentials", loginDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Login rejects an unknown email with the invalid credentials contract")]
+    public async Task Login_rejects_an_unknown_email_with_the_invalid_credentials_contract()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = host.CreateClient();
+
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new AuthRequest("missing@example.com", "Password1!"));
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("auth.invalid_credentials", document.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact(DisplayName = "Me returns authenticated user data without collection identifiers")]
+    public async Task Me_returns_authenticated_user_data_without_collection_identifiers()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = host.CreateClient();
+
+        using HttpResponseMessage registerResponse = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new AuthRequest("owner@example.com", "Password1!"));
+        using HttpResponseMessage meResponse = await client.GetAsync("/api/auth/me");
+        using JsonDocument meDocument = await ReadJsonAsync(meResponse);
+
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
+        Assert.True(meDocument.RootElement.GetProperty("isAuthenticated").GetBoolean());
+        Assert.Equal("owner@example.com", meDocument.RootElement.GetProperty("email").GetString());
+        Assert.Contains("Admin", meDocument.RootElement.GetProperty("roles").EnumerateArray().Select(role => role.GetString()));
+        Assert.False(meDocument.RootElement.TryGetProperty("collectionId", out _));
+        Assert.False(meDocument.RootElement.TryGetProperty("defaultCollectionId", out _));
+    }
+
     [Fact(DisplayName = "Disabled users cannot login or keep an existing cookie")]
     public async Task Disabled_users_cannot_login_or_keep_an_existing_cookie()
     {
