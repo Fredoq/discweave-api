@@ -164,6 +164,36 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("auth.invalid_credentials", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Disabled login keeps invalid password errors generic")]
+    public async Task Disabled_login_keeps_invalid_password_errors_generic()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = host.CreateClient();
+        HttpClient loginClient = host.CreateClient();
+
+        using HttpResponseMessage registerResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/register",
+            new AuthRequest("owner@example.com", "Password1!"));
+        using HttpResponseMessage createUserResponse = await adminClient.PostAsJsonAsync(
+            "/api/admin/users",
+            new CreateUserRequest("collector@example.com", "Password1!", false));
+        using JsonDocument createUserDocument = await ReadJsonAsync(createUserResponse);
+        Guid userId = createUserDocument.RootElement.GetProperty("id").GetGuid();
+        using HttpResponseMessage disableResponse = await adminClient.PatchAsJsonAsync(
+            $"/api/admin/users/{userId}/status",
+            new UpdateUserStatusRequest(true));
+        using HttpResponseMessage loginResponse = await loginClient.PostAsJsonAsync(
+            "/api/auth/login",
+            new AuthRequest("collector@example.com", "incorrect"));
+        using JsonDocument loginDocument = await ReadJsonAsync(loginResponse);
+
+        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, createUserResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, disableResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, loginResponse.StatusCode);
+        Assert.Equal("auth.invalid_credentials", loginDocument.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "Me returns authenticated user data without collection identifiers")]
     public async Task Me_returns_authenticated_user_data_without_collection_identifiers()
     {

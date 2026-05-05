@@ -93,14 +93,14 @@ public static class AuthEndpointRouteBuilderExtensions
             return EndpointErrors.Unauthorized("auth.invalid_credentials", "Email or password is invalid");
         }
 
-        if (user.IsDisabled)
-        {
-            return EndpointErrors.Unauthorized("auth.user_disabled", "User account is disabled");
-        }
-
         if (!await userManager.CheckPasswordAsync(user, request.Password))
         {
             return EndpointErrors.Unauthorized("auth.invalid_credentials", "Email or password is invalid");
+        }
+
+        if (user.IsDisabled)
+        {
+            return EndpointErrors.Unauthorized("auth.user_disabled", "User account is disabled");
         }
 
         await signInManager.SignInAsync(user, isPersistent: true);
