@@ -1,13 +1,13 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace Cratebase.Api.Tests;
 
@@ -49,11 +49,27 @@ internal sealed class ApiTestHost : IAsyncDisposable
             cancellationToken);
         _ = registerResponse.EnsureSuccessStatusCode();
 
-        await using Stream responseStream = await registerResponse.Content.ReadAsStreamAsync(cancellationToken);
-        using JsonDocument document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken);
-        DefaultCollectionId = new CollectionId(document.RootElement.GetProperty("defaultCollectionId").GetGuid());
+        DefaultCollectionId = await FindDefaultCollectionIdForUserAsync(email, cancellationToken)
+            ?? throw new InvalidOperationException("Authenticated test user default collection was not created");
 
         return client;
+    }
+
+    public async Task<CollectionId?> FindDefaultCollectionIdForUserAsync(string email, CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        CratebaseUser? user = await context.Users.SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
+
+        return user?.DefaultCollectionId;
+    }
+
+    public async Task<bool> CollectionExistsAsync(CollectionId collectionId, CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+
+        return await context.MusicCollections.AnyAsync(collection => collection.Id == collectionId, cancellationToken);
     }
 
     public async Task<ArtistId> SeedArtistAsync(Artist artist, CancellationToken cancellationToken = default)

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Cratebase.Api;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Features;
+using Cratebase.Api.Http;
 using Cratebase.Application;
 using Cratebase.Application.Security;
 using Cratebase.Infrastructure.Identity;
@@ -31,18 +32,16 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ReturnUrlParameter = CookieAuthenticationDefaults.ReturnUrlParameter;
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
-    options.Events.OnRedirectToLogin = context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-
-        return Task.CompletedTask;
-    };
-    options.Events.OnRedirectToAccessDenied = context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-
-        return Task.CompletedTask;
-    };
+    options.Events.OnRedirectToLogin = context => WriteErrorAsync(
+        context.Response,
+        StatusCodes.Status401Unauthorized,
+        "auth.unauthenticated",
+        "User is not authenticated");
+    options.Events.OnRedirectToAccessDenied = context => WriteErrorAsync(
+        context.Response,
+        StatusCodes.Status403Forbidden,
+        "auth.forbidden",
+        "User is not authorized for this action");
     options.Events.OnValidatePrincipal = async context =>
     {
         await SecurityStampValidator.ValidatePrincipalAsync(context);
@@ -109,6 +108,7 @@ app.MapGet("/health", () =>
 .WithName("GetHealth");
 
 await app.RunAsync();
+return;
 
 static bool HasValidCollectionScope(ClaimsPrincipal? user)
 {
@@ -117,4 +117,11 @@ static bool HasValidCollectionScope(ClaimsPrincipal? user)
     return user?.Identity?.IsAuthenticated == true &&
         Guid.TryParse(collectionId, out Guid parsedCollectionId) &&
         parsedCollectionId != Guid.Empty;
+}
+
+static Task WriteErrorAsync(HttpResponse response, int statusCode, string code, string message)
+{
+    response.StatusCode = statusCode;
+
+    return response.WriteAsJsonAsync(new ErrorResponse(code, message));
 }

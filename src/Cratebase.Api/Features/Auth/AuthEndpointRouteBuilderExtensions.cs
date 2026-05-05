@@ -22,6 +22,7 @@ public static class AuthEndpointRouteBuilderExtensions
 
         _ = group.MapPost("/register", RegisterAsync).WithName("RegisterFirstUser");
         _ = group.MapPost("/login", LoginAsync).WithName("Login");
+        _ = group.MapGet("/session", GetSessionAsync).WithName("GetAuthSession");
         _ = group.MapPost("/logout", LogoutAsync).RequireAuthorization().WithName("Logout");
         _ = group.MapGet("/me", GetMeAsync).RequireAuthorization().WithName("GetCurrentUser");
 
@@ -87,7 +88,17 @@ public static class AuthEndpointRouteBuilderExtensions
         SignInManager<CratebaseUser> signInManager)
     {
         CratebaseUser? user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null || user.IsDisabled || user.DefaultCollectionId is null || !await userManager.CheckPasswordAsync(user, request.Password))
+        if (user?.DefaultCollectionId is null)
+        {
+            return EndpointErrors.Unauthorized("auth.invalid_credentials", "Email or password is invalid");
+        }
+
+        if (user.IsDisabled)
+        {
+            return EndpointErrors.Unauthorized("auth.user_disabled", "User account is disabled");
+        }
+
+        if (!await userManager.CheckPasswordAsync(user, request.Password))
         {
             return EndpointErrors.Unauthorized("auth.invalid_credentials", "Email or password is invalid");
         }
@@ -95,6 +106,28 @@ public static class AuthEndpointRouteBuilderExtensions
         await signInManager.SignInAsync(user, isPersistent: true);
 
         return Results.Ok(await ToResponseAsync(user, userManager));
+    }
+
+    private static async Task<IResult> GetSessionAsync(
+        UserManager<CratebaseUser> userManager,
+        SignInManager<CratebaseUser> signInManager,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        if (httpContext.User.Identity?.IsAuthenticated == true)
+        {
+            CratebaseUser? user = await userManager.GetUserAsync(httpContext.User);
+            if (user is not null && !user.IsDisabled && user.DefaultCollectionId is not null)
+            {
+                return Results.Ok(await ToSessionResponseAsync(user, userManager));
+            }
+
+            await signInManager.SignOutAsync();
+        }
+
+        bool bootstrapRequired = !await userManager.Users.AnyAsync(cancellationToken);
+
+        return Results.Ok(new AuthSessionResponse(false, bootstrapRequired, null, []));
     }
 
     private static async Task<IResult> LogoutAsync(SignInManager<CratebaseUser> signInManager)
@@ -143,14 +176,21 @@ public static class AuthEndpointRouteBuilderExtensions
 
     private static async Task<AuthResponse> ToResponseAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
     {
-        IReadOnlyList<string> roles = [.. await userManager.GetRolesAsync(user)];
+        IReadOnlyList<string> roles = await GetRolesAsync(user, userManager);
 
-        return new AuthResponse(user.Id, user.Email ?? string.Empty, roles, RequireDefaultCollectionId(user));
+        return new AuthResponse(true, user.Email ?? string.Empty, roles);
     }
 
-    private static Guid RequireDefaultCollectionId(CratebaseUser user)
+    private static async Task<AuthSessionResponse> ToSessionResponseAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
     {
-        return user.DefaultCollectionId?.Value ?? throw new InvalidOperationException("Default collection is not initialized");
+        IReadOnlyList<string> roles = await GetRolesAsync(user, userManager);
+
+        return new AuthSessionResponse(true, false, user.Email ?? string.Empty, roles);
+    }
+
+    private static async Task<IReadOnlyList<string>> GetRolesAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
+    {
+        return [.. (await userManager.GetRolesAsync(user)).Order(StringComparer.Ordinal)];
     }
 
     private static IResult IdentityError(IdentityResult result)
