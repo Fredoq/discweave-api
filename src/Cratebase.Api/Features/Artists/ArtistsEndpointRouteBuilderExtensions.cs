@@ -5,8 +5,12 @@ using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Credits;
+using Cratebase.Domain.Relations;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.Artists;
 
@@ -136,7 +140,8 @@ public static class ArtistsEndpointRouteBuilderExtensions
     private static async Task<IResult> DeleteArtistAsync(
         Guid artistId,
         HttpRequest request,
-        IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "artist", artistId))
@@ -144,17 +149,36 @@ public static class ArtistsEndpointRouteBuilderExtensions
             return EndpointErrors.DeleteConfirmationRequired();
         }
 
-        IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
-        Artist? artist = await artists.TryFindAsync(new ArtistId(artistId), cancellationToken);
+        Artist? artist = await context.Artists.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ArtistId(artistId),
+            cancellationToken);
         if (artist is null)
         {
             return EndpointErrors.NotFound("artist.not_found", "Artist was not found");
         }
 
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            artists.Delete(artist);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            Credit[] credits = await context.Credits
+                .Where(credit =>
+                    credit.CollectionId == currentCollection.CollectionId &&
+                    EF.Property<ArtistId>(credit, "_contributorArtistId") == artist.Id)
+                .ToArrayAsync(cancellationToken);
+            ArtistRelation[] relations = await context.ArtistRelations
+                .Where(relation =>
+                    relation.CollectionId == currentCollection.CollectionId &&
+                    (relation.SourceArtistId == artist.Id || relation.TargetArtistId == artist.Id))
+                .ToArrayAsync(cancellationToken);
+
+            context.Credits.RemoveRange(credits);
+            context.ArtistRelations.RemoveRange(relations);
+            _ = context.Artists.Remove(artist);
+
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return Results.NoContent();
         }

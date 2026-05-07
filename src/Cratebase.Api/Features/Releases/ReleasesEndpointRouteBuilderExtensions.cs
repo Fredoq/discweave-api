@@ -1,9 +1,9 @@
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
-using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Credits;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.Releases;
 
-public static class ReleasesEndpointRouteBuilderExtensions
+public static partial class ReleasesEndpointRouteBuilderExtensions
 {
     private const string LabelConflictCode = "release.label_conflict";
     private const string LabelMissingMessage = "Release label does not exist";
@@ -35,24 +35,23 @@ public static class ReleasesEndpointRouteBuilderExtensions
 
     private static async Task<IResult> CreateReleaseAsync(
         ReleaseRequest request,
-        IUnitOfWork unitOfWork,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            Release release = ApplyReleaseRequest(Release.Create(currentCollection.CollectionId, ReleaseId.New(), request.Title), request);
-            if (!await LabelExistsAsync(release.Summary.Metadata, context, currentCollection.CollectionId, cancellationToken))
-            {
-                return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
-            }
+            Release release = await CreateReleaseEntryAsync(request, context, currentCollection.CollectionId, cancellationToken);
 
-            IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
-            releases.Add(release);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
-            return Results.Created($"/api/releases/{release.Id}", ToReleaseResponse(release));
+            ReleaseResponse response = await ToReleaseResponseAsync(release, context, currentCollection.CollectionId, cancellationToken);
+
+            return Results.Created($"/api/releases/{release.Id}", response);
         }
         catch (DomainException exception)
         {
@@ -76,7 +75,7 @@ public static class ReleasesEndpointRouteBuilderExtensions
 
         return release is null
             ? EndpointErrors.NotFound("release.not_found", "Release was not found")
-            : Results.Ok(ToReleaseResponse(release));
+            : Results.Ok(await ToReleaseResponseAsync(release, context, currentCollection.CollectionId, cancellationToken));
     }
 
     private static async Task<IResult> ListReleasesAsync(
@@ -107,35 +106,53 @@ public static class ReleasesEndpointRouteBuilderExtensions
             .Take(normalizedLimit)
             .ToArrayAsync(cancellationToken);
 
-        return Results.Ok(new ListResponse<ReleaseResponse>([.. items.Select(ToReleaseResponse)], normalizedLimit, normalizedOffset, total));
+        var responses = new List<ReleaseResponse>(items.Length);
+        foreach (Release release in items)
+        {
+            responses.Add(await ToReleaseResponseAsync(release, context, currentCollection.CollectionId, cancellationToken));
+        }
+
+        return Results.Ok(new ListResponse<ReleaseResponse>(responses, normalizedLimit, normalizedOffset, total));
     }
 
     private static async Task<IResult> UpdateReleaseAsync(
         Guid releaseId,
         ReleaseRequest request,
-        IUnitOfWork unitOfWork,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
-        Release? release = await releases.TryFindAsync(new ReleaseId(releaseId), cancellationToken);
-        if (release is null || release.CollectionId != currentCollection.CollectionId)
+        Release? release = await context.Releases.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
+            cancellationToken);
+        if (release is null)
         {
             return EndpointErrors.NotFound("release.not_found", "Release was not found");
         }
 
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             _ = ApplyReleaseRequest(release, request);
-            if (!await LabelExistsAsync(release.Summary.Metadata, context, currentCollection.CollectionId, cancellationToken))
+            IReadOnlyList<ResolvedCredit> releaseCredits = await ResolveCreditsAsync(
+                request.ArtistCredits,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
+            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Role == CreditRole.MainArtist))
             {
-                return EndpointErrors.Conflict(LabelConflictCode, LabelMissingMessage);
+                throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
             }
 
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            IReadOnlyList<ReleaseLabel> labels = await ResolveLabelsAsync(request, context, currentCollection.CollectionId, cancellationToken);
+            release.UpdateLabels(request.NotOnLabel, labels);
+            await ReplaceReleaseCreditsAsync(release, releaseCredits, context, currentCollection.CollectionId, cancellationToken);
 
-            return Results.Ok(ToReleaseResponse(release));
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return Results.Ok(await ToReleaseResponseAsync(release, context, currentCollection.CollectionId, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -147,41 +164,11 @@ public static class ReleasesEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> DeleteReleaseAsync(
-        Guid releaseId,
-        HttpRequest request,
-        IUnitOfWork unitOfWork,
-        ICurrentCollection currentCollection,
-        CancellationToken cancellationToken)
-    {
-        if (!DeleteConfirmation.Matches(request, "release", releaseId))
-        {
-            return EndpointErrors.DeleteConfirmationRequired();
-        }
-
-        IRepository<Release, ReleaseId> releases = unitOfWork.GetRepository<Release, ReleaseId>();
-        Release? release = await releases.TryFindAsync(new ReleaseId(releaseId), cancellationToken);
-        if (release is null || release.CollectionId != currentCollection.CollectionId)
-        {
-            return EndpointErrors.NotFound("release.not_found", "Release was not found");
-        }
-
-        try
-        {
-            releases.Delete(release);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
-            return Results.NoContent();
-        }
-        catch (ResourceHasDependentsException)
-        {
-            return EndpointErrors.Conflict("release.delete_conflict", "Release has dependent data");
-        }
-    }
-
     private static Release ApplyReleaseRequest(Release release, ReleaseRequest request)
     {
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(ParseReleaseType(request.Type ?? string.Empty));
-        if (request.LabelId is { } labelId)
+        Guid? firstLabelId = request.Labels?.FirstOrDefault(label => label.LabelId is not null)?.LabelId ?? request.LabelId;
+        if (firstLabelId is { } labelId)
         {
             metadata = metadata.WithLabel(new LabelId(labelId));
         }
@@ -193,40 +180,9 @@ public static class ReleasesEndpointRouteBuilderExtensions
 
         release.UpdateSummary(ReleaseSummary.Create(request.Title).WithMetadata(metadata));
         release.UpdateCataloging(CatalogingMapper.Create(request.Genres, request.Tags));
+        release.UpdateArtistDisplay(request.IsVariousArtists);
 
         return release;
-    }
-
-    private static async Task<bool> LabelExistsAsync(
-        ReleaseMetadata metadata,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        if (!metadata.LabelId.HasValue)
-        {
-            return true;
-        }
-
-        LabelId labelId = metadata.LabelId.Match(
-            value => value,
-            () => throw new InvalidOperationException("Label id should be present"));
-
-        return await context.Labels.AnyAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
-    }
-
-    private static ReleaseResponse ToReleaseResponse(Release release)
-    {
-        ReleaseMetadata metadata = release.Summary.Metadata;
-
-        return new ReleaseResponse(
-            release.Id.Value,
-            release.Summary.Title,
-            ToReleaseTypeCode(metadata.Type),
-            metadata.LabelId.HasValue ? metadata.LabelId.Match(value => value.Value, () => Guid.Empty) : null,
-            metadata.Year.HasValue ? metadata.Year.Match(value => value, () => 0) : null,
-            [.. release.Cataloging.Genres.Select(genre => genre.Name)],
-            [.. release.Cataloging.Tags.Select(tag => tag.Name)]);
     }
 
     private static ReleaseType ParseReleaseType(string type)
@@ -244,23 +200,6 @@ public static class ReleasesEndpointRouteBuilderExtensions
             "promo" => ReleaseType.Promo,
             OtherTypeCode => ReleaseType.Other,
             _ => throw new DomainException("release.type_invalid", "Release type is invalid")
-        };
-    }
-
-    private static string ToReleaseTypeCode(ReleaseType type)
-    {
-        return type switch
-        {
-            ReleaseType.Unknown => "unknown",
-            ReleaseType.Album => "album",
-            ReleaseType.Ep => "ep",
-            ReleaseType.Standalone => "standalone",
-            ReleaseType.Compilation => "compilation",
-            ReleaseType.Bootleg => "bootleg",
-            ReleaseType.Mixtape => "mixtape",
-            ReleaseType.Promo => "promo",
-            ReleaseType.Other => OtherTypeCode,
-            _ => throw new InvalidOperationException("Release type is not supported")
         };
     }
 

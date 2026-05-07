@@ -8,6 +8,7 @@ namespace Cratebase.Domain.Catalog;
 public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 {
     private readonly List<Genre> _genres = [];
+    private readonly List<ReleaseLabel> _labels = [];
     private readonly List<Tag> _tags = [];
     private readonly List<ReleaseTrack> _tracklist = [];
 
@@ -20,12 +21,18 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         CollectionId collectionId,
         ReleaseId id,
         ReleaseSummary summary,
+        bool isVariousArtists,
+        bool isNotOnLabel,
+        IReadOnlyList<ReleaseLabel> labels,
         IReadOnlyList<ReleaseTrack> tracklist,
         Cataloging cataloging)
     {
         CollectionId = collectionId;
         Id = id;
         Summary = summary;
+        IsVariousArtists = isVariousArtists;
+        IsNotOnLabel = isNotOnLabel;
+        _labels = [.. labels];
         _tracklist = [.. tracklist];
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
@@ -36,6 +43,12 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     public ReleaseId Id { get; private set; }
 
     public ReleaseSummary Summary { get; private set; }
+
+    public bool IsVariousArtists { get; private set; }
+
+    public bool IsNotOnLabel { get; private set; }
+
+    public IReadOnlyList<ReleaseLabel> Labels => _labels.AsReadOnly();
 
     public IReadOnlyList<ReleaseTrack> Tracklist => _tracklist.AsReadOnly();
 
@@ -63,7 +76,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     public static Release Create(CollectionId collectionId, ReleaseId id, string title)
     {
-        return new Release(collectionId, id, ReleaseSummary.Create(title), [], Cataloging.Empty);
+        return new Release(collectionId, id, ReleaseSummary.Create(title), false, false, [], [], Cataloging.Empty);
     }
 
     public void UpdateSummary(ReleaseSummary summary)
@@ -83,11 +96,42 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         _tags.AddRange(cataloging.Tags);
     }
 
+    public void UpdateArtistDisplay(bool isVariousArtists)
+    {
+        IsVariousArtists = isVariousArtists;
+    }
+
+    public void UpdateLabels(bool isNotOnLabel, IReadOnlyList<ReleaseLabel> labels)
+    {
+        ArgumentNullException.ThrowIfNull(labels);
+
+        IsNotOnLabel = isNotOnLabel;
+        _labels.Clear();
+
+        if (!isNotOnLabel)
+        {
+            _labels.AddRange(labels);
+        }
+    }
+
+    public void ReplaceTracklist(IReadOnlyList<ReleaseTrack> tracklist)
+    {
+        ArgumentNullException.ThrowIfNull(tracklist);
+
+        _tracklist.Clear();
+
+        foreach (ReleaseTrack releaseTrack in tracklist)
+        {
+            EnsureTrackPositionIsUnique(releaseTrack.Position);
+            _tracklist.Add(releaseTrack);
+        }
+    }
+
     public Release WithSummary(ReleaseSummary summary)
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        return new Release(CollectionId, Id, summary, _tracklist, Cataloging);
+        return new Release(CollectionId, Id, summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist, Cataloging);
     }
 
     public Release WithRating(Rating rating)
@@ -101,14 +145,14 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         EnsureTrackPositionIsUnique(releaseTrack.Position);
 
-        return new Release(CollectionId, Id, Summary, [.. _tracklist, releaseTrack], Cataloging);
+        return new Release(CollectionId, Id, Summary, IsVariousArtists, IsNotOnLabel, _labels, [.. _tracklist, releaseTrack], Cataloging);
     }
 
     public Release WithCataloging(Cataloging cataloging)
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Release(CollectionId, Id, Summary, _tracklist, cataloging);
+        return new Release(CollectionId, Id, Summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist, cataloging);
     }
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)

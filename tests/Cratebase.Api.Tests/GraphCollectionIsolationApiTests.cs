@@ -110,7 +110,7 @@ public sealed class GraphCollectionIsolationApiTests : IClassFixture<PostgresFix
 
     private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title, type = "standalone" });
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title, type = "standalone", isVariousArtists = true });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

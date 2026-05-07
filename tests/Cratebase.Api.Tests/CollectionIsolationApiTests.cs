@@ -86,7 +86,7 @@ public sealed class CollectionIsolationApiTests : IClassFixture<PostgresFixture>
             "/api/releases",
             adminReleaseId,
             userReleaseId,
-            new { title = "Blue Monday 1988", type = "standalone", labelId = userLabelId, year = 1988 },
+            new { title = "Blue Monday 1988", type = "standalone", isVariousArtists = true, labelId = userLabelId, year = 1988 },
             "release");
         await AssertCoreRecordIsIsolatedAsync(
             userClient,
@@ -162,7 +162,7 @@ public sealed class CollectionIsolationApiTests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            new { title, type = "standalone", labelId, year = 1983 });
+            new { title, type = "standalone", isVariousArtists = true, labelId, year = 1983 });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

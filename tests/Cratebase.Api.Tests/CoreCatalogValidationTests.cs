@@ -32,7 +32,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            new { title = "Technique", type = "album", labelId = Guid.CreateVersion7(), year = 1989 });
+            new { title = "Technique", type = "album", isVariousArtists = true, labelId = Guid.CreateVersion7(), year = 1989 });
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -48,7 +48,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage response = await client.PutAsJsonAsync(
             $"/api/releases/{releaseId}",
-            new { title = "Technique", type = "album", labelId = Guid.CreateVersion7(), year = 1989 });
+            new { title = "Technique", type = "album", isVariousArtists = true, labelId = Guid.CreateVersion7(), year = 1989 });
         using JsonDocument document = await ReadJsonAsync(response);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -88,7 +88,7 @@ public sealed class CoreCatalogValidationTests : IClassFixture<PostgresFixture>
 
     private static async Task<Guid> CreateReleaseAsync(HttpClient client)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Technique", type = "album", year = 1989 });
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Technique", type = "album", isVariousArtists = true, year = 1989 });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

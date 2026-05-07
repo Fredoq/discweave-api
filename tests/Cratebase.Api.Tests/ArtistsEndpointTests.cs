@@ -224,22 +224,36 @@ public sealed class ArtistsEndpointTests : IClassFixture<PostgresFixture>
         Assert.Null(await host.FindArtistAsync(artistId));
     }
 
-    [Fact(DisplayName = "Deleting an artist with dependent data returns a conflict")]
-    public async Task Deleting_an_artist_with_dependent_data_returns_a_conflict()
+    [Fact(DisplayName = "Deleting an artist removes dependent credits and relations")]
+    public async Task Deleting_an_artist_removes_dependent_credits_and_relations()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
         Artist artist = Person.Create(host.DefaultCollectionId, ArtistId.New(), "Arthur Baker");
         ArtistId artistId = await host.SeedArtistAsync(artist);
+        Artist otherArtist = Person.Create(host.DefaultCollectionId, ArtistId.New(), "New Order");
+        ArtistId otherArtistId = await host.SeedArtistAsync(otherArtist);
         await host.SeedReleaseCreditAsync(artist);
+        using HttpResponseMessage relationResponse = await client.PostAsJsonAsync(
+            "/api/artist-relations",
+            new { sourceArtistId = artistId.Value, targetArtistId = otherArtistId.Value, type = "collaboration" });
+        using JsonDocument relationDocument = await ReadJsonAsync(relationResponse);
+        Assert.Equal(HttpStatusCode.Created, relationResponse.StatusCode);
         using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/artists/{artistId}");
         request.Headers.Add("X-Cratebase-Confirm-Delete", $"artist:{artistId}");
 
         using HttpResponseMessage response = await client.SendAsync(request);
-        using JsonDocument document = await ReadJsonAsync(response);
+        using HttpResponseMessage creditsResponse = await client.GetAsync($"/api/credits?contributorArtistId={artistId.Value}&limit=10&offset=0");
+        using JsonDocument creditsDocument = await ReadJsonAsync(creditsResponse);
+        using HttpResponseMessage relationGetResponse = await client.GetAsync($"/api/artist-relations/{relationDocument.RootElement.GetProperty("id").GetGuid()}");
+        using JsonDocument relationGetDocument = await ReadJsonAsync(relationGetResponse);
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("artist.delete_conflict", document.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Null(await host.FindArtistAsync(artistId));
+        Assert.Equal(HttpStatusCode.OK, creditsResponse.StatusCode);
+        Assert.Equal(0, creditsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(HttpStatusCode.NotFound, relationGetResponse.StatusCode);
+        Assert.Equal("artist_relation.not_found", relationGetDocument.RootElement.GetProperty("code").GetString());
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

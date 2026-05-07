@@ -96,6 +96,7 @@ public sealed class DomainModelShapeTests
             typeof(Credit).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Release).FullName!,
+            typeof(ReleaseLabel).FullName!,
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
@@ -128,6 +129,7 @@ public sealed class DomainModelShapeTests
             typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Release).FullName!,
+            typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -180,8 +182,9 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicPropertyCount(Type type)
     {
-        return type == typeof(Release) ||
-            type == typeof(Track) ||
+        return type == typeof(Release)
+            ? 9
+            : type == typeof(Track) ||
             type == typeof(ArtistRelation)
             ? 6
             : 5;
@@ -190,7 +193,7 @@ public sealed class DomainModelShapeTests
     private static int GetMaximumPublicMethodCount(Type type)
     {
         return type == typeof(Release)
-            ? 7
+            ? 10
             : type == typeof(Track)
                 ? 8
                 : 5;
@@ -260,6 +263,6 @@ public sealed class DomainModelShapeTests
     private static bool HasPublicPropertyWithPrivateSetter(Type type)
     {
         return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Any(property => property.SetMethod?.IsPrivate == true);
+            .Any(property => property.SetMethod is { IsPrivate: true });
     }
 }

@@ -121,6 +121,14 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("release_id");
 
+                    b.Property<bool>("IsNotOnLabel")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_not_on_label");
+
+                    b.Property<bool>("IsVariousArtists")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_various_artists");
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Summary", "Cratebase.Domain.Catalog.Release.Summary#ReleaseSummary", b1 =>
                         {
                             b1.IsRequired();
@@ -862,6 +870,62 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                                 .HasPrincipalKey("Id");
                         });
 
+                    b.OwnsMany("Cratebase.Domain.Catalog.ReleaseLabel", "Labels", b1 =>
+                        {
+                            b1.Property<long>("id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("bigint")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<long>("id"));
+
+                            b1.Property<string>("CatalogNumber")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("catalog_number");
+
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
+                            b1.Property<bool>("HasNoCatalogNumber")
+                                .HasColumnType("boolean")
+                                .HasColumnName("has_no_catalog_number");
+
+                            b1.Property<Guid>("LabelId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("label_id");
+
+                            b1.Property<Guid>("release_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("release_id");
+
+                            b1.HasKey("id");
+
+                            b1.HasIndex("CollectionId");
+
+                            b1.HasIndex("LabelId");
+
+                            b1.HasIndex("release_id");
+
+                            b1.HasIndex("CollectionId", "LabelId");
+
+                            b1.HasIndex("CollectionId", "release_id");
+
+                            b1.ToTable("release_labels", (string)null);
+
+                            b1.HasOne("Cratebase.Domain.Catalog.Label", null)
+                                .WithMany()
+                                .HasForeignKey("CollectionId", "LabelId")
+                                .HasPrincipalKey("CollectionId", "Id")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired();
+
+                            b1.WithOwner()
+                                .HasForeignKey("CollectionId", "release_id")
+                                .HasPrincipalKey("CollectionId", "Id");
+                        });
+
                     b.OwnsMany("Cratebase.Domain.Catalog.ReleaseTrack", "Tracklist", b1 =>
                         {
                             b1.Property<long>("id")
@@ -883,6 +947,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                             b1.Property<Guid>("TrackId")
                                 .HasColumnType("uuid")
                                 .HasColumnName("track_id");
+
+                            b1.Property<string>("VersionNote")
+                                .HasMaxLength(2048)
+                                .HasColumnType("character varying(2048)")
+                                .HasColumnName("version_note");
 
                             b1.Property<Guid>("release_id")
                                 .HasColumnType("uuid")
@@ -943,6 +1012,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                             b1.Navigation("Position")
                                 .IsRequired();
                         });
+
+                    b.Navigation("Labels");
 
                     b.Navigation("Tracklist");
 

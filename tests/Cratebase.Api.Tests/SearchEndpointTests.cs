@@ -108,7 +108,7 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            new { title, type = "standalone", labelId, year = 1983, genres = ElectroGenres, tags = tags ?? [] });
+            new { title, type = "standalone", isVariousArtists = true, labelId, year = 1983, genres = ElectroGenres, tags = tags ?? [] });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

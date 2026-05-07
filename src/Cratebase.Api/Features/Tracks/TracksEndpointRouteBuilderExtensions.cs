@@ -4,6 +4,7 @@ using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Credits;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -134,7 +135,7 @@ public static class TracksEndpointRouteBuilderExtensions
     private static async Task<IResult> DeleteTrackAsync(
         Guid trackId,
         HttpRequest request,
-        IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
@@ -143,23 +144,64 @@ public static class TracksEndpointRouteBuilderExtensions
             return EndpointErrors.DeleteConfirmationRequired();
         }
 
-        IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
-        Track? track = await tracks.TryFindAsync(new TrackId(trackId), cancellationToken);
-        if (track is null || track.CollectionId != currentCollection.CollectionId)
+        Track? track = await context.Tracks.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new TrackId(trackId),
+            cancellationToken);
+        if (track is null)
         {
             return EndpointErrors.NotFound("track.not_found", "Track was not found");
         }
 
+        if (await TrackHasExternalDependentsAsync(track.Id, context, currentCollection.CollectionId, cancellationToken))
+        {
+            return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
+        }
+
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
-            tracks.Delete(track);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            Release[] releases = await context.Releases
+                .Where(release => release.CollectionId == currentCollection.CollectionId)
+                .ToArrayAsync(cancellationToken);
+            foreach (Release release in releases.Where(release => release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id)))
+            {
+                release.ReplaceTracklist([.. release.Tracklist.Where(releaseTrack => releaseTrack.TrackId != track.Id)]);
+            }
+
+            Credit[] trackCredits = await context.Credits
+                .Where(credit => credit.CollectionId == currentCollection.CollectionId)
+                .ToArrayAsync(cancellationToken);
+            context.Credits.RemoveRange(trackCredits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id));
+            _ = context.Tracks.Remove(track);
+
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return Results.NoContent();
         }
         catch (ResourceHasDependentsException)
         {
             return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
         }
+    }
+
+    private static async Task<bool> TrackHasExternalDependentsAsync(
+        TrackId trackId,
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        bool hasRelations = await context.TrackRelations.AnyAsync(
+            relation =>
+                relation.CollectionId == collectionId &&
+                (relation.SourceTrackId == trackId || relation.TargetTrackId == trackId),
+            cancellationToken);
+        return hasRelations || await context.OwnedItems.AnyAsync(
+            item =>
+                item.CollectionId == collectionId &&
+                EF.Property<TrackId?>(item, "_targetTrackId") == trackId,
+            cancellationToken);
     }
 
     private static Track ApplyTrackRequest(Track track, TrackRequest request)

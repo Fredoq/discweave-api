@@ -124,14 +124,14 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/releases",
-            new { title = "  Power, Corruption & Lies  ", type = "album", labelId, year = 1983, genres = PostPunkGenres, tags = FactoryTags });
+            new { title = "  Power, Corruption & Lies  ", type = "album", isVariousArtists = true, labelId, year = 1983, genres = PostPunkGenres, tags = FactoryTags });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Guid releaseId = createDocument.RootElement.GetProperty("id").GetGuid();
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/releases/{releaseId}",
-            new { title = "Power Corruption and Lies", type = "album", labelId, year = 1983, genres = PostPunkGenres, tags = ClassicTags });
+            new { title = "Power Corruption and Lies", type = "album", isVariousArtists = true, labelId, year = 1983, genres = PostPunkGenres, tags = ClassicTags });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
         using HttpResponseMessage getUpdatedResponse = await client.GetAsync($"/api/releases/{releaseId}");
@@ -252,7 +252,7 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
 
     private static async Task<Guid> CreateReleaseAsync(HttpClient client)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Power, Corruption & Lies", type = "album", year = 1983 });
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", new { title = "Power, Corruption & Lies", type = "album", isVariousArtists = true, year = 1983 });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -261,7 +261,15 @@ public sealed class CoreCatalogWorkflowE2ETests : IClassFixture<PostgresFixture>
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
-        return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        string content = await response.Content.ReadAsStringAsync();
+        try
+        {
+            return JsonDocument.Parse(content);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidOperationException($"Response was not JSON. Status: {response.StatusCode}. Body: {content}", exception);
+        }
     }
 
     private static void AssertStringArray(IReadOnlyList<string> expected, JsonElement actual)

@@ -144,14 +144,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections",
-                column: "owner_user_id",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
-
             migrationBuilder.CreateTable(
                 name: "releases",
                 columns: table => new
@@ -160,6 +152,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     release_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    is_various_artists = table.Column<bool>(type: "boolean", nullable: false),
+                    is_not_on_label = table.Column<bool>(type: "boolean", nullable: false),
                     rating = table.Column<int>(type: "integer", nullable: true),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
                     cover_image_path = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
@@ -348,6 +342,35 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "release_labels",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    label_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    catalog_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    has_no_catalog_number = table.Column<bool>(type: "boolean", nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    release_id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_release_labels", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_release_labels_labels_collection_id_label_id",
+                        columns: x => new { x.collection_id, x.label_id },
+                        principalTable: "labels",
+                        principalColumns: new[] { "collection_id", "label_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_release_labels_releases_collection_id_release_id",
+                        columns: x => new { x.collection_id, x.release_id },
+                        principalTable: "releases",
+                        principalColumns: new[] { "collection_id", "release_id" },
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "release_tags",
                 columns: table => new
                 {
@@ -473,6 +496,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     position_disc = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     position_side = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     title_override = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    version_note = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     release_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
@@ -732,6 +756,31 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "target_track_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_release_labels_collection_id",
+                table: "release_labels",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_labels_collection_id_label_id",
+                table: "release_labels",
+                columns: new[] { "collection_id", "label_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_labels_collection_id_release_id",
+                table: "release_labels",
+                columns: new[] { "collection_id", "release_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_labels_label_id",
+                table: "release_labels",
+                column: "label_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_labels_release_id",
+                table: "release_labels",
+                column: "release_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_release_tracks_collection_id",
                 table: "release_tracks",
                 column: "collection_id");
@@ -795,10 +844,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections");
-
             migrationBuilder.DropTable(
                 name: "artist_relations");
 
@@ -821,13 +866,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "credits");
 
             migrationBuilder.DropTable(
-                name: "labels");
-
-            migrationBuilder.DropTable(
                 name: "owned_items");
 
             migrationBuilder.DropTable(
                 name: "release_genres");
+
+            migrationBuilder.DropTable(
+                name: "release_labels");
 
             migrationBuilder.DropTable(
                 name: "release_tags");
@@ -852,6 +897,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "artists");
+
+            migrationBuilder.DropTable(
+                name: "labels");
 
             migrationBuilder.DropTable(
                 name: "releases");
