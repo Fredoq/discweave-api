@@ -84,5 +84,5 @@ Style rules live in `.editorconfig` and are enforced by the `Check` GitHub Actio
 - Keep domain behavior independent of persistence and HTTP concerns.
 - Keep owned items separate from releases and media formats.
 - Model credits and relations explicitly so role-based search remains first-class.
-- Do not add Redis, RabbitMQ, background workers, or external catalog integrations until an MVP scenario requires them.
+- Do not add Redis, RabbitMQ, background workers, or external catalog integrations until a concrete product scenario requires them.
 - Use explicit mapping and local validation code. Do not use AutoMapper, MediatR, Moq, or FluentValidation.

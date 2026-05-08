@@ -44,7 +44,7 @@ Use these technologies when the feature needs them:
 - Redis later, only when caching is needed.
 - RabbitMQ later, only when asynchronous messaging is needed.
 
-Do not add Redis, RabbitMQ, background workers, or message queues before a concrete MVP scenario requires them.
+Do not add Redis, RabbitMQ, background workers, or message queues before a concrete product scenario requires them.
 
 ## Prohibited Libraries and Patterns
 
@@ -113,7 +113,7 @@ Cratebase API is collection-scoped and multi-user.
 
 Authentication and authorization rules:
 
-- Use ASP.NET Core Identity local accounts with secure HTTP-only cookies for the MVP.
+- Use ASP.NET Core Identity local accounts with secure HTTP-only cookies.
 - Use `CratebaseUser : IdentityUser<Guid>` with role support for `User` and `Admin`.
 - Use local roles named exactly `User` and `Admin`.
 - The first public registration endpoint is only a bootstrap path. It must be available only while there are no users, and it must create the first admin plus that user's default `MusicCollection`.
@@ -128,7 +128,7 @@ Authentication and authorization rules:
 
 ## Collection Scoping
 
-Every user owns one default `MusicCollection` in the MVP. Do not introduce shared collections, public collections, ACLs, or collection switching unless a task explicitly asks for that product change.
+Every user owns one default `MusicCollection`. Do not introduce shared collections, public collections, ACLs, or collection switching unless a task explicitly asks for that product change.
 
 Implementation rules:
 
@@ -170,7 +170,7 @@ Implementation rules:
 - Prefer specific query/application services over broad generic query abstractions.
 - Keep migrations readable.
 - Do not add incremental migrations before the initial schema is stable; update the baseline migration during early schema design.
-- During early schema design, update the baseline migration and model snapshot together. Do not add a migration-on-migration chain for unfinished MVP schema changes.
+- During early schema design, update the baseline migration and model snapshot together. Do not add a migration-on-migration chain for unfinished schema changes.
 - Model constraints in the database when they represent real invariants.
 - Add collection-aware composite alternate keys and foreign keys where needed so release-track, credit, relation, and owned-item rows cannot cross collection boundaries.
 - The `AspNetUsers.DefaultCollectionId -> collections.collection_id` relationship is modeled in EF and should clear the default collection with `SetNull` if needed.
