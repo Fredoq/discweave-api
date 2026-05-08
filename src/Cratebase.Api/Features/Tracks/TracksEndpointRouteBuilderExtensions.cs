@@ -1,7 +1,6 @@
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
-using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
@@ -12,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.Tracks;
 
-public static class TracksEndpointRouteBuilderExtensions
+public static partial class TracksEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapTracksEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -32,18 +31,24 @@ public static class TracksEndpointRouteBuilderExtensions
 
     private static async Task<IResult> CreateTrackAsync(
         TrackRequest request,
-        IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             Track track = ApplyTrackRequest(Track.Create(currentCollection.CollectionId, TrackId.New(), request.Title), request);
-            IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
-            tracks.Add(track);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            _ = context.Tracks.Add(track);
+            await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
+            await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
 
-            return Results.Created($"/api/tracks/{track.Id}", ToTrackResponse(track));
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Created($"/api/tracks/{track.Id}", await ToTrackResponseAsync(track, context, currentCollection.CollectionId, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -67,7 +72,7 @@ public static class TracksEndpointRouteBuilderExtensions
 
         return track is null
             ? EndpointErrors.NotFound("track.not_found", "Track was not found")
-            : Results.Ok(ToTrackResponse(track));
+            : Results.Ok(await ToTrackResponseAsync(track, context, currentCollection.CollectionId, cancellationToken));
     }
 
     private static async Task<IResult> ListTracksAsync(
@@ -98,29 +103,43 @@ public static class TracksEndpointRouteBuilderExtensions
             .Take(normalizedLimit)
             .ToArrayAsync(cancellationToken);
 
-        return Results.Ok(new ListResponse<TrackResponse>([.. items.Select(ToTrackResponse)], normalizedLimit, normalizedOffset, total));
+        var responses = new List<TrackResponse>(items.Length);
+        foreach (Track track in items)
+        {
+            responses.Add(await ToTrackResponseAsync(track, context, currentCollection.CollectionId, cancellationToken));
+        }
+
+        return Results.Ok(new ListResponse<TrackResponse>(responses, normalizedLimit, normalizedOffset, total));
     }
 
     private static async Task<IResult> UpdateTrackAsync(
         Guid trackId,
         TrackRequest request,
-        IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<Track, TrackId> tracks = unitOfWork.GetRepository<Track, TrackId>();
-        Track? track = await tracks.TryFindAsync(new TrackId(trackId), cancellationToken);
+        Track? track = await context.Tracks.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new TrackId(trackId),
+            cancellationToken);
         if (track is null || track.CollectionId != currentCollection.CollectionId)
         {
             return EndpointErrors.NotFound("track.not_found", "Track was not found");
         }
 
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
         try
         {
             _ = ApplyTrackRequest(track, request);
-            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
+            await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
+            await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
 
-            return Results.Ok(ToTrackResponse(track));
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Results.Ok(await ToTrackResponseAsync(track, context, currentCollection.CollectionId, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -218,19 +237,4 @@ public static class TracksEndpointRouteBuilderExtensions
 
         return track;
     }
-
-    private static TrackResponse ToTrackResponse(Track track)
-    {
-        int? durationSeconds = track.Details.Duration.HasValue
-            ? track.Details.Duration.Match(value => (int)value.TotalSeconds, () => 0)
-            : null;
-
-        return new TrackResponse(
-            track.Id.Value,
-            track.Title,
-            durationSeconds,
-            [.. track.Cataloging.Genres.Select(genre => genre.Name)],
-            [.. track.Cataloging.Tags.Select(tag => tag.Name)]);
-    }
-
 }

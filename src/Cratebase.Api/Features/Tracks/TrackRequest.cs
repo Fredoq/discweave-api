@@ -9,4 +9,12 @@ public sealed record TrackRequest
     public IReadOnlyList<string> Genres { get; init; } = [];
 
     public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public IReadOnlyList<TrackCreditRequest> Credits { get; init; } = [];
+
+    public IReadOnlyList<TrackReleaseAppearanceRequest> ReleaseAppearances { get; init; } = [];
 }
+
+public sealed record TrackCreditRequest(Guid? ArtistId, string? Name, string? Role);
+
+public sealed record TrackReleaseAppearanceRequest(Guid ReleaseId, int Position, string? VersionNote);
