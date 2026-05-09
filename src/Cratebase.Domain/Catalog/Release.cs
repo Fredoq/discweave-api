@@ -72,7 +72,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     public static Release Create(CollectionId collectionId, ReleaseId id, string title)
     {
-        return new Release(collectionId, id, ReleaseState.Create(ReleaseSummary.Create(title)), Cataloging.Empty);
+        return new Release(collectionId, id, ReleaseState.FromSummary(ReleaseSummary.Create(title)), Cataloging.Empty);
     }
 
     public void UpdateSummary(ReleaseSummary summary)
@@ -171,7 +171,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         IReadOnlyList<ReleaseLabel> Labels,
         IReadOnlyList<ReleaseTrack> Tracklist)
     {
-        public static ReleaseState Create(ReleaseSummary summary)
+        public static ReleaseState FromSummary(ReleaseSummary summary)
         {
             return new ReleaseState(summary, false, false, [], []);
         }

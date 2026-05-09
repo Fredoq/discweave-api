@@ -24,50 +24,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 EF.Property<ReleaseId?>(credit, "_targetReleaseId") == release.Id)
             .ToArrayAsync(cancellationToken);
         Credit[] releaseCredits = credits;
-        List<Credit> trackCredits = [];
-        foreach (TrackId trackId in trackIds)
-        {
-            trackCredits.AddRange(await context.Credits.AsNoTracking()
-                .Where(credit =>
-                    credit.CollectionId == collectionId &&
-                    EF.Property<TrackId?>(credit, "_targetTrackId") == trackId)
-                .ToArrayAsync(cancellationToken));
-        }
-
+        List<Credit> trackCredits = await LoadTrackCreditsAsync(context, collectionId, trackIds, cancellationToken);
         ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Distinct()];
-        Dictionary<ArtistId, Artist> artistsById = [];
-        foreach (ArtistId artistId in artistIds)
-        {
-            Artist? artist = await context.Artists.AsNoTracking()
-                .FirstOrDefaultAsync(artist => artist.CollectionId == collectionId && artist.Id == artistId, cancellationToken);
-            if (artist is not null)
-            {
-                artistsById[artist.Id] = artist;
-            }
-        }
-
+        Dictionary<ArtistId, Artist> artistsById = await LoadArtistsByIdAsync(context, collectionId, artistIds, cancellationToken);
         LabelId[] labelIds = [.. release.Labels.Select(label => label.LabelId)];
-        Dictionary<LabelId, Label> labelsById = [];
-        foreach (LabelId labelId in labelIds)
-        {
-            Label? label = await context.Labels.AsNoTracking()
-                .FirstOrDefaultAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
-            if (label is not null)
-            {
-                labelsById[label.Id] = label;
-            }
-        }
-
-        Dictionary<TrackId, Track> tracksById = [];
-        foreach (TrackId trackId in trackIds)
-        {
-            Track? track = await context.Tracks.AsNoTracking()
-                .FirstOrDefaultAsync(track => track.CollectionId == collectionId && track.Id == trackId, cancellationToken);
-            if (track is not null)
-            {
-                tracksById[track.Id] = track;
-            }
-        }
+        Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);
+        Dictionary<TrackId, Track> tracksById = await LoadTracksByIdAsync(context, collectionId, trackIds, cancellationToken);
 
         return new ReleaseResponse(
             release.Id.Value,
@@ -82,6 +44,85 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             [.. releaseCredits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById))]);
+    }
+
+    private static async Task<List<Credit>> LoadTrackCreditsAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IEnumerable<TrackId> trackIds,
+        CancellationToken cancellationToken)
+    {
+        List<Credit> credits = [];
+        foreach (TrackId trackId in trackIds)
+        {
+            credits.AddRange(await context.Credits.AsNoTracking()
+                .Where(credit =>
+                    credit.CollectionId == collectionId &&
+                    EF.Property<TrackId?>(credit, "_targetTrackId") == trackId)
+                .ToArrayAsync(cancellationToken));
+        }
+
+        return credits;
+    }
+
+    private static async Task<Dictionary<ArtistId, Artist>> LoadArtistsByIdAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IEnumerable<ArtistId> artistIds,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<ArtistId, Artist> artistsById = [];
+        foreach (ArtistId artistId in artistIds)
+        {
+            Artist? artist = await context.Artists.AsNoTracking()
+                .FirstOrDefaultAsync(artist => artist.CollectionId == collectionId && artist.Id == artistId, cancellationToken);
+            if (artist is not null)
+            {
+                artistsById[artist.Id] = artist;
+            }
+        }
+
+        return artistsById;
+    }
+
+    private static async Task<Dictionary<LabelId, Label>> LoadLabelsByIdAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IEnumerable<LabelId> labelIds,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<LabelId, Label> labelsById = [];
+        foreach (LabelId labelId in labelIds)
+        {
+            Label? label = await context.Labels.AsNoTracking()
+                .FirstOrDefaultAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
+            if (label is not null)
+            {
+                labelsById[label.Id] = label;
+            }
+        }
+
+        return labelsById;
+    }
+
+    private static async Task<Dictionary<TrackId, Track>> LoadTracksByIdAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IEnumerable<TrackId> trackIds,
+        CancellationToken cancellationToken)
+    {
+        Dictionary<TrackId, Track> tracksById = [];
+        foreach (TrackId trackId in trackIds)
+        {
+            Track? track = await context.Tracks.AsNoTracking()
+                .FirstOrDefaultAsync(track => track.CollectionId == collectionId && track.Id == trackId, cancellationToken);
+            if (track is not null)
+            {
+                tracksById[track.Id] = track;
+            }
+        }
+
+        return tracksById;
     }
 
     private static ReleaseArtistCreditResponse ToArtistCreditResponse(Credit credit, IReadOnlyDictionary<ArtistId, Artist> artistsById)
