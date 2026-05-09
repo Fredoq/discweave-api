@@ -182,6 +182,58 @@ public sealed class TrackEndpointContractTests : IClassFixture<PostgresFixture>
         Assert.Equal(3, secondTracklist[0].GetProperty("position").GetInt32());
     }
 
+    [Fact(DisplayName = "Updating a track rejects duplicate release appearances")]
+    public async Task Updating_a_track_rejects_duplicate_release_appearances()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Autechre");
+
+        using HttpResponseMessage releaseResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            new
+            {
+                title = "Tri Repetae",
+                type = "album",
+                isVariousArtists = false,
+                artistCredits = new object[] { new { artistId, role = "mainArtist" } },
+                labels = Array.Empty<object>(),
+                notOnLabel = true,
+                year = 1995,
+                genres = ElectronicGenres,
+                tags = Array.Empty<string>(),
+                tracklist = new object[]
+                {
+                    new { title = "Dael", position = 1, durationSeconds = 398, artistCredits = Array.Empty<object>(), versionNote = (string?)null }
+                },
+                ownedCopy = (object?)null
+            });
+        using JsonDocument releaseDocument = await ReadJsonAsync(releaseResponse);
+        Assert.True(releaseResponse.StatusCode == HttpStatusCode.Created, releaseDocument.RootElement.ToString());
+        Guid releaseId = releaseDocument.RootElement.GetProperty("id").GetGuid();
+        Guid trackId = releaseDocument.RootElement.GetProperty("tracklist")[0].GetProperty("trackId").GetGuid();
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/tracks/{trackId}",
+            new
+            {
+                title = "Dael",
+                durationSeconds = 398,
+                genres = ElectronicGenres,
+                tags = Array.Empty<string>(),
+                credits = new object[] { new { artistId, role = "mainArtist" } },
+                releaseAppearances = new object[]
+                {
+                    new { releaseId, position = 1, versionNote = "Album version" },
+                    new { releaseId, position = 2, versionNote = "Duplicate entry" }
+                }
+            });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        Assert.Equal("track.release_appearance_duplicate", updateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name, string type = "person")
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type, name });

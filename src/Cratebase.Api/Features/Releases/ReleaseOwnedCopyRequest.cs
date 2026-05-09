@@ -6,7 +6,7 @@ public sealed record ReleaseOwnedCopyRequest
 {
     public string Status { get; init; } = string.Empty;
 
-    public MediumRequest Medium { get; init; } = null!;
+    public required MediumRequest Medium { get; init; }
 
     public string? Condition { get; init; }
 

@@ -67,7 +67,12 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 throw new DomainException("track.release_conflict", "Track release appearance does not exist");
             }
 
-            requestedByRelease.Add(releaseId, request);
+            if (!requestedByRelease.TryAdd(releaseId, request))
+            {
+                throw new DomainException(
+                    "track.release_appearance_duplicate",
+                    "Track release appearance contains duplicate release entries");
+            }
         }
 
         foreach (Release release in releases)
