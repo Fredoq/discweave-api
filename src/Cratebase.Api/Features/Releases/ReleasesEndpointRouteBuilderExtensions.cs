@@ -106,11 +106,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             .Take(normalizedLimit)
             .ToArrayAsync(cancellationToken);
 
-        var responses = new List<ReleaseResponse>(items.Length);
-        foreach (Release release in items)
-        {
-            responses.Add(await ToReleaseResponseAsync(release, context, currentCollection.CollectionId, cancellationToken));
-        }
+        IReadOnlyList<ReleaseResponse> responses = await ToReleaseResponsesAsync(items, context, currentCollection.CollectionId, cancellationToken);
 
         return Results.Ok(new ListResponse<ReleaseResponse>(responses, normalizedLimit, normalizedOffset, total));
     }
@@ -167,9 +163,16 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     private static Release ApplyReleaseRequest(Release release, ReleaseRequest request)
     {
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(ParseReleaseType(request.Type ?? string.Empty));
+        if (request.LabelId is not null && request.Labels is { Count: > 0 })
+        {
+            throw new DomainException("release.label_shape_invalid", "Release request must use either labelId or labels, not both");
+        }
+
         if (!request.NotOnLabel)
         {
-            Guid? firstLabelId = request.Labels?.FirstOrDefault(label => label.LabelId is not null)?.LabelId ?? request.LabelId;
+            Guid? firstLabelId = request.Labels is { Count: > 0 }
+                ? request.Labels.FirstOrDefault(label => label.LabelId is not null)?.LabelId
+                : request.LabelId;
             if (firstLabelId is { } labelId)
             {
                 metadata = metadata.WithLabel(new LabelId(labelId));

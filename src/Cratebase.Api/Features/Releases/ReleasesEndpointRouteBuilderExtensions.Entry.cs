@@ -166,9 +166,10 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         string name = labelRequest.Name.Trim();
-        Label? existingByName = await context.Labels.FirstOrDefaultAsync(
-            label => label.CollectionId == collectionId && label.Name == name,
-            cancellationToken);
+        Label? existingByName = context.Labels.Local.FirstOrDefault(label => label.CollectionId == collectionId && label.Name == name)
+            ?? await context.Labels.FirstOrDefaultAsync(
+                label => label.CollectionId == collectionId && label.Name == name,
+                cancellationToken);
         if (existingByName is not null)
         {
             return existingByName;
@@ -194,10 +195,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        Credit[] collectionCredits = await context.Credits
-            .Where(credit => credit.CollectionId == collectionId)
+        Credit[] releaseCreditsToRemove = await context.Credits
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<ReleaseId?>(credit, "_targetReleaseId") == release.Id)
             .ToArrayAsync(cancellationToken);
-        context.Credits.RemoveRange(collectionCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id));
+        context.Credits.RemoveRange(releaseCreditsToRemove);
 
         foreach (ResolvedCredit credit in releaseCredits)
         {

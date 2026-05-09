@@ -171,16 +171,16 @@ public static partial class TracksEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("track.not_found", "Track was not found");
         }
 
-        if (await TrackHasExternalDependentsAsync(track.Id, context, currentCollection.CollectionId, cancellationToken))
-        {
-            return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
-        }
-
         await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
+            if (await TrackHasExternalDependentsAsync(track.Id, context, currentCollection.CollectionId, cancellationToken))
+            {
+                return EndpointErrors.Conflict("track.delete_conflict", "Track has dependent data");
+            }
+
             Release[] releases = await context.Releases
                 .Where(release => release.CollectionId == currentCollection.CollectionId)
                 .ToArrayAsync(cancellationToken);
@@ -190,9 +190,11 @@ public static partial class TracksEndpointRouteBuilderExtensions
             }
 
             Credit[] trackCredits = await context.Credits
-                .Where(credit => credit.CollectionId == currentCollection.CollectionId)
+                .Where(credit =>
+                    credit.CollectionId == currentCollection.CollectionId &&
+                    EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
                 .ToArrayAsync(cancellationToken);
-            context.Credits.RemoveRange(trackCredits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id));
+            context.Credits.RemoveRange(trackCredits);
             _ = context.Tracks.Remove(track);
 
             _ = await context.SaveChangesAsync(cancellationToken);

@@ -12,7 +12,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
     private const string CollectionIdProperty = nameof(Release.CollectionId);
     private const string ReleaseIdColumn = "release_id";
-
     public void Configure(EntityTypeBuilder<Release> builder)
     {
         _ = builder.ToTable("releases");
@@ -196,7 +195,11 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
     {
         _ = builder.OwnsMany(release => release.Labels, label =>
         {
-            _ = label.ToTable("release_labels");
+            _ = label.ToTable(
+                "release_labels",
+                table => table.HasCheckConstraint(
+                    "ck_release_labels_catalog_number_consistency",
+                    "catalog_number IS NULL OR has_no_catalog_number = false"));
 
             _ = label.Property<long>("id")
                 .HasColumnName("id")

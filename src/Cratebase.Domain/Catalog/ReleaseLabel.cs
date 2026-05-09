@@ -13,13 +13,14 @@ public sealed class ReleaseLabel
 
     private ReleaseLabel(LabelId labelId, IOptionalValue<string> catalogNumber, bool hasNoCatalogNumber)
     {
-        if (catalogNumber.HasValue && hasNoCatalogNumber)
+        IOptionalValue<string> normalizedCatalogNumber = NormalizeCatalogNumber(catalogNumber);
+        if (normalizedCatalogNumber.HasValue && hasNoCatalogNumber)
         {
             throw new DomainException("release_label.catalog_number_conflict", "Release label cannot have a catalog number and be marked as no catalog number");
         }
 
         LabelId = labelId;
-        CatalogNumber = catalogNumber;
+        CatalogNumber = normalizedCatalogNumber;
         HasNoCatalogNumber = hasNoCatalogNumber;
     }
 
@@ -34,5 +35,18 @@ public sealed class ReleaseLabel
         ArgumentNullException.ThrowIfNull(catalogNumber);
 
         return new ReleaseLabel(labelId, catalogNumber, hasNoCatalogNumber);
+    }
+
+    private static IOptionalValue<string> NormalizeCatalogNumber(IOptionalValue<string> catalogNumber)
+    {
+        if (!catalogNumber.HasValue)
+        {
+            return Optional.Missing<string>();
+        }
+
+        string value = catalogNumber.Match(static present => present.Trim(), static () => string.Empty);
+        return value.Length == 0
+            ? throw new DomainException("release_label.catalog_number_required", "Release label catalog number cannot be blank")
+            : Optional.From(value);
     }
 }

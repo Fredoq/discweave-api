@@ -1,5 +1,3 @@
-using Cratebase.Api.Features.OwnedItems;
-
 namespace Cratebase.Api.Features.Releases;
 
 public sealed record ReleaseRequest
@@ -28,20 +26,3 @@ public sealed record ReleaseRequest
 
     public ReleaseOwnedCopyRequest? OwnedCopy { get; init; }
 }
-
-public sealed record ReleaseArtistCreditRequest(Guid? ArtistId, string? Name, string? Role);
-
-public sealed record ReleaseLabelRequest(Guid? LabelId, string? Name, string? CatalogNumber, bool HasNoCatalogNumber);
-
-public sealed record ReleaseTrackRequest(
-    string Title,
-    int Position,
-    int? DurationSeconds,
-    IReadOnlyList<ReleaseArtistCreditRequest>? ArtistCredits,
-    string? VersionNote);
-
-public sealed record ReleaseOwnedCopyRequest(
-    string Status,
-    MediumRequest Medium,
-    string? Condition,
-    string? StorageLocation);

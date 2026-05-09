@@ -5,6 +5,7 @@ using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 namespace Cratebase.Api.Features.Releases;
 
@@ -16,20 +17,53 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        ReleaseMetadata metadata = release.Summary.Metadata;
-        TrackId[] trackIds = [.. release.Tracklist.Select(track => track.TrackId)];
-        Credit[] credits = await context.Credits.AsNoTracking()
-            .Where(credit =>
-                credit.CollectionId == collectionId &&
-                EF.Property<ReleaseId?>(credit, "_targetReleaseId") == release.Id)
-            .ToArrayAsync(cancellationToken);
-        Credit[] releaseCredits = credits;
+        IReadOnlyList<ReleaseResponse> responses = await ToReleaseResponsesAsync([release], context, collectionId, cancellationToken);
+        return responses[0];
+    }
+
+    private static async Task<IReadOnlyList<ReleaseResponse>> ToReleaseResponsesAsync(
+        Release[] releases,
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        if (releases.Length == 0)
+        {
+            return [];
+        }
+
+        ReleaseId[] releaseIds = [.. releases.Select(release => release.Id).Distinct()];
+        TrackId[] trackIds = [.. releases.SelectMany(release => release.Tracklist).Select(track => track.TrackId).Distinct()];
+        Credit[] releaseCredits = await LoadReleaseCreditsAsync(context, collectionId, releaseIds, cancellationToken);
         List<Credit> trackCredits = await LoadTrackCreditsAsync(context, collectionId, trackIds, cancellationToken);
         ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Distinct()];
         Dictionary<ArtistId, Artist> artistsById = await LoadArtistsByIdAsync(context, collectionId, artistIds, cancellationToken);
-        LabelId[] labelIds = [.. release.Labels.Select(label => label.LabelId)];
+        LabelId[] labelIds = [.. releases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
         Dictionary<LabelId, Label> labelsById = await LoadLabelsByIdAsync(context, collectionId, labelIds, cancellationToken);
         Dictionary<TrackId, Track> tracksById = await LoadTracksByIdAsync(context, collectionId, trackIds, cancellationToken);
+
+        return
+        [
+            .. releases.Select(release => ToReleaseResponse(
+                release,
+                releaseCredits,
+                trackCredits,
+                artistsById,
+                labelsById,
+                tracksById))
+        ];
+    }
+
+    private static ReleaseResponse ToReleaseResponse(
+        Release release,
+        IReadOnlyList<Credit> releaseCredits,
+        IReadOnlyList<Credit> trackCredits,
+        Dictionary<ArtistId, Artist> artistsById,
+        Dictionary<LabelId, Label> labelsById,
+        Dictionary<TrackId, Track> tracksById)
+    {
+        ReleaseMetadata metadata = release.Summary.Metadata;
+        Credit[] credits = [.. releaseCredits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
 
         return new ReleaseResponse(
             release.Id.Value,
@@ -41,28 +75,71 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             [.. release.Cataloging.Tags.Select(tag => tag.Name)],
             release.IsVariousArtists,
             release.IsNotOnLabel,
-            [.. releaseCredits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
+            [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById))]);
+    }
+
+    private static async Task<Credit[]> LoadReleaseCreditsAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        ReleaseId[] releaseIds,
+        CancellationToken cancellationToken)
+    {
+        return releaseIds.Length == 0
+            ? []
+            : [.. (await context.Credits.AsNoTracking()
+            .Where(credit =>
+                credit.CollectionId == collectionId)
+            .Where(HasAnyTargetReleaseId(releaseIds))
+            .ToArrayAsync(cancellationToken))
+            .OrderBy(credit => credit.Contributor.ArtistId.Value)
+            .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))];
+    }
+
+    private static Expression<Func<Credit, bool>> HasAnyTargetReleaseId(ReleaseId[] releaseIds)
+    {
+        Expression<Func<Credit, ReleaseId?>> targetReleaseId = credit => EF.Property<ReleaseId?>(credit, "_targetReleaseId");
+        Expression? body = null;
+
+        foreach (ReleaseId releaseId in releaseIds)
+        {
+            BinaryExpression targetMatches = Expression.Equal(targetReleaseId.Body, Expression.Constant((ReleaseId?)releaseId, typeof(ReleaseId?)));
+            body = body is null ? targetMatches : Expression.OrElse(body, targetMatches);
+        }
+
+        return Expression.Lambda<Func<Credit, bool>>(body ?? Expression.Constant(false), targetReleaseId.Parameters);
     }
 
     private static async Task<List<Credit>> LoadTrackCreditsAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
-        IEnumerable<TrackId> trackIds,
+        TrackId[] trackIds,
         CancellationToken cancellationToken)
     {
-        List<Credit> credits = [];
+        return trackIds.Length == 0
+            ? []
+            : [.. (await context.Credits.AsNoTracking()
+            .Where(credit =>
+                credit.CollectionId == collectionId)
+            .Where(HasAnyTargetTrackId(trackIds))
+            .ToArrayAsync(cancellationToken))
+            .OrderBy(credit => credit.Contributor.ArtistId.Value)
+            .ThenBy(credit => CreditMapper.ToRoleCode(credit.Role))];
+    }
+
+    private static Expression<Func<Credit, bool>> HasAnyTargetTrackId(TrackId[] trackIds)
+    {
+        Expression<Func<Credit, TrackId?>> targetTrackId = credit => EF.Property<TrackId?>(credit, "_targetTrackId");
+        Expression? body = null;
+
         foreach (TrackId trackId in trackIds)
         {
-            credits.AddRange(await context.Credits.AsNoTracking()
-                .Where(credit =>
-                    credit.CollectionId == collectionId &&
-                    EF.Property<TrackId?>(credit, "_targetTrackId") == trackId)
-                .ToArrayAsync(cancellationToken));
+            BinaryExpression targetMatches = Expression.Equal(targetTrackId.Body, Expression.Constant((TrackId?)trackId, typeof(TrackId?)));
+            body = body is null ? targetMatches : Expression.OrElse(body, targetMatches);
         }
 
-        return credits;
+        return Expression.Lambda<Func<Credit, bool>>(body ?? Expression.Constant(false), targetTrackId.Parameters);
     }
 
     private static async Task<Dictionary<ArtistId, Artist>> LoadArtistsByIdAsync(
@@ -71,18 +148,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IEnumerable<ArtistId> artistIds,
         CancellationToken cancellationToken)
     {
-        Dictionary<ArtistId, Artist> artistsById = [];
-        foreach (ArtistId artistId in artistIds)
-        {
-            Artist? artist = await context.Artists.AsNoTracking()
-                .FirstOrDefaultAsync(artist => artist.CollectionId == collectionId && artist.Id == artistId, cancellationToken);
-            if (artist is not null)
-            {
-                artistsById[artist.Id] = artist;
-            }
-        }
-
-        return artistsById;
+        ArtistId[] ids = [.. artistIds.Distinct()];
+        return ids.Length == 0
+            ? []
+            : await context.Artists.AsNoTracking()
+            .Where(artist => artist.CollectionId == collectionId && ids.Contains(artist.Id))
+            .ToDictionaryAsync(artist => artist.Id, cancellationToken);
     }
 
     private static async Task<Dictionary<LabelId, Label>> LoadLabelsByIdAsync(
@@ -91,18 +162,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IEnumerable<LabelId> labelIds,
         CancellationToken cancellationToken)
     {
-        Dictionary<LabelId, Label> labelsById = [];
-        foreach (LabelId labelId in labelIds)
-        {
-            Label? label = await context.Labels.AsNoTracking()
-                .FirstOrDefaultAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
-            if (label is not null)
-            {
-                labelsById[label.Id] = label;
-            }
-        }
-
-        return labelsById;
+        LabelId[] ids = [.. labelIds.Distinct()];
+        return ids.Length == 0
+            ? []
+            : await context.Labels.AsNoTracking()
+            .Where(label => label.CollectionId == collectionId && ids.Contains(label.Id))
+            .ToDictionaryAsync(label => label.Id, cancellationToken);
     }
 
     private static async Task<Dictionary<TrackId, Track>> LoadTracksByIdAsync(
@@ -111,18 +176,12 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IEnumerable<TrackId> trackIds,
         CancellationToken cancellationToken)
     {
-        Dictionary<TrackId, Track> tracksById = [];
-        foreach (TrackId trackId in trackIds)
-        {
-            Track? track = await context.Tracks.AsNoTracking()
-                .FirstOrDefaultAsync(track => track.CollectionId == collectionId && track.Id == trackId, cancellationToken);
-            if (track is not null)
-            {
-                tracksById[track.Id] = track;
-            }
-        }
-
-        return tracksById;
+        TrackId[] ids = [.. trackIds.Distinct()];
+        return ids.Length == 0
+            ? []
+            : await context.Tracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId && ids.Contains(track.Id))
+            .ToDictionaryAsync(track => track.Id, cancellationToken);
     }
 
     private static ReleaseArtistCreditResponse ToArtistCreditResponse(Credit credit, IReadOnlyDictionary<ArtistId, Artist> artistsById)

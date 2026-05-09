@@ -63,6 +63,19 @@ public sealed class ReleaseTrack
         ArgumentNullException.ThrowIfNull(titleOverride);
         ArgumentNullException.ThrowIfNull(versionNote);
 
-        return new ReleaseTrack(trackId, position, titleOverride, versionNote);
+        return new ReleaseTrack(trackId, position, NormalizeOptionalText(titleOverride), NormalizeOptionalText(versionNote));
+    }
+
+    private static IOptionalValue<string> NormalizeOptionalText(IOptionalValue<string> value)
+    {
+        if (!value.HasValue)
+        {
+            return Optional.Missing<string>();
+        }
+
+        string text = value.Match(static present => present.Trim(), static () => string.Empty);
+        return text.Length == 0
+            ? Optional.Missing<string>()
+            : Optional.From(text);
     }
 }

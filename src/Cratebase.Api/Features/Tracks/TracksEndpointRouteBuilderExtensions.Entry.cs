@@ -19,9 +19,11 @@ public static partial class TracksEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Credit[] existingCredits = await context.Credits
-            .Where(credit => credit.CollectionId == collectionId)
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
             .ToArrayAsync(cancellationToken);
-        context.Credits.RemoveRange(existingCredits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id));
+        context.Credits.RemoveRange(existingCredits);
 
         foreach (ResolvedTrackCredit resolved in await ResolveTrackCreditsAsync(creditRequests, context, collectionId, cancellationToken))
         {
@@ -41,8 +43,12 @@ public static partial class TracksEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
+        ReleaseId[] requestedReleaseIds = [.. appearanceRequests.Select(request => new ReleaseId(request.ReleaseId)).Distinct()];
         Release[] releases = await context.Releases
-            .Where(release => release.CollectionId == collectionId)
+            .Where(release =>
+                release.CollectionId == collectionId &&
+                (release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id) ||
+                    requestedReleaseIds.Contains(release.Id)))
             .ToArrayAsync(cancellationToken);
         Dictionary<ReleaseId, Release> releasesById = releases.ToDictionary(release => release.Id);
         var requestedByRelease = new Dictionary<ReleaseId, TrackReleaseAppearanceRequest>();

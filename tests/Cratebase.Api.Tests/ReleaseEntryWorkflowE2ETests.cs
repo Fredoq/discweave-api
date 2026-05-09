@@ -102,6 +102,7 @@ public sealed class ReleaseEntryWorkflowE2ETests : IClassFixture<PostgresFixture
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid labelId = await CreateLabelAsync(client);
 
         using HttpResponseMessage emptyTitleResponse = await client.PostAsJsonAsync(
             "/api/releases",
@@ -137,10 +138,30 @@ public sealed class ReleaseEntryWorkflowE2ETests : IClassFixture<PostgresFixture
             });
         using JsonDocument missingArtistDocument = await ReadJsonAsync(missingArtistResponse);
 
+        using HttpResponseMessage mixedLabelShapeResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            new
+            {
+                title = "Untitled Private Press",
+                type = "album",
+                labelId,
+                isVariousArtists = false,
+                artistCredits = Array.Empty<object>(),
+                labels = new object[] { new { labelId, catalogNumber = "CAT-1", hasNoCatalogNumber = false } },
+                notOnLabel = false,
+                genres = Array.Empty<string>(),
+                tags = Array.Empty<string>(),
+                tracklist = Array.Empty<object>(),
+                ownedCopy = (object?)null
+            });
+        using JsonDocument mixedLabelShapeDocument = await ReadJsonAsync(mixedLabelShapeResponse);
+
         Assert.Equal(HttpStatusCode.BadRequest, emptyTitleResponse.StatusCode);
         Assert.Equal("release.title_required", emptyTitleDocument.RootElement.GetProperty("code").GetString());
         Assert.Equal(HttpStatusCode.BadRequest, missingArtistResponse.StatusCode);
         Assert.Equal("release.artist_required", missingArtistDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, mixedLabelShapeResponse.StatusCode);
+        Assert.Equal("release.label_shape_invalid", mixedLabelShapeDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Release entry create reuses new artists within the same request")]
@@ -187,6 +208,47 @@ public sealed class ReleaseEntryWorkflowE2ETests : IClassFixture<PostgresFixture
         Assert.Equal(HttpStatusCode.OK, artistsResponse.StatusCode);
         Assert.Equal(1, artistsDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal("Shared Artist", artistsDocument.RootElement.GetProperty("items")[0].GetProperty("name").GetString());
+    }
+
+    [Fact(DisplayName = "Release entry create reuses new labels within the same request")]
+    public async Task Release_entry_create_reuses_new_labels_within_the_same_request()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            new
+            {
+                title = "Shared Label Draft",
+                type = "album",
+                isVariousArtists = false,
+                artistCredits = new object[] { new { name = "Shared Label Artist", role = "mainArtist" } },
+                labels = new object[]
+                {
+                    new { name = "Shared Label", catalogNumber = "SL-1", hasNoCatalogNumber = false },
+                    new { name = "Shared Label", catalogNumber = "SL-2", hasNoCatalogNumber = false }
+                },
+                notOnLabel = false,
+                genres = Array.Empty<string>(),
+                tags = Array.Empty<string>(),
+                tracklist = Array.Empty<object>(),
+                ownedCopy = (object?)null
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(2, createDocument.RootElement.GetProperty("labels").GetArrayLength());
+        Guid firstLabelId = createDocument.RootElement.GetProperty("labels")[0].GetProperty("labelId").GetGuid();
+        Guid secondLabelId = createDocument.RootElement.GetProperty("labels")[1].GetProperty("labelId").GetGuid();
+        Assert.Equal(firstLabelId, secondLabelId);
+
+        using HttpResponseMessage labelsResponse = await client.GetAsync("/api/labels?search=Shared%20Label&limit=10&offset=0");
+        using JsonDocument labelsDocument = await ReadJsonAsync(labelsResponse);
+
+        Assert.Equal(HttpStatusCode.OK, labelsResponse.StatusCode);
+        Assert.Equal(1, labelsDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal("Shared Label", labelsDocument.RootElement.GetProperty("items")[0].GetProperty("name").GetString());
     }
 
     private static async Task<Guid> CreateLabelAsync(HttpClient client)

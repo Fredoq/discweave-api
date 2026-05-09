@@ -356,6 +356,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_release_labels", x => x.id);
+                    table.CheckConstraint("ck_release_labels_catalog_number_consistency", "catalog_number IS NULL OR has_no_catalog_number = false");
                     table.ForeignKey(
                         name: "FK_release_labels_labels_collection_id_label_id",
                         columns: x => new { x.collection_id, x.label_id },

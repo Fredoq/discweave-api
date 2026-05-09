@@ -912,7 +912,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                             b1.HasIndex("CollectionId", "release_id");
 
-                            b1.ToTable("release_labels", (string)null);
+                            b1.ToTable("release_labels", (string)null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_release_labels_catalog_number_consistency", "catalog_number IS NULL OR has_no_catalog_number = false");
+                                });
 
                             b1.HasOne("Cratebase.Domain.Catalog.Label", null)
                                 .WithMany()
