@@ -11,6 +11,12 @@ namespace Cratebase.Api.Features.Tracks;
 
 public static partial class TracksEndpointRouteBuilderExtensions
 {
+    private static readonly CreditArtistResolverErrors TrackCreditArtistErrors = new(
+        "track.artist_conflict",
+        "Track artist does not exist",
+        "track.artist_name_required",
+        "Track artist name is required");
+
     private static async Task ReplaceTrackCreditsAsync(
         Track track,
         IReadOnlyList<TrackCreditRequest> creditRequests,
@@ -93,57 +99,18 @@ public static partial class TracksEndpointRouteBuilderExtensions
         var resolved = new List<ResolvedTrackCredit>(creditRequests.Count);
         foreach (TrackCreditRequest creditRequest in creditRequests)
         {
-            Artist artist = await ResolveTrackArtistAsync(creditRequest, context, collectionId, cancellationToken);
+            Artist artist = await CreditArtistResolver.ResolveAsync(
+                creditRequest.ArtistId,
+                creditRequest.Name,
+                context,
+                collectionId,
+                TrackCreditArtistErrors,
+                cancellationToken);
             CreditRole role = CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role);
             resolved.Add(new ResolvedTrackCredit(artist, role));
         }
 
         return resolved;
-    }
-
-    private static async Task<Artist> ResolveTrackArtistAsync(
-        TrackCreditRequest creditRequest,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
-    {
-        if (creditRequest.ArtistId is { } artistId)
-        {
-            Artist? existing = await context.Artists.SingleOrDefaultAsync(
-                artist => artist.CollectionId == collectionId && artist.Id == new ArtistId(artistId),
-                cancellationToken);
-
-            return existing ?? throw new DomainException("track.artist_conflict", "Track artist does not exist");
-        }
-
-        if (string.IsNullOrWhiteSpace(creditRequest.Name))
-        {
-            throw new DomainException("track.artist_name_required", "Track artist name is required");
-        }
-
-        string name = creditRequest.Name.Trim();
-        Artist? pendingByName = context.ChangeTracker
-            .Entries<Artist>()
-            .Where(entry => entry.State == EntityState.Added)
-            .Select(entry => entry.Entity)
-            .FirstOrDefault(artist => artist.CollectionId == collectionId && artist.Name == name);
-        if (pendingByName is not null)
-        {
-            return pendingByName;
-        }
-
-        Artist? existingByName = await context.Artists.FirstOrDefaultAsync(
-            artist => artist.CollectionId == collectionId && artist.Name == name,
-            cancellationToken);
-        if (existingByName is not null)
-        {
-            return existingByName;
-        }
-
-        Artist created = Person.Create(collectionId, ArtistId.New(), name);
-        _ = context.Artists.Add(created);
-
-        return created;
     }
 
     private static IOptionalValue<string> ToOptionalString(string? value)
