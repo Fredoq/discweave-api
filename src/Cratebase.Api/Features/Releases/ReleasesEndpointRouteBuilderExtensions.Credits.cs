@@ -21,7 +21,14 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         IReadOnlyList<ResolvedCredit> resolvedCredits = await ResolveCreditsAsync(artistCredits, context, collectionId, cancellationToken);
         return resolvedCredits.Count > 0
             ? resolvedCredits
-            : isVariousArtists
+            : ResolveDefaultTrackCredits(releaseCredits, isVariousArtists);
+    }
+
+    private static IReadOnlyList<ResolvedCredit> ResolveDefaultTrackCredits(
+        IReadOnlyList<ResolvedCredit> releaseCredits,
+        bool isVariousArtists)
+    {
+        return isVariousArtists
             ? throw new DomainException("track.artist_required", "Track artist is required for Various Artists releases")
             : [.. releaseCredits.Where(credit => credit.Role == CreditRole.MainArtist)];
     }

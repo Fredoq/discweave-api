@@ -20,20 +20,16 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     private Release(
         CollectionId collectionId,
         ReleaseId id,
-        ReleaseSummary summary,
-        bool isVariousArtists,
-        bool isNotOnLabel,
-        IReadOnlyList<ReleaseLabel> labels,
-        IReadOnlyList<ReleaseTrack> tracklist,
+        ReleaseState state,
         Cataloging cataloging)
     {
         CollectionId = collectionId;
         Id = id;
-        Summary = summary;
-        IsVariousArtists = isVariousArtists;
-        IsNotOnLabel = isNotOnLabel;
-        _labels = [.. labels];
-        _tracklist = [.. tracklist];
+        Summary = state.Summary;
+        IsVariousArtists = state.IsVariousArtists;
+        IsNotOnLabel = state.IsNotOnLabel;
+        _labels = [.. state.Labels];
+        _tracklist = [.. state.Tracklist];
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
     }
@@ -76,7 +72,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
     public static Release Create(CollectionId collectionId, ReleaseId id, string title)
     {
-        return new Release(collectionId, id, ReleaseSummary.Create(title), false, false, [], [], Cataloging.Empty);
+        return new Release(collectionId, id, ReleaseState.Create(ReleaseSummary.Create(title)), Cataloging.Empty);
     }
 
     public void UpdateSummary(ReleaseSummary summary)
@@ -131,7 +127,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        return new Release(CollectionId, Id, summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist, Cataloging);
+        return new Release(CollectionId, Id, CurrentState() with { Summary = summary }, Cataloging);
     }
 
     public Release WithRating(Rating rating)
@@ -145,14 +141,19 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         EnsureTrackPositionIsUnique(releaseTrack.Position);
 
-        return new Release(CollectionId, Id, Summary, IsVariousArtists, IsNotOnLabel, _labels, [.. _tracklist, releaseTrack], Cataloging);
+        return new Release(CollectionId, Id, CurrentState() with { Tracklist = [.. _tracklist, releaseTrack] }, Cataloging);
     }
 
     public Release WithCataloging(Cataloging cataloging)
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Release(CollectionId, Id, Summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist, cataloging);
+        return new Release(CollectionId, Id, CurrentState(), cataloging);
+    }
+
+    private ReleaseState CurrentState()
+    {
+        return new ReleaseState(Summary, IsVariousArtists, IsNotOnLabel, _labels, _tracklist);
     }
 
     private void EnsureTrackPositionIsUnique(TrackPosition position)
@@ -160,6 +161,19 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         if (Tracklist.Any(existing => existing.Position == position))
         {
             throw new DomainException("release_track.position_duplicate", "Release track position already exists");
+        }
+    }
+
+    private sealed record ReleaseState(
+        ReleaseSummary Summary,
+        bool IsVariousArtists,
+        bool IsNotOnLabel,
+        IReadOnlyList<ReleaseLabel> Labels,
+        IReadOnlyList<ReleaseTrack> Tracklist)
+    {
+        public static ReleaseState Create(ReleaseSummary summary)
+        {
+            return new ReleaseState(summary, false, false, [], []);
         }
     }
 }
