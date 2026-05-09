@@ -19,27 +19,55 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ReleaseMetadata metadata = release.Summary.Metadata;
         TrackId[] trackIds = [.. release.Tracklist.Select(track => track.TrackId)];
         Credit[] credits = await context.Credits.AsNoTracking()
-            .Where(credit => credit.CollectionId == collectionId)
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<ReleaseId?>(credit, "_targetReleaseId") == release.Id)
             .ToArrayAsync(cancellationToken);
-        Credit[] releaseCredits = [.. credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
-        Credit[] trackCredits = [.. credits.Where(credit => credit.Target is TrackCreditTarget target && trackIds.Contains(target.TrackId))];
+        Credit[] releaseCredits = credits;
+        List<Credit> trackCredits = [];
+        foreach (TrackId trackId in trackIds)
+        {
+            trackCredits.AddRange(await context.Credits.AsNoTracking()
+                .Where(credit =>
+                    credit.CollectionId == collectionId &&
+                    EF.Property<TrackId?>(credit, "_targetTrackId") == trackId)
+                .ToArrayAsync(cancellationToken));
+        }
+
         ArtistId[] artistIds = [.. releaseCredits.Concat(trackCredits).Select(credit => credit.Contributor.ArtistId).Distinct()];
-        var artistsById = (await context.Artists.AsNoTracking()
-                .Where(artist => artist.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-            .Where(artist => artistIds.Contains(artist.Id))
-            .ToDictionary(artist => artist.Id);
+        Dictionary<ArtistId, Artist> artistsById = [];
+        foreach (ArtistId artistId in artistIds)
+        {
+            Artist? artist = await context.Artists.AsNoTracking()
+                .FirstOrDefaultAsync(artist => artist.CollectionId == collectionId && artist.Id == artistId, cancellationToken);
+            if (artist is not null)
+            {
+                artistsById[artist.Id] = artist;
+            }
+        }
+
         LabelId[] labelIds = [.. release.Labels.Select(label => label.LabelId)];
-        var labelsById = (await context.Labels.AsNoTracking()
-                .Where(label => label.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-            .Where(label => labelIds.Contains(label.Id))
-            .ToDictionary(label => label.Id);
-        var tracksById = (await context.Tracks.AsNoTracking()
-                .Where(track => track.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-            .Where(track => trackIds.Contains(track.Id))
-            .ToDictionary(track => track.Id);
+        Dictionary<LabelId, Label> labelsById = [];
+        foreach (LabelId labelId in labelIds)
+        {
+            Label? label = await context.Labels.AsNoTracking()
+                .FirstOrDefaultAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
+            if (label is not null)
+            {
+                labelsById[label.Id] = label;
+            }
+        }
+
+        Dictionary<TrackId, Track> tracksById = [];
+        foreach (TrackId trackId in trackIds)
+        {
+            Track? track = await context.Tracks.AsNoTracking()
+                .FirstOrDefaultAsync(track => track.CollectionId == collectionId && track.Id == trackId, cancellationToken);
+            if (track is not null)
+            {
+                tracksById[track.Id] = track;
+            }
+        }
 
         return new ReleaseResponse(
             release.Id.Value,

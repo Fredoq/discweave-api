@@ -15,30 +15,51 @@ public static partial class TracksEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        Credit[] credits = await context.Credits.AsNoTracking()
-            .Where(credit => credit.CollectionId == collectionId)
+        Credit[] trackCredits = await context.Credits.AsNoTracking()
+            .Where(credit =>
+                credit.CollectionId == collectionId &&
+                EF.Property<TrackId?>(credit, "_targetTrackId") == track.Id)
             .ToArrayAsync(cancellationToken);
-        Credit[] trackCredits = [.. credits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id)];
         ArtistId[] trackArtistIds = [.. trackCredits.Select(credit => credit.Contributor.ArtistId).Distinct()];
-        Release[] releases = await context.Releases.AsNoTracking()
-            .Where(release => release.CollectionId == collectionId)
+        Release[] appearanceReleases = await context.Releases.AsNoTracking()
+            .Where(release =>
+                release.CollectionId == collectionId &&
+                release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id))
             .ToArrayAsync(cancellationToken);
-        Release[] appearanceReleases = [.. releases.Where(release => release.Tracklist.Any(releaseTrack => releaseTrack.TrackId == track.Id))];
-        ReleaseId[] appearanceReleaseIds = [.. appearanceReleases.Select(release => release.Id)];
-        Credit[] releaseCredits = [.. credits.Where(credit => credit.Target is ReleaseCreditTarget target && appearanceReleaseIds.Contains(target.ReleaseId))];
+        List<Credit> releaseCredits = [];
+        foreach (ReleaseId releaseId in appearanceReleases.Select(release => release.Id))
+        {
+            releaseCredits.AddRange(await context.Credits.AsNoTracking()
+                .Where(credit =>
+                    credit.CollectionId == collectionId &&
+                    EF.Property<ReleaseId?>(credit, "_targetReleaseId") == releaseId)
+                .ToArrayAsync(cancellationToken));
+        }
+
         ArtistId[] releaseArtistIds = [.. releaseCredits.Select(credit => credit.Contributor.ArtistId).Distinct()];
         ArtistId[] artistIds = [.. trackArtistIds.Concat(releaseArtistIds).Distinct()];
-        var artistsById = (await context.Artists.AsNoTracking()
-                .Where(artist => artist.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-            .Where(artist => artistIds.Contains(artist.Id))
-            .ToDictionary(artist => artist.Id);
+        Dictionary<ArtistId, Artist> artistsById = [];
+        foreach (ArtistId artistId in artistIds)
+        {
+            Artist? artist = await context.Artists.AsNoTracking()
+                .FirstOrDefaultAsync(artist => artist.CollectionId == collectionId && artist.Id == artistId, cancellationToken);
+            if (artist is not null)
+            {
+                artistsById[artist.Id] = artist;
+            }
+        }
+
         LabelId[] labelIds = [.. appearanceReleases.SelectMany(release => release.Labels).Select(label => label.LabelId).Distinct()];
-        var labelsById = (await context.Labels.AsNoTracking()
-                .Where(label => label.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-            .Where(label => labelIds.Contains(label.Id))
-            .ToDictionary(label => label.Id);
+        Dictionary<LabelId, Label> labelsById = [];
+        foreach (LabelId labelId in labelIds)
+        {
+            Label? label = await context.Labels.AsNoTracking()
+                .FirstOrDefaultAsync(label => label.CollectionId == collectionId && label.Id == labelId, cancellationToken);
+            if (label is not null)
+            {
+                labelsById[label.Id] = label;
+            }
+        }
 
         return new TrackResponse(
             track.Id.Value,

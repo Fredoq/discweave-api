@@ -167,10 +167,13 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     private static Release ApplyReleaseRequest(Release release, ReleaseRequest request)
     {
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(ParseReleaseType(request.Type ?? string.Empty));
-        Guid? firstLabelId = request.Labels?.FirstOrDefault(label => label.LabelId is not null)?.LabelId ?? request.LabelId;
-        if (firstLabelId is { } labelId)
+        if (!request.NotOnLabel)
         {
-            metadata = metadata.WithLabel(new LabelId(labelId));
+            Guid? firstLabelId = request.Labels?.FirstOrDefault(label => label.LabelId is not null)?.LabelId ?? request.LabelId;
+            if (firstLabelId is { } labelId)
+            {
+                metadata = metadata.WithLabel(new LabelId(labelId));
+            }
         }
 
         if (request.Year is { } year)
