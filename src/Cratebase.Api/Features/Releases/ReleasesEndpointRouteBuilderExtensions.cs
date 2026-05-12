@@ -145,6 +145,16 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             IReadOnlyList<ReleaseLabel> labels = await ResolveLabelsAsync(request, context, currentCollection.CollectionId, cancellationToken);
             release.UpdateLabels(request.NotOnLabel, labels);
             await ReplaceReleaseCreditsAsync(release, releaseCredits, context, currentCollection.CollectionId, cancellationToken);
+            if (request.Tracklist is not null)
+            {
+                await ReplaceReleaseTracklistAsync(
+                    request,
+                    release,
+                    releaseCredits,
+                    context,
+                    currentCollection.CollectionId,
+                    cancellationToken);
+            }
 
             _ = await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

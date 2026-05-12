@@ -2,7 +2,9 @@ namespace Cratebase.Api.Features.Releases;
 
 public sealed record ReleaseTrackRequest
 {
-    public string Title { get; init; } = string.Empty;
+    public Guid? TrackId { get; init; }
+
+    public string? Title { get; init; }
 
     public int Position { get; init; }
 

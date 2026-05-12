@@ -40,13 +40,13 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForRelease(release.Id), credit.Role));
         }
 
-        await CreateTracklistAsync(request, release, releaseCredits, context, collectionId, cancellationToken);
+        await ReplaceReleaseTracklistAsync(request, release, releaseCredits, context, collectionId, cancellationToken);
         CreateOwnedCopy(request, release, context, collectionId);
 
         return release;
     }
 
-    private static async Task CreateTracklistAsync(
+    private static async Task ReplaceReleaseTracklistAsync(
         ReleaseRequest request,
         Release release,
         IReadOnlyList<ResolvedCredit> releaseCredits,
@@ -54,29 +54,48 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
+        EnsureTracklistHasNoDuplicateTrackIds(request.Tracklist ?? []);
+
         var releaseTracks = new List<ReleaseTrack>();
         foreach (ReleaseTrackRequest trackRequest in request.Tracklist ?? [])
         {
-            var track = Track.Create(collectionId, TrackId.New(), trackRequest.Title);
-            TrackDetails details = TrackDetails.Empty;
-            if (trackRequest.DurationSeconds is { } durationSeconds)
+            Track track;
+            if (trackRequest.TrackId is { } trackId)
             {
-                details = details.WithDuration(TimeSpan.FromSeconds(durationSeconds));
+                track = await context.Tracks.SingleOrDefaultAsync(
+                    entity => entity.CollectionId == collectionId && entity.Id == new TrackId(trackId),
+                    cancellationToken)
+                    ?? throw new DomainException("release_track.track_conflict", "Release track does not exist");
             }
-
-            track.UpdateDetails(details);
-            _ = context.Tracks.Add(track);
-
-            IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
-                trackRequest.ArtistCredits,
-                releaseCredits,
-                request.IsVariousArtists,
-                context,
-                collectionId,
-                cancellationToken);
-            foreach (ResolvedCredit credit in trackCredits)
+            else
             {
-                _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Role));
+                string title = trackRequest.Title?.Trim() ?? string.Empty;
+                if (title.Length == 0)
+                {
+                    throw new DomainException("release_track.title_required", "Release track title is required when trackId is not provided");
+                }
+
+                track = Track.Create(collectionId, TrackId.New(), title);
+                TrackDetails details = TrackDetails.Empty;
+                if (trackRequest.DurationSeconds is { } durationSeconds)
+                {
+                    details = details.WithDuration(TimeSpan.FromSeconds(durationSeconds));
+                }
+
+                track.UpdateDetails(details);
+                _ = context.Tracks.Add(track);
+
+                IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
+                    trackRequest.ArtistCredits,
+                    releaseCredits,
+                    request.IsVariousArtists,
+                    context,
+                    collectionId,
+                    cancellationToken);
+                foreach (ResolvedCredit credit in trackCredits)
+                {
+                    _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Role));
+                }
             }
 
             releaseTracks.Add(
@@ -88,6 +107,20 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         release.ReplaceTracklist(releaseTracks);
+    }
+
+    private static void EnsureTracklistHasNoDuplicateTrackIds(IReadOnlyList<ReleaseTrackRequest> trackRequests)
+    {
+        var requestedTrackIds = new HashSet<Guid>();
+        foreach (ReleaseTrackRequest trackRequest in trackRequests)
+        {
+            if (trackRequest.TrackId is { } trackId && !requestedTrackIds.Add(trackId))
+            {
+                throw new DomainException(
+                    "release_track.track_duplicate",
+                    "Release tracklist contains duplicate track entries");
+            }
+        }
     }
 
     private static void CreateOwnedCopy(
