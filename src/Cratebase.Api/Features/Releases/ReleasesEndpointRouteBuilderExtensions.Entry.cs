@@ -62,6 +62,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             Track track;
             if (trackRequest.TrackId is { } trackId)
             {
+                EnsureExistingTrackRequestHasNoCanonicalMetadata(trackRequest);
+
                 track = await context.Tracks.SingleOrDefaultAsync(
                     entity => entity.CollectionId == collectionId && entity.Id == new TrackId(trackId),
                     cancellationToken)
@@ -107,6 +109,20 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         release.ReplaceTracklist(releaseTracks);
+    }
+
+    private static void EnsureExistingTrackRequestHasNoCanonicalMetadata(ReleaseTrackRequest trackRequest)
+    {
+        bool hasArtistCredits = trackRequest.ArtistCredits?.Count > 0;
+
+        if (!string.IsNullOrWhiteSpace(trackRequest.Title)
+            || trackRequest.DurationSeconds is not null
+            || hasArtistCredits)
+        {
+            throw new DomainException(
+                "release_track.shape_invalid",
+                "Release track with trackId must not include title, durationSeconds, or artistCredits");
+        }
     }
 
     private static void EnsureTracklistHasNoDuplicateTrackIds(IReadOnlyList<ReleaseTrackRequest> trackRequests)

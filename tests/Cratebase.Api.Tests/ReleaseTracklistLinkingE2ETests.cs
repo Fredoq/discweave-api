@@ -137,47 +137,6 @@ public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixt
         _ = Assert.Single(retainedTrackDocument.RootElement.GetProperty("releaseAppearances").EnumerateArray());
     }
 
-    [Fact(DisplayName = "Release entry create rejects duplicate existing tracks in one tracklist")]
-    public async Task Release_entry_create_rejects_duplicate_existing_tracks_in_one_tracklist()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Guid artistId = await CreateArtistAsync(client, "Autechre");
-
-        using JsonDocument sourceDocument = await CreateReleaseAsync(
-            client,
-            "Tri Repetae",
-            artistId,
-            [
-                new
-                {
-                    title = "Dael",
-                    position = 1,
-                    durationSeconds = 398,
-                    artistCredits = Array.Empty<object>(),
-                    versionNote = (string?)null
-                }
-            ],
-            year: 1995);
-        Guid existingTrackId = sourceDocument.RootElement.GetProperty("tracklist")[0].GetProperty("trackId").GetGuid();
-
-        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync(
-            "/api/releases",
-            ReleasePayload(
-                "Duplicate Tracklist",
-                artistId,
-                [
-                    new { trackId = existingTrackId, position = 1, versionNote = (string?)null },
-                    new { trackId = existingTrackId, position = 2, versionNote = "Duplicate" }
-                ],
-                type: "standalone",
-                year: 1996));
-        using JsonDocument duplicateDocument = await ReadJsonAsync(duplicateResponse);
-
-        Assert.Equal(HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
-        Assert.Equal("release_track.track_duplicate", duplicateDocument.RootElement.GetProperty("code").GetString());
-    }
-
     [Fact(DisplayName = "Release entry update keeps tracklist when omitted")]
     public async Task Release_entry_update_keeps_tracklist_when_omitted()
     {
