@@ -71,7 +71,11 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
         Assert.Equal("release_track.shape_invalid", invalidShapeDocument.RootElement.GetProperty("code").GetString());
     }
 
-    private static async Task<Guid> CreateSourceTrackAsync(HttpClient client, Guid artistId, string title)
+    private static async Task<Guid> CreateSourceTrackAsync(
+        HttpClient client,
+        Guid artistId,
+        string title,
+        CancellationToken cancellationToken = default)
     {
         using JsonDocument sourceDocument = await CreateReleaseAsync(
             client,
@@ -86,7 +90,8 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
                     artistCredits = Array.Empty<object>(),
                     versionNote = (string?)null
                 }
-            ]);
+            ],
+            cancellationToken);
 
         return sourceDocument.RootElement.GetProperty("tracklist")[0].GetProperty("trackId").GetGuid();
     }
@@ -95,12 +100,14 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
         HttpClient client,
         string title,
         Guid artistId,
-        object[] tracklist)
+        object[] tracklist,
+        CancellationToken cancellationToken = default)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            ReleasePayload(title, artistId, tracklist));
-        JsonDocument document = await ReadJsonAsync(response);
+            ReleasePayload(title, artistId, tracklist),
+            cancellationToken);
+        JsonDocument document = await ReadJsonAsync(response, cancellationToken);
         Assert.True(response.StatusCode == HttpStatusCode.Created, document.RootElement.ToString());
 
         return document;
@@ -129,18 +136,26 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
         };
     }
 
-    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
+    private static async Task<Guid> CreateArtistAsync(
+        HttpClient client,
+        string name,
+        CancellationToken cancellationToken = default)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type = "person", name });
-        using JsonDocument document = await ReadJsonAsync(response);
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/artists",
+            new { type = "person", name },
+            cancellationToken);
+        using JsonDocument document = await ReadJsonAsync(response, cancellationToken);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    private static async Task<JsonDocument> ReadJsonAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken = default)
     {
-        string content = await response.Content.ReadAsStringAsync();
+        string content = await response.Content.ReadAsStringAsync(cancellationToken);
 
         try
         {

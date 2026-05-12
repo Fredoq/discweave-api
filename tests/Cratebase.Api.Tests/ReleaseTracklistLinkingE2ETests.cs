@@ -192,12 +192,14 @@ public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixt
         Guid artistId,
         object[] tracklist,
         string type = "album",
-        int year = 2024)
+        int year = 2024,
+        CancellationToken cancellationToken = default)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            ReleasePayload(title, artistId, tracklist, type, year));
-        JsonDocument document = await ReadJsonAsync(response);
+            ReleasePayload(title, artistId, tracklist, type, year),
+            cancellationToken);
+        JsonDocument document = await ReadJsonAsync(response, cancellationToken);
         Assert.True(response.StatusCode == HttpStatusCode.Created, document.RootElement.ToString());
 
         return document;
@@ -226,18 +228,26 @@ public sealed class ReleaseTracklistLinkingE2ETests : IClassFixture<PostgresFixt
         };
     }
 
-    private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
+    private static async Task<Guid> CreateArtistAsync(
+        HttpClient client,
+        string name,
+        CancellationToken cancellationToken = default)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artists", new { type = "person", name });
-        using JsonDocument document = await ReadJsonAsync(response);
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/artists",
+            new { type = "person", name },
+            cancellationToken);
+        using JsonDocument document = await ReadJsonAsync(response, cancellationToken);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
+    private static async Task<JsonDocument> ReadJsonAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken = default)
     {
-        string content = await response.Content.ReadAsStringAsync();
+        string content = await response.Content.ReadAsStringAsync(cancellationToken);
 
         try
         {
