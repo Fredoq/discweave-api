@@ -48,6 +48,10 @@ classDiagram
             Guid Value
         }
 
+        class CollectionDictionaryEntryId {
+            Guid Value
+        }
+
         class LabelId {
             Guid Value
         }
@@ -114,7 +118,7 @@ classDiagram
         }
 
         class ReleaseMetadata {
-            ReleaseType Type
+            string TypeCode
             OptionalValue~LabelId~ LabelId
             OptionalValue~int~ Year
             OptionalValue~DateOnly~ ReleaseDate
@@ -154,16 +158,12 @@ classDiagram
             OptionalValue~string~ Side
         }
 
-        class ReleaseType {
-            <<enum>>
-        }
-
         class CoverImage {
             string Path
         }
 
         class Genre {
-            string Name
+            string Code
         }
 
         class Tag {
@@ -212,6 +212,7 @@ classDiagram
 
         class IMedium {
             <<interface>>
+            string Code
             string Description
         }
 
@@ -271,8 +272,8 @@ classDiagram
             CreditId Id
             CreditContributor Contributor
             CreditTarget Target
-            CreditRole Role
-            Update(CreditContributor, CreditTarget, CreditRole) void
+            string RoleCode
+            Update(CreditContributor, CreditTarget, string) void
         }
 
         class CreditContributor {
@@ -292,9 +293,6 @@ classDiagram
             TrackId TrackId
         }
 
-        class CreditRole {
-            <<enum>>
-        }
     }
 
     namespace Relations {
@@ -303,14 +301,10 @@ classDiagram
             ArtistRelationId Id
             ArtistId SourceArtistId
             ArtistId TargetArtistId
-            ArtistRelationType Type
+            string TypeCode
             OptionalValue~ArtistRelationPeriod~ Period
-            Update(ArtistId, ArtistId, ArtistRelationType) void
-            Update(ArtistId, ArtistId, ArtistRelationType, ArtistRelationPeriod) void
-        }
-
-        class ArtistRelationType {
-            <<enum>>
+            Update(ArtistId, ArtistId, string) void
+            Update(ArtistId, ArtistId, string, ArtistRelationPeriod) void
         }
 
         class ArtistRelationPeriod {
@@ -323,11 +317,30 @@ classDiagram
             TrackRelationId Id
             TrackId SourceTrackId
             TrackId TargetTrackId
-            TrackRelationType RelationType
-            Update(TrackId, TrackId, TrackRelationType) void
+            string RelationTypeCode
+            Update(TrackId, TrackId, string) void
+        }
+    }
+
+    namespace Settings {
+        class CollectionDictionaryEntry {
+            CollectionId CollectionId
+            CollectionDictionaryEntryId Id
+            DictionaryKind Kind
+            string Code
+            string Name
+            int SortOrder
+            bool IsActive
+            bool IsBuiltin
+            bool IsProtected
+            OptionalValue~string~ MediaProfile
+            Rename(string) void
+            Reorder(int) void
+            Activate() void
+            Deactivate() void
         }
 
-        class TrackRelationType {
+        class DictionaryKind {
             <<enum>>
         }
     }
@@ -356,6 +369,7 @@ classDiagram
     IEntity~CreditId~ <|.. Credit
     IEntity~ArtistRelationId~ <|.. ArtistRelation
     IEntity~TrackRelationId~ <|.. TrackRelation
+    IEntity~CollectionDictionaryEntryId~ <|.. CollectionDictionaryEntry
 
     INamedEntity <|.. Artist
     OptionalValue~T~ <|-- PresentOptionalValue~T~
@@ -377,7 +391,6 @@ classDiagram
     Release *-- Cataloging
     ReleaseSummary *-- ReleaseMetadata
     ReleaseSummary *-- OptionalValue~Rating~ : own rating
-    ReleaseMetadata *-- ReleaseType
     ReleaseMetadata *-- OptionalValue~LabelId~ : label
     ReleaseMetadata *-- OptionalValue~int~ : year
     ReleaseMetadata *-- OptionalValue~DateOnly~ : release date
@@ -424,7 +437,6 @@ classDiagram
     Credit --> CollectionId
     Credit *-- CreditContributor
     Credit *-- CreditTarget
-    Credit *-- CreditRole
     CreditContributor --> ArtistId
     CreditTarget <|-- ReleaseCreditTarget
     CreditTarget <|-- TrackCreditTarget
@@ -435,7 +447,6 @@ classDiagram
     ArtistRelation --> CollectionId
     ArtistRelation --> ArtistId : source
     ArtistRelation --> ArtistId : target
-    ArtistRelation *-- ArtistRelationType
     ArtistRelation *-- OptionalValue~ArtistRelationPeriod~ : period
     ArtistRelationPeriod *-- OptionalValue~int~ : start year
     ArtistRelationPeriod *-- OptionalValue~int~ : end year
@@ -444,7 +455,15 @@ classDiagram
     TrackRelation --> CollectionId
     TrackRelation --> TrackId : source
     TrackRelation --> TrackId : target
-    TrackRelation *-- TrackRelationType
+    CollectionDictionaryEntry --> CollectionDictionaryEntryId
+    CollectionDictionaryEntry --> CollectionId
+    CollectionDictionaryEntry *-- DictionaryKind
+    ReleaseMetadata ..> CollectionDictionaryEntry : release type code
+    Cataloging ..> CollectionDictionaryEntry : genre codes
+    IMedium ..> CollectionDictionaryEntry : media type code
+    Credit ..> CollectionDictionaryEntry : credit role code
+    ArtistRelation ..> CollectionDictionaryEntry : artist relation type code
+    TrackRelation ..> CollectionDictionaryEntry : track relation type code
 
     ReleaseTrackRatingCalculator ..> Release
     ReleaseTrackRatingCalculator ..> Track
@@ -457,11 +476,14 @@ classDiagram
 - Collection describes a user's `MusicCollection` plus owned or wanted items and their concrete medium.
 - Credits describe artist contributions to releases or tracks.
 - Relations describe artist-to-artist and track-to-track graph edges.
+- Settings describes collection-scoped dictionaries for release types, credit roles, genres, media types, artist relation types, and track relation types.
 - Ratings are independent for releases and tracks; release track averages are calculated, not stored.
-- `MusicCollection` is the ownership boundary. Catalog, credit, relation, and owned-item entities carry `CollectionId`; request handling resolves the current user's default collection and persistence enforces collection-scoped references.
+- `MusicCollection` is the ownership boundary. Catalog, credit, relation, owned-item, and dictionary entities carry `CollectionId`; request handling resolves the current user's default collection and persistence enforces collection-scoped references.
 - Digital file import identity supports idempotent local audio folder imports.
 - Optional domain data uses `OptionalValue<T>` instead of nullable properties, nullable parameters, or `null` sentinel values.
 - Variant references such as owned-item targets and credit targets use distinct subtypes instead of nullable paired identifiers.
 - Public mutation paths preserve aggregate identity and keep invariants inside the domain model: `Track.Rename`, `Track.UpdateDetails`, `Track.UpdateCataloging`, `Release.UpdateSummary`, `Release.UpdateCataloging`, `OwnedItem.UpdateHolding`, `Credit.Update`, `ArtistRelation.Update`, and `TrackRelation.Update`.
-- Closed domain choices with no variant-specific behavior use enums. Domain choices must not be open string-code value objects; string representations belong at API, persistence, import, and export boundaries.
+- User-configurable catalog choices are stored as immutable dictionary codes scoped to the collection. The application layer validates new writes against active dictionary entries; inactive entries remain readable for historical data.
+- Protected built-in dictionary entries keep behavior-critical codes stable, such as `unknown` release type, `mainArtist` credit role, and `digital`/`other` media types.
+- Closed system choices that are not user-configurable still use enums, such as ownership status, item condition, and audio file format.
 - SharedKernel contains typed identifiers, optional values, capability interfaces, validation support, and domain exceptions.

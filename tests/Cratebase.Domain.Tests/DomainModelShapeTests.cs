@@ -3,6 +3,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.Relations;
+using Cratebase.Domain.Settings;
 
 namespace Cratebase.Domain.Tests;
 
@@ -101,7 +102,8 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
-            typeof(TrackPosition).FullName!
+            typeof(TrackPosition).FullName!,
+            typeof(CollectionDictionaryEntry).FullName!
         ];
         string[] actualTypes =
         [
@@ -133,7 +135,8 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseTrack).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
-            typeof(TrackPosition).FullName!
+            typeof(TrackPosition).FullName!,
+            typeof(CollectionDictionaryEntry).FullName!
         ];
         string[] actualTypes =
         [
@@ -182,7 +185,9 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicPropertyCount(Type type)
     {
-        return type == typeof(Release)
+        return type == typeof(CollectionDictionaryEntry)
+            ? 10
+            : type == typeof(Release)
             ? 9
             : type == typeof(Track) ||
             type == typeof(ArtistRelation)
@@ -192,7 +197,12 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicMethodCount(Type type)
     {
-        return type == typeof(Release)
+        return type == typeof(CollectionDictionaryEntry) ||
+            type == typeof(ArtistRelation)
+            ? 8
+            : type == typeof(ReleaseMetadata)
+                ? 6
+                : type == typeof(Release)
             ? 10
             : type == typeof(Track)
                 ? 8

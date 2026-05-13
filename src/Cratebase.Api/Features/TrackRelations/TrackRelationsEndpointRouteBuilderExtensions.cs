@@ -1,9 +1,11 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Relations;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -46,7 +48,15 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("track_relation.track_conflict", "Track relation references a missing track");
             }
 
-            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), TrackRelationMapper.ParseType(request.Type));
+            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.TrackRelationType,
+                TrackRelationMapper.ParseType(request.Type),
+                "track_relation.type_invalid",
+                "Track relation type is invalid",
+                cancellationToken);
+            var relation = TrackRelation.Create(TrackRelationId.New(), currentCollection.CollectionId, new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
             unitOfWork.GetRepository<TrackRelation, TrackRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -86,11 +96,21 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
 
         try
         {
+            string? relationType = string.IsNullOrWhiteSpace(request.Type)
+                ? null
+                : await DictionaryValidation.RequireCodeAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    DictionaryKind.TrackRelationType,
+                    TrackRelationMapper.ParseType(request.Type),
+                    "track_relation.type_invalid",
+                    "Track relation type is invalid",
+                    cancellationToken);
             IQueryable<TrackRelation> relations = ApplyFilters(
                 context.TrackRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
                 request.SourceTrackId,
                 request.TargetTrackId,
-                request.Type);
+                relationType);
             int total = await relations.CountAsync(cancellationToken);
             TrackRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -129,7 +149,15 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("track_relation.track_conflict", "Track relation references a missing track");
             }
 
-            relation.Update(new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), TrackRelationMapper.ParseType(request.Type));
+            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.TrackRelationType,
+                TrackRelationMapper.ParseType(request.Type),
+                "track_relation.type_invalid",
+                "Track relation type is invalid",
+                cancellationToken);
+            relation.Update(new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(TrackRelationMapper.ToResponse(relation));
@@ -185,8 +213,7 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(type))
         {
-            TrackRelationType parsedType = TrackRelationMapper.ParseType(type);
-            relations = relations.Where(relation => relation.RelationType == parsedType);
+            relations = relations.Where(relation => relation.RelationType == type);
         }
 
         return relations;

@@ -21,10 +21,25 @@ Use one resource slice per API resource:
 - `Features/Tracks`
 - `Features/Releases`
 - `Features/OwnedItems`
+- `Features/Settings`
 
 Each slice owns its Minimal API route builder extension, endpoint handlers, contracts, and resource-specific mapping. Shared HTTP helpers are allowed only for cross-cutting behavior that is already duplicated, such as structured errors, pagination, delete confirmation, and persistence conflict detection.
 
 The root `MapCratebaseEndpoints()` method composes resource slices directly. It must not delegate to broad umbrella route builders that mix unrelated resources.
+
+## Settings Dictionaries
+
+Collection-scoped dictionaries are exposed under `/api/settings/dictionaries`. The settings slice owns these endpoints because dictionary data configures catalog behavior but is not itself a catalog entity.
+
+Supported operations:
+
+- `GET /api/settings/dictionaries` lists all dictionary entries for the authenticated user's default collection, with optional `kind` filtering.
+- `POST /api/settings/dictionaries` creates a custom entry with an immutable code.
+- `PUT /api/settings/dictionaries/{entryId}` updates mutable fields: name, sort order, active state, and media profile.
+- `DELETE /api/settings/dictionaries/{entryId}` hard-deletes only unused, unprotected entries and requires delete confirmation.
+- `POST /api/settings/dictionaries/{entryId}/replace` transactionally rewrites usages to another entry of the same kind before deletion.
+
+Catalog endpoints continue to accept and return string codes. They resolve those codes against the active collection's dictionaries during writes and filters. New writes require active entries; inactive entries stay readable so historical catalog data does not disappear.
 
 ## Size Rule
 

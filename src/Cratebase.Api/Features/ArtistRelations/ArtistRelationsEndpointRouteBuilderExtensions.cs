@@ -1,9 +1,11 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Relations;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -46,7 +48,15 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("artist_relation.artist_conflict", "Artist relation references a missing artist");
             }
 
-            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New());
+            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.ArtistRelationType,
+                ArtistRelationMapper.ParseType(request.Type),
+                "artist_relation.type_invalid",
+                "Artist relation type is invalid",
+                cancellationToken);
+            ArtistRelation relation = CreateRelation(request, currentCollection.CollectionId, ArtistRelationId.New(), relationType);
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -86,11 +96,21 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
 
         try
         {
+            string? relationType = string.IsNullOrWhiteSpace(request.Type)
+                ? null
+                : await DictionaryValidation.RequireCodeAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    DictionaryKind.ArtistRelationType,
+                    ArtistRelationMapper.ParseType(request.Type),
+                    "artist_relation.type_invalid",
+                    "Artist relation type is invalid",
+                    cancellationToken);
             IQueryable<ArtistRelation> relations = ApplyFilters(
                 context.ArtistRelations.AsNoTracking().Where(relation => relation.CollectionId == currentCollection.CollectionId),
                 request.SourceArtistId,
                 request.TargetArtistId,
-                request.Type);
+                relationType);
             int total = await relations.CountAsync(cancellationToken);
             ArtistRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -129,14 +149,22 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("artist_relation.artist_conflict", "Artist relation references a missing artist");
             }
 
+            string relationType = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.ArtistRelationType,
+                ArtistRelationMapper.ParseType(request.Type),
+                "artist_relation.type_invalid",
+                "Artist relation type is invalid",
+                cancellationToken);
             ArtistRelationPeriod? period = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
             if (period is null)
             {
-                relation.Update(new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), ArtistRelationMapper.ParseType(request.Type));
+                relation.Update(new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType);
             }
             else
             {
-                relation.Update(new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), ArtistRelationMapper.ParseType(request.Type), period);
+                relation.Update(new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType, period);
             }
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -180,13 +208,13 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
         }
     }
 
-    private static ArtistRelation CreateRelation(ArtistRelationRequest request, CollectionId collectionId, ArtistRelationId relationId)
+    private static ArtistRelation CreateRelation(ArtistRelationRequest request, CollectionId collectionId, ArtistRelationId relationId, string relationType)
     {
         ArtistRelationPeriod? period = ArtistRelationMapper.CreatePeriod(request.StartYear, request.EndYear);
 
         return period is null
-            ? ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), ArtistRelationMapper.ParseType(request.Type))
-            : ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), ArtistRelationMapper.ParseType(request.Type), period);
+            ? ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType)
+            : ArtistRelation.Create(relationId, collectionId, new ArtistId(request.SourceArtistId), new ArtistId(request.TargetArtistId), relationType, period);
     }
 
     private static IQueryable<ArtistRelation> ApplyFilters(IQueryable<ArtistRelation> relations, Guid? sourceArtistId, Guid? targetArtistId, string? type)
@@ -203,8 +231,7 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(type))
         {
-            ArtistRelationType parsedType = ArtistRelationMapper.ParseType(type);
-            relations = relations.Where(relation => relation.Type == parsedType);
+            relations = relations.Where(relation => relation.Type == type);
         }
 
         return relations;

@@ -32,7 +32,7 @@ public sealed class CreditTests
         Assert.True(trackCredit.Target.IsTrack);
         Assert.Equal(trackId, Assert.IsType<TrackCreditTarget>(trackCredit.Target).TrackId);
         Assert.Equal(person.Id, trackCredit.Contributor.ArtistId);
-        Assert.Equal(CreditRole.Producer, trackCredit.Role);
+        Assert.Equal("producer", trackCredit.Role);
     }
 
     [Fact]
@@ -46,21 +46,22 @@ public sealed class CreditTests
     }
 
     [Fact]
-    public void Credit_roles_are_a_closed_object_catalog()
+    public void Credit_roles_map_to_dictionary_codes()
     {
-        Assert.Equal(CreditRole.Producer, CreditRole.Producer);
-        Assert.NotEqual(CreditRole.Producer, CreditRole.Composer);
+        Assert.Equal("producer", Credit.ToRoleCode(CreditRole.Producer));
+        Assert.Equal("composer", Credit.ToRoleCode(CreditRole.Composer));
     }
 
     [Fact]
     public void Credit_rejects_undefined_roles()
     {
+        CreditRole invalidRole = 0;
         DomainException exception = Assert.Throws<DomainException>(() =>
             Credit.Create(CollectionId.New(),
                 CreditId.New(),
                 CreditContributor.FromArtist(Person.Create(CollectionId.New(), ArtistId.New(), "Arthur Baker")),
                 CreditTarget.ForRelease(ReleaseId.New()),
-                default));
+                invalidRole));
 
         Assert.Equal("credit.role_invalid", exception.Code);
     }

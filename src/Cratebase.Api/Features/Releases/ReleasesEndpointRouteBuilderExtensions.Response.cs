@@ -68,7 +68,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         return new ReleaseResponse(
             release.Id.Value,
             release.Summary.Title,
-            ToReleaseTypeCode(metadata.Type),
+            metadata.Type,
             metadata.LabelId.HasValue ? metadata.LabelId.Match(value => value.Value, () => Guid.Empty) : null,
             metadata.Year.HasValue ? metadata.Year.Match(value => value, () => 0) : null,
             [.. release.Cataloging.Genres.Select(genre => genre.Name)],
@@ -226,20 +226,4 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             releaseTrack.VersionNote is { HasValue: true } versionNote ? versionNote.Match(value => value, () => string.Empty) : null);
     }
 
-    private static string ToReleaseTypeCode(ReleaseType type)
-    {
-        return type switch
-        {
-            ReleaseType.Unknown => "unknown",
-            ReleaseType.Album => "album",
-            ReleaseType.Ep => "ep",
-            ReleaseType.Standalone => "standalone",
-            ReleaseType.Compilation => "compilation",
-            ReleaseType.Bootleg => "bootleg",
-            ReleaseType.Mixtape => "mixtape",
-            ReleaseType.Promo => "promo",
-            ReleaseType.Other => OtherTypeCode,
-            _ => throw new InvalidOperationException("Release type is not supported")
-        };
-    }
 }

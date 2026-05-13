@@ -2,6 +2,7 @@ using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
 using Cratebase.Domain.SharedKernel.Optional;
+using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Relations;
 
@@ -22,14 +23,14 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         ArtistRelationId id,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
-        ArtistRelationType type,
+        string type,
         IOptionalValue<ArtistRelationPeriod> period)
     {
         CollectionId = collectionId;
         Id = id;
         SourceArtistId = sourceArtistId;
         TargetArtistId = targetArtistId;
-        Type = type;
+        Type = Guard.RequiredText(type, nameof(type), "artist_relation.type_required");
         SetPeriod(period);
     }
 
@@ -41,7 +42,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
     public ArtistId TargetArtistId { get; private set; }
 
-    public ArtistRelationType Type { get; private set; }
+    public string Type { get; private set; } = string.Empty;
 
     public IOptionalValue<ArtistRelationPeriod> Period => CreatePeriod();
 
@@ -50,7 +51,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         CollectionId collectionId,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
-        ArtistRelationType type)
+        string type)
     {
         return sourceArtistId == targetArtistId
             ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
@@ -62,7 +63,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         CollectionId collectionId,
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
-        ArtistRelationType type,
+        string type,
         ArtistRelationPeriod period)
     {
         ArgumentNullException.ThrowIfNull(period);
@@ -75,7 +76,7 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
     public void Update(
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
-        ArtistRelationType type)
+        string type)
     {
         if (sourceArtistId == targetArtistId)
         {
@@ -84,14 +85,14 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
         SourceArtistId = sourceArtistId;
         TargetArtistId = targetArtistId;
-        Type = type;
+        Type = Guard.RequiredText(type, nameof(type), "artist_relation.type_required");
         SetPeriod(Optional.Missing<ArtistRelationPeriod>());
     }
 
     public void Update(
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
-        ArtistRelationType type,
+        string type,
         ArtistRelationPeriod period)
     {
         ArgumentNullException.ThrowIfNull(period);
@@ -103,8 +104,58 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
 
         SourceArtistId = sourceArtistId;
         TargetArtistId = targetArtistId;
-        Type = type;
+        Type = Guard.RequiredText(type, nameof(type), "artist_relation.type_required");
         SetPeriod(Optional.From(period));
+    }
+
+    public static ArtistRelation Create(
+        ArtistRelationId id,
+        CollectionId collectionId,
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type)
+    {
+        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type));
+    }
+
+    public static ArtistRelation Create(
+        ArtistRelationId id,
+        CollectionId collectionId,
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type,
+        ArtistRelationPeriod period)
+    {
+        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type), period);
+    }
+
+    public void Update(
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type)
+    {
+        Update(sourceArtistId, targetArtistId, ToTypeCode(type));
+    }
+
+    public void Update(
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type,
+        ArtistRelationPeriod period)
+    {
+        Update(sourceArtistId, targetArtistId, ToTypeCode(type), period);
+    }
+
+    private static string ToTypeCode(ArtistRelationType type)
+    {
+        return Guard.DefinedEnum(type, nameof(type), "artist_relation.type_invalid") switch
+        {
+            ArtistRelationType.Alias => "alias",
+            ArtistRelationType.MemberOf => "memberOf",
+            ArtistRelationType.SoloProject => "soloProject",
+            ArtistRelationType.Collaboration => "collaboration",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Artist relation type is not supported")
+        };
     }
 
     private void SetPeriod(IOptionalValue<ArtistRelationPeriod> period)

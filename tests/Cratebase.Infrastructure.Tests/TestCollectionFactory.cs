@@ -1,4 +1,5 @@
 using Cratebase.Domain.Collection;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
@@ -22,6 +23,7 @@ internal static class TestCollectionFactory
         _ = await context.SaveChangesAsync();
 
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, ownerUserId, "Main collection"));
+        context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
         _ = await context.SaveChangesAsync();
 
         user.DefaultCollectionId = collectionId;

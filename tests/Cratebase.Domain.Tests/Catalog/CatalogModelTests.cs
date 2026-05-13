@@ -210,7 +210,7 @@ public sealed class CatalogModelTests
 
         ReleaseMetadata actualMetadata = release.Summary.Metadata;
 
-        Assert.Equal(ReleaseType.Album, actualMetadata.Type);
+        Assert.Equal("album", actualMetadata.Type);
         Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualMetadata.LabelId).Value);
         Assert.Equal(1989, Assert.IsType<PresentOptionalValue<int>>(actualMetadata.Year).Value);
         Assert.Equal(releaseDate, Assert.IsType<PresentOptionalValue<DateOnly>>(actualMetadata.ReleaseDate).Value);
@@ -238,7 +238,7 @@ public sealed class CatalogModelTests
 
         Assert.Equal(releaseId, release.Id);
         Assert.Equal("Technique 2020", release.Summary.Title);
-        Assert.Equal(ReleaseType.Album, release.Summary.Metadata.Type);
+        Assert.Equal("album", release.Summary.Metadata.Type);
         Assert.Equal(2020, Assert.IsType<PresentOptionalValue<int>>(release.Summary.Metadata.Year).Value);
         Assert.Contains(release.Cataloging.Genres, genre => genre.Name == "Dance-rock");
         Assert.Contains(release.Cataloging.Tags, tag => tag.Name == "remaster");

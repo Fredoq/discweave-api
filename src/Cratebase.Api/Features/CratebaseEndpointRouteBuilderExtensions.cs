@@ -7,6 +7,7 @@ using Cratebase.Api.Features.Labels;
 using Cratebase.Api.Features.OwnedItems;
 using Cratebase.Api.Features.Releases;
 using Cratebase.Api.Features.Search;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Features.TrackRelations;
 using Cratebase.Api.Features.Tracks;
 
@@ -29,6 +30,7 @@ public static class CratebaseEndpointRouteBuilderExtensions
         _ = endpoints.MapArtistRelationsEndpoints();
         _ = endpoints.MapTrackRelationsEndpoints();
         _ = endpoints.MapSearchEndpoints();
+        _ = endpoints.MapSettingsDictionariesEndpoints();
 
         return endpoints;
     }

@@ -1,6 +1,7 @@
 using Cratebase.Api.Features.Credits;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Domain.Catalog;
-using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -35,7 +36,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         return isVariousArtists
             ? throw new DomainException("track.artist_required", "Track artist is required for Various Artists releases")
-            : [.. releaseCredits.Where(credit => credit.Role == CreditRole.MainArtist)];
+            : [.. releaseCredits.Where(credit => credit.Role == "mainArtist")];
     }
 
     private static async Task<IReadOnlyList<ResolvedCredit>> ResolveCreditsAsync(
@@ -59,12 +60,19 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 collectionId,
                 ReleaseCreditArtistErrors,
                 cancellationToken);
-            CreditRole role = CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role);
+            string role = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.CreditRole,
+                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role),
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
             resolved.Add(new ResolvedCredit(artist, role));
         }
 
         return resolved;
     }
 
-    private sealed record ResolvedCredit(Artist Artist, CreditRole Role);
+    private sealed record ResolvedCredit(Artist Artist, string Role);
 }

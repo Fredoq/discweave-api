@@ -131,7 +131,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         string[] artistNames =
         [
             .. releaseCredits
-                .Where(credit => credit.Role == CreditRole.MainArtist)
+                .Where(credit => credit.Role == "mainArtist")
                 .OrderBy(credit => credit.Contributor.ArtistId.Value)
                 .Select(credit => artistsById.TryGetValue(credit.Contributor.ArtistId, out Artist? artist) ? artist.Name : credit.Contributor.Name)
         ];

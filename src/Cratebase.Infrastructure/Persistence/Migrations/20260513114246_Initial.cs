@@ -122,6 +122,34 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "collection_dictionary_entries",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    dictionary_entry_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    kind = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    code = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_builtin = table.Column<bool>(type: "boolean", nullable: false),
+                    media_profile = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_collection_dictionary_entries", x => x.id);
+                    table.UniqueConstraint("dictionary_entry_id", x => x.dictionary_entry_id);
+                    table.ForeignKey(
+                        name: "FK_collection_dictionary_entries_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "labels",
                 columns: table => new
                 {
@@ -663,6 +691,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_collection_dictionary_entries_collection_id",
+                table: "collection_dictionary_entries",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_collection_dictionary_entries_collection_kind_code",
+                table: "collection_dictionary_entries",
+                columns: new[] { "collection_id", "kind", "code" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_collections_owner_user_id",
                 table: "collections",
                 column: "owner_user_id",
@@ -862,6 +901,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "collection_dictionary_entries");
 
             migrationBuilder.DropTable(
                 name: "credits");

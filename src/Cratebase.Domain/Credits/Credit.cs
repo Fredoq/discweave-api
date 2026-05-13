@@ -20,12 +20,12 @@ public sealed class Credit : IEntity<CreditId>
     {
     }
 
-    private Credit(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
+    private Credit(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, string role)
     {
         CollectionId = collectionId;
         Id = id;
         SetContributor(contributor);
-        Role = role;
+        Role = Guard.RequiredText(role, nameof(role), "credit.role_required");
         SetTarget(target);
     }
 
@@ -37,28 +37,49 @@ public sealed class Credit : IEntity<CreditId>
 
     public CreditTarget Target => CreateTarget();
 
-    public CreditRole Role { get; private set; }
+    public string Role { get; private set; } = string.Empty;
 
-    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
+    public static string ToRoleCode(CreditRole role)
+    {
+        return Guard.DefinedEnum(role, nameof(role), "credit.role_invalid") switch
+        {
+            CreditRole.MainArtist => "mainArtist",
+            CreditRole.FeaturedArtist => "featuredArtist",
+            CreditRole.Remixer => "remixer",
+            CreditRole.Producer => "producer",
+            CreditRole.Composer => "composer",
+            CreditRole.Performer => "performer",
+            CreditRole.Engineer => "engineer",
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Credit role is not supported")
+        };
+    }
+
+    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, string role)
     {
         ArgumentNullException.ThrowIfNull(contributor);
         ArgumentNullException.ThrowIfNull(target);
 
-        CreditRole validatedRole = Guard.DefinedEnum(role, nameof(role), "credit.role_invalid");
+        return new Credit(collectionId, id, contributor, target, role);
+    }
 
-        return new Credit(collectionId, id, contributor, target, validatedRole);
+    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, CreditRole role)
+    {
+        return Create(collectionId, id, contributor, target, ToRoleCode(role));
+    }
+
+    public void Update(CreditContributor contributor, CreditTarget target, string role)
+    {
+        ArgumentNullException.ThrowIfNull(contributor);
+        ArgumentNullException.ThrowIfNull(target);
+
+        SetContributor(contributor);
+        SetTarget(target);
+        Role = Guard.RequiredText(role, nameof(role), "credit.role_required");
     }
 
     public void Update(CreditContributor contributor, CreditTarget target, CreditRole role)
     {
-        ArgumentNullException.ThrowIfNull(contributor);
-        ArgumentNullException.ThrowIfNull(target);
-
-        CreditRole validatedRole = Guard.DefinedEnum(role, nameof(role), "credit.role_invalid");
-
-        SetContributor(contributor);
-        SetTarget(target);
-        Role = validatedRole;
+        Update(contributor, target, ToRoleCode(role));
     }
 
     private void SetTarget(CreditTarget target)

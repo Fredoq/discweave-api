@@ -74,7 +74,7 @@ public sealed class RelationTests
 
         Assert.Equal("track_relation.self_relation", exception.Code);
         Assert.Equal(collectionId, relation.CollectionId);
-        Assert.Equal(TrackRelationType.VersionOf, relation.RelationType);
+        Assert.Equal("versionOf", relation.RelationType);
     }
 
     [Fact]

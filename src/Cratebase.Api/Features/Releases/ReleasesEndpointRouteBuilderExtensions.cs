@@ -1,9 +1,10 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
-using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -15,7 +16,6 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 {
     private const string LabelConflictCode = "release.label_conflict";
     private const string LabelMissingMessage = "Release label does not exist";
-    private const string OtherTypeCode = "other";
 
     public static IEndpointRouteBuilder MapReleasesEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -131,13 +131,18 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         try
         {
-            _ = ApplyReleaseRequest(release, request);
+            _ = await ApplyReleaseRequestAsync(
+                release,
+                request,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
             IReadOnlyList<ResolvedCredit> releaseCredits = await ResolveCreditsAsync(
                 request.ArtistCredits,
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
-            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Role == CreditRole.MainArtist))
+            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Role == "mainArtist"))
             {
                 throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
             }
@@ -170,9 +175,24 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
     }
 
-    private static Release ApplyReleaseRequest(Release release, ReleaseRequest request)
+    private static async Task<Release> ApplyReleaseRequestAsync(
+        Release release,
+        ReleaseRequest request,
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
     {
-        ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(ParseReleaseType(request.Type ?? string.Empty));
+        string releaseType = await ResolveReleaseTypeCodeAsync(context, collectionId, request.Type, cancellationToken);
+        IReadOnlyList<string> genres = await DictionaryValidation.RequireActiveCodesAsync(
+            context,
+            collectionId,
+            DictionaryKind.Genre,
+            request.Genres,
+            "release.genre_invalid",
+            "Release genre is invalid",
+            cancellationToken);
+
+        ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(releaseType);
         if (request.LabelId is not null && request.Labels is { Count: > 0 })
         {
             throw new DomainException("release.label_shape_invalid", "Release request must use either labelId or labels, not both");
@@ -195,28 +215,26 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         release.UpdateSummary(ReleaseSummary.Create(request.Title).WithMetadata(metadata));
-        release.UpdateCataloging(CatalogingMapper.Create(request.Genres, request.Tags));
+        release.UpdateCataloging(CatalogingMapper.Create(genres, request.Tags));
         release.UpdateArtistDisplay(request.IsVariousArtists);
 
         return release;
     }
 
-    private static ReleaseType ParseReleaseType(string type)
+    private static async Task<string> ResolveReleaseTypeCodeAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string? type,
+        CancellationToken cancellationToken)
     {
-        return type.Trim() switch
-        {
-            "" => ReleaseType.Unknown,
-            "unknown" => ReleaseType.Unknown,
-            "album" => ReleaseType.Album,
-            "ep" => ReleaseType.Ep,
-            "standalone" => ReleaseType.Standalone,
-            "compilation" => ReleaseType.Compilation,
-            "bootleg" => ReleaseType.Bootleg,
-            "mixtape" => ReleaseType.Mixtape,
-            "promo" => ReleaseType.Promo,
-            OtherTypeCode => ReleaseType.Other,
-            _ => throw new DomainException("release.type_invalid", "Release type is invalid")
-        };
+        string code = string.IsNullOrWhiteSpace(type) ? "unknown" : type.Trim();
+        return await DictionaryValidation.RequireActiveCodeAsync(
+            context,
+            collectionId,
+            DictionaryKind.ReleaseType,
+            code,
+            "release.type_invalid",
+            "Release type is invalid",
+            cancellationToken);
     }
-
 }

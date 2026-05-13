@@ -6,16 +6,11 @@ namespace Cratebase.Api.Features.ArtistRelations;
 
 internal static class ArtistRelationMapper
 {
-    public static ArtistRelationType ParseType(string type)
+    public static string ParseType(string type)
     {
-        return type.Trim() switch
-        {
-            "alias" => ArtistRelationType.Alias,
-            "memberOf" => ArtistRelationType.MemberOf,
-            "soloProject" => ArtistRelationType.SoloProject,
-            "collaboration" => ArtistRelationType.Collaboration,
-            _ => throw new DomainException("artist_relation.type_invalid", "Artist relation type is invalid")
-        };
+        return string.IsNullOrWhiteSpace(type)
+            ? throw new DomainException("artist_relation.type_invalid", "Artist relation type is invalid")
+            : type.Trim();
     }
 
     public static ArtistRelationPeriod? CreatePeriod(int? startYear, int? endYear)
@@ -35,21 +30,9 @@ internal static class ArtistRelationMapper
             relation.Id.Value,
             relation.SourceArtistId.Value,
             relation.TargetArtistId.Value,
-            ToTypeCode(relation.Type),
+            relation.Type,
             GetStartYear(relation),
             GetEndYear(relation));
-    }
-
-    private static string ToTypeCode(ArtistRelationType type)
-    {
-        return type switch
-        {
-            ArtistRelationType.Alias => "alias",
-            ArtistRelationType.MemberOf => "memberOf",
-            ArtistRelationType.SoloProject => "soloProject",
-            ArtistRelationType.Collaboration => "collaboration",
-            _ => throw new InvalidOperationException("Artist relation type is not supported")
-        };
     }
 
     private static int? GetStartYear(ArtistRelation relation)

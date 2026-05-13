@@ -1,5 +1,6 @@
 using Cratebase.Api.Http;
 using Cratebase.Domain.Collection;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
@@ -67,6 +68,7 @@ public static class AuthEndpointRouteBuilderExtensions
         }
 
         _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
+        context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
         _ = await context.SaveChangesAsync(cancellationToken);
 
         user.DefaultCollectionId = collectionId;

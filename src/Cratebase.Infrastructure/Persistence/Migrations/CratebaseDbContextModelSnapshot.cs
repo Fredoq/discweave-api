@@ -584,6 +584,72 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.ToTable("track_relations", (string)null);
                 });
 
+            modelBuilder.Entity("Cratebase.Domain.Settings.CollectionDictionaryEntry", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("code");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dictionary_entry_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBuiltin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_builtin");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("_mediaProfile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("media_profile");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("dictionary_entry_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("CollectionId", "Kind", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_collection_dictionary_entries_collection_kind_code");
+
+                    b.ToTable("collection_dictionary_entries", (string)null);
+                });
+
             modelBuilder.Entity("Cratebase.Infrastructure.Identity.CratebaseUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -912,7 +978,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                             b1.HasIndex("CollectionId", "release_id");
 
-                            b1.ToTable("release_labels", (string)null, t =>
+                            b1.ToTable("release_labels", null, t =>
                                 {
                                     t.HasCheckConstraint("ck_release_labels_catalog_number_consistency", "catalog_number IS NULL OR has_no_catalog_number = false");
                                 });
@@ -1175,6 +1241,16 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CollectionId", "TargetTrackId")
                         .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.CollectionDictionaryEntry", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

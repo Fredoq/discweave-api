@@ -6,13 +6,8 @@ namespace Cratebase.Domain.Collection;
 
 public sealed class OwnedItem : IEntity<OwnedItemId>
 {
-    private const string CassetteMediumType = "cassette";
-    private const string CompactDiscMediumType = "cd";
-    private const string DigitalMediumType = "digital";
-    private const string OtherMediumType = "other";
     private const string ReleaseTargetType = "release";
     private const string TrackTargetType = "track";
-    private const string VinylMediumType = "vinyl";
 
     private string _targetType = string.Empty;
     private ReleaseId? _targetReleaseId;
@@ -155,22 +150,22 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
                 break;
             case VinylRecord vinylRecord:
                 ClearMediumDetails();
-                _mediumType = VinylMediumType;
+                _mediumType = vinylRecord.Code;
                 _vinylFormatDescription = vinylRecord.FormatDescription;
                 break;
             case CompactDisc compactDisc:
                 ClearMediumDetails();
-                _mediumType = CompactDiscMediumType;
+                _mediumType = compactDisc.Code;
                 _compactDiscCount = compactDisc.DiscCount;
                 break;
             case CassetteTape cassetteTape:
                 ClearMediumDetails();
-                _mediumType = CassetteMediumType;
+                _mediumType = cassetteTape.Code;
                 _cassetteTapeType = cassetteTape.TapeType;
                 break;
             case OtherMedium otherMedium:
                 ClearMediumDetails();
-                _mediumType = OtherMediumType;
+                _mediumType = otherMedium.Code;
                 _otherMediumName = otherMedium.Name;
                 break;
             default:
@@ -181,7 +176,7 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     private void SetDigitalFile(DigitalFile digitalFile)
     {
         ClearMediumDetails();
-        _mediumType = DigitalMediumType;
+        _mediumType = digitalFile.Code;
         _digitalFilePath = digitalFile.Path.Value;
         _digitalFileFormat = digitalFile.Format;
 
@@ -201,11 +196,11 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     {
         return _mediumType switch
         {
-            DigitalMediumType when _digitalFilePath is not null && _digitalFileFormat is { } format => CreateDigitalFile(format),
-            VinylMediumType when _vinylFormatDescription is not null => VinylRecord.Create(_vinylFormatDescription),
-            CompactDiscMediumType when _compactDiscCount is { } discCount => CompactDisc.Create(discCount),
-            CassetteMediumType when _cassetteTapeType is not null => CassetteTape.Create(_cassetteTapeType),
-            OtherMediumType when _otherMediumName is not null => OtherMedium.Create(_otherMediumName),
+            _ when _digitalFilePath is not null && _digitalFileFormat is { } format => CreateDigitalFile(format),
+            _ when _vinylFormatDescription is not null => VinylRecord.Create(_mediumType, _vinylFormatDescription),
+            _ when _compactDiscCount is { } discCount => CompactDisc.Create(_mediumType, discCount),
+            _ when _cassetteTapeType is not null => CassetteTape.Create(_mediumType, _cassetteTapeType),
+            _ when _otherMediumName is not null => OtherMedium.Create(_mediumType, _otherMediumName),
             _ => throw new InvalidOperationException("Medium payload is not valid")
         };
     }
@@ -222,7 +217,7 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
 
         if (!hasAnyImportIdentityField)
         {
-            return DigitalFile.Create(path, format);
+            return DigitalFile.Create(_mediumType, path, format);
         }
 
         if (_importIdentityPath is null || _importIdentitySizeBytes is null || _importIdentityLastModifiedAt is null)
@@ -235,7 +230,7 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
             ? FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value)
             : FileImportIdentity.Create(identityPath, _importIdentitySizeBytes.Value, _importIdentityLastModifiedAt.Value, _importIdentityContentHash);
 
-        return DigitalFile.Create(path, format, identity);
+        return DigitalFile.Create(_mediumType, path, format, identity);
     }
 
     private void ClearMediumDetails()

@@ -101,7 +101,7 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         _ = Assert.IsType<Person>(artists[0]);
         _ = Assert.IsType<Group>(artists[1]);
         Assert.Equal("Power, Corruption & Lies", actualRelease.Summary.Title);
-        Assert.Equal(ReleaseType.Album, actualRelease.Summary.Metadata.Type);
+        Assert.Equal("album", actualRelease.Summary.Metadata.Type);
         Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualRelease.Summary.Metadata.LabelId).Value);
         Assert.Equal(1983, Assert.IsType<PresentOptionalValue<int>>(actualRelease.Summary.Metadata.Year).Value);
         Assert.Equal(new DateOnly(1983, 5, 2), Assert.IsType<PresentOptionalValue<DateOnly>>(actualRelease.Summary.Metadata.ReleaseDate).Value);

@@ -1,6 +1,8 @@
 using Cratebase.Api.Features.Credits;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -111,7 +113,14 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 collectionId,
                 TrackCreditArtistErrors,
                 cancellationToken);
-            CreditRole role = CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role);
+            string role = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.CreditRole,
+                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role),
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
             resolved.Add(new ResolvedTrackCredit(artist, role));
         }
 
@@ -125,5 +134,5 @@ public static partial class TracksEndpointRouteBuilderExtensions
             : Optional.From(value.Trim());
     }
 
-    private sealed record ResolvedTrackCredit(Artist Artist, CreditRole Role);
+    private sealed record ResolvedTrackCredit(Artist Artist, string Role);
 }

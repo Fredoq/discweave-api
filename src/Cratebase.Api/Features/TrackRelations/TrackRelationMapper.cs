@@ -5,15 +5,11 @@ namespace Cratebase.Api.Features.TrackRelations;
 
 internal static class TrackRelationMapper
 {
-    public static TrackRelationType ParseType(string type)
+    public static string ParseType(string type)
     {
-        return type.Trim() switch
-        {
-            "remixOf" => TrackRelationType.RemixOf,
-            "versionOf" => TrackRelationType.VersionOf,
-            "editOf" => TrackRelationType.EditOf,
-            _ => throw new DomainException("track_relation.type_invalid", "Track relation type is invalid")
-        };
+        return string.IsNullOrWhiteSpace(type)
+            ? throw new DomainException("track_relation.type_invalid", "Track relation type is invalid")
+            : type.Trim();
     }
 
     public static TrackRelationResponse ToResponse(TrackRelation relation)
@@ -22,17 +18,6 @@ internal static class TrackRelationMapper
             relation.Id.Value,
             relation.SourceTrackId.Value,
             relation.TargetTrackId.Value,
-            ToTypeCode(relation.RelationType));
-    }
-
-    private static string ToTypeCode(TrackRelationType type)
-    {
-        return type switch
-        {
-            TrackRelationType.RemixOf => "remixOf",
-            TrackRelationType.VersionOf => "versionOf",
-            TrackRelationType.EditOf => "editOf",
-            _ => throw new InvalidOperationException("Track relation type is not supported")
-        };
+            relation.RelationType);
     }
 }

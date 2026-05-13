@@ -1,6 +1,8 @@
 using Cratebase.Domain.Collection;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 
 namespace Cratebase.Api.Features.OwnedItems;
 
@@ -36,18 +38,24 @@ internal static class OwnedItemMapper
         return holding.WithDetails(details);
     }
 
-    public static IMedium CreateMedium(MediumRequest request)
+    public static IMedium CreateMedium(MediumRequest request, CollectionDictionaryEntry mediaEntry)
     {
-        return Required(request.Type, "medium.type_required").Trim() switch
+        string code = mediaEntry.Code;
+        string profile = mediaEntry.MediaProfile is PresentOptionalValue<string> presentProfile
+            ? presentProfile.Value
+            : throw new DomainException("medium.profile_invalid", "Medium profile is invalid");
+
+        return profile switch
         {
             "digital" => DigitalFile.Create(
+                code,
                 FilePath.FromAbsolutePath(Required(request.Path, "medium.path_required")),
                 ParseAudioFileFormat(Required(request.Format, "medium.format_required"))),
-            "vinyl" => VinylRecord.Create(Required(request.Description, "medium.description_required")),
-            "cd" => CompactDisc.Create(request.DiscCount ?? 1),
-            "cassette" => CassetteTape.Create(Required(request.Description, "medium.description_required")),
-            OtherTypeCode => OtherMedium.Create(Required(request.Description, "medium.description_required")),
-            _ => throw new DomainException("medium.type_invalid", "Medium type is invalid")
+            "vinyl" => VinylRecord.Create(code, Required(request.Description, "medium.description_required")),
+            "cd" => CompactDisc.Create(code, request.DiscCount ?? 1),
+            "cassette" => CassetteTape.Create(code, Required(request.Description, "medium.description_required")),
+            OtherTypeCode => OtherMedium.Create(code, Required(request.Description, "medium.description_required")),
+            _ => throw new DomainException("medium.profile_invalid", "Medium profile is invalid")
         };
     }
 
@@ -104,11 +112,11 @@ internal static class OwnedItemMapper
     {
         return medium switch
         {
-            DigitalFile digitalFile => new MediumResponse("digital", digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null),
-            VinylRecord vinylRecord => new MediumResponse("vinyl", vinylRecord.FormatDescription, null, null, null),
-            CompactDisc compactDisc => new MediumResponse("cd", compactDisc.Description, null, null, compactDisc.DiscCount),
-            CassetteTape cassetteTape => new MediumResponse("cassette", cassetteTape.TapeType, null, null, null),
-            OtherMedium otherMedium => new MediumResponse(OtherTypeCode, otherMedium.Name, null, null, null),
+            DigitalFile digitalFile => new MediumResponse(digitalFile.Code, digitalFile.Description, digitalFile.Path.Value, ToAudioFileFormatCode(digitalFile.Format), null),
+            VinylRecord vinylRecord => new MediumResponse(vinylRecord.Code, vinylRecord.FormatDescription, null, null, null),
+            CompactDisc compactDisc => new MediumResponse(compactDisc.Code, compactDisc.Description, null, null, compactDisc.DiscCount),
+            CassetteTape cassetteTape => new MediumResponse(cassetteTape.Code, cassetteTape.TapeType, null, null, null),
+            OtherMedium otherMedium => new MediumResponse(otherMedium.Code, otherMedium.Name, null, null, null),
             _ => throw new InvalidOperationException("Medium type is not supported")
         };
     }

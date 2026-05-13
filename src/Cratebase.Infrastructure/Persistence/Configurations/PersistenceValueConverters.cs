@@ -49,6 +49,10 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new CreditId(value));
 
+    public static readonly ValueConverter<CollectionDictionaryEntryId, Guid> CollectionDictionaryEntryId = new(
+        id => id.Value,
+        value => new CollectionDictionaryEntryId(value));
+
     public static readonly ValueConverter<ArtistRelationId, Guid> ArtistRelationId = new(
         id => id.Value,
         value => new ArtistRelationId(value));

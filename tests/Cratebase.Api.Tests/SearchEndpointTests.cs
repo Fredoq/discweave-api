@@ -6,7 +6,8 @@ namespace Cratebase.Api.Tests;
 
 public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
 {
-    private static readonly string[] ElectroGenres = ["Electro"];
+    private static readonly string[] ElectronicGenres = ["Electronic"];
+    private static readonly string[] ElectroclashGenres = ["Electroclash"];
     private static readonly string[] FactoryTags = ["factory"];
     private static readonly string[] RemixTags = ["remix"];
     private readonly PostgresFixture _postgres;
@@ -56,6 +57,37 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("artist", item.GetProperty("type").GetString());
         Assert.Equal(userArtistId, item.GetProperty("id").GetGuid());
         Assert.NotEqual(adminReleaseId, item.GetProperty("id").GetGuid());
+    }
+
+    [Fact(DisplayName = "Search matches dictionary backed labels and codes")]
+    public async Task Search_matches_dictionary_backed_labels_and_codes()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        await CreateDictionaryEntryAsync(client, new { kind = "releaseType", code = "demoTape", name = "Demo Tape" });
+        await CreateDictionaryEntryAsync(client, new { kind = "creditRole", code = "djMix", name = "DJ mix" });
+        await CreateDictionaryEntryAsync(client, new { kind = "genre", code = "Electroclash", name = "Electroclash" });
+        await CreateDictionaryEntryAsync(client, new { kind = "mediaType", code = "lathe", name = "Lathe cut", mediaProfile = "vinyl" });
+        await CreateDictionaryEntryAsync(client, new { kind = "artistRelationType", code = "mentorOf", name = "Mentor of" });
+        await CreateDictionaryEntryAsync(client, new { kind = "trackRelationType", code = "dubOf", name = "Dub of" });
+
+        Guid artistId = await CreateArtistAsync(client, "Dictionary Artist");
+        Guid relatedArtistId = await CreateArtistAsync(client, "Dictionary Mentor");
+        Guid releaseId = await CreateCustomReleaseAsync(client);
+        Guid sourceTrackId = await CreateTrackAsync(client, "Dictionary Dub Source", []);
+        Guid targetTrackId = await CreateTrackAsync(client, "Dictionary Dub Target", []);
+        Guid ownedItemId = await CreateCustomOwnedItemAsync(client, releaseId);
+        _ = await CreateCreditAsync(client, artistId, "release", releaseId, "djMix");
+        await CreateArtistRelationAsync(client, artistId, relatedArtistId, "mentorOf");
+        await CreateTrackRelationAsync(client, sourceTrackId, targetTrackId, "dubOf");
+
+        await AssertSearchResultAsync(client, "Demo Tape", "release", releaseId, "release.type");
+        await AssertSearchResultAsync(client, "Electroclash", "release", releaseId, "genre");
+        await AssertSearchResultAsync(client, "DJ mix", "release", releaseId, "credit.role");
+        await AssertSearchResultAsync(client, "Lathe cut", "ownedItem", ownedItemId, "medium");
+        await AssertSearchResultAsync(client, "Mentor of", "artist", artistId, "relation.type");
+        await AssertSearchResultAsync(client, "Dub of", "track", sourceTrackId, "relation.type");
     }
 
     private static async Task AssertSearchResultAsync(HttpClient client, string query, string expectedType, Guid expectedId, string expectedMatchedField)
@@ -108,7 +140,7 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
-            new { title, type = "standalone", isVariousArtists = true, labelId, year = 1983, genres = ElectroGenres, tags = tags ?? [] });
+            new { title, type = "standalone", isVariousArtists = true, labelId, year = 1983, genres = ElectronicGenres, tags = tags ?? [] });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -119,7 +151,35 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/tracks",
-            new { title, durationSeconds = 360, genres = ElectroGenres, tags });
+            new { title, durationSeconds = 360, genres = ElectronicGenres, tags });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateCustomReleaseAsync(HttpClient client)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/releases",
+            new { title = "Dictionary Release", type = "demoTape", isVariousArtists = true, genres = ElectroclashGenres, tags = Array.Empty<string>() });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateCustomOwnedItemAsync(HttpClient client, Guid releaseId)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/owned-items",
+            new
+            {
+                targetType = "release",
+                targetId = releaseId,
+                status = "owned",
+                medium = new { type = "lathe", description = "7 inch" }
+            });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -150,6 +210,24 @@ public sealed class SearchEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task CreateDictionaryEntryAsync(HttpClient client, object request)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/settings/dictionaries", request);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static async Task CreateArtistRelationAsync(HttpClient client, Guid sourceArtistId, Guid targetArtistId, string type)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/artist-relations", new { sourceArtistId, targetArtistId, type });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static async Task CreateTrackRelationAsync(HttpClient client, Guid sourceTrackId, Guid targetTrackId, string type)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/track-relations", new { sourceTrackId, targetTrackId, type });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

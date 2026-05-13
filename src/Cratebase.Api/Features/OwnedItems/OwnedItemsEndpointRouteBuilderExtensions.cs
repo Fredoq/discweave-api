@@ -1,9 +1,11 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Collection;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -32,13 +34,22 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
     private static async Task<IResult> CreateOwnedItemAsync(
         CreateOwnedItemRequest request,
         IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(request.Medium);
-            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium);
+            CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.MediaType,
+                request.Medium.Type ?? string.Empty,
+                "medium.type_invalid",
+                "Medium type is invalid",
+                cancellationToken);
+            IMedium medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
             var item = OwnedItem.Create(
                 currentCollection.CollectionId,
                 OwnedItemId.New(),

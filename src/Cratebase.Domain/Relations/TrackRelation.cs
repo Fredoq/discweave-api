@@ -1,6 +1,7 @@
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
+using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Relations;
 
@@ -18,13 +19,13 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         TrackRelationId id,
         TrackId sourceTrackId,
         TrackId targetTrackId,
-        TrackRelationType relationType)
+        string relationType)
     {
         CollectionId = collectionId;
         Id = id;
         SourceTrackId = sourceTrackId;
         TargetTrackId = targetTrackId;
-        RelationType = relationType;
+        RelationType = Guard.RequiredText(relationType, nameof(relationType), "track_relation.type_required");
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -35,7 +36,19 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 
     public TrackId TargetTrackId { get; private set; }
 
-    public TrackRelationType RelationType { get; private set; }
+    public string RelationType { get; private set; } = string.Empty;
+
+    public static TrackRelation Create(
+        TrackRelationId id,
+        CollectionId collectionId,
+        TrackId sourceTrackId,
+        TrackId targetTrackId,
+        string type)
+    {
+        return sourceTrackId == targetTrackId
+            ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
+            : new TrackRelation(collectionId, id, sourceTrackId, targetTrackId, type);
+    }
 
     public static TrackRelation Create(
         TrackRelationId id,
@@ -44,12 +57,10 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
         TrackId targetTrackId,
         TrackRelationType type)
     {
-        return sourceTrackId == targetTrackId
-            ? throw new DomainException(SelfRelationCode, SelfRelationMessage)
-            : new TrackRelation(collectionId, id, sourceTrackId, targetTrackId, type);
+        return Create(id, collectionId, sourceTrackId, targetTrackId, ToTypeCode(type));
     }
 
-    public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)
+    public void Update(TrackId sourceTrackId, TrackId targetTrackId, string type)
     {
         if (sourceTrackId == targetTrackId)
         {
@@ -58,6 +69,22 @@ public sealed class TrackRelation : IEntity<TrackRelationId>
 
         SourceTrackId = sourceTrackId;
         TargetTrackId = targetTrackId;
-        RelationType = type;
+        RelationType = Guard.RequiredText(type, nameof(type), "track_relation.type_required");
+    }
+
+    public void Update(TrackId sourceTrackId, TrackId targetTrackId, TrackRelationType type)
+    {
+        Update(sourceTrackId, targetTrackId, ToTypeCode(type));
+    }
+
+    private static string ToTypeCode(TrackRelationType type)
+    {
+        return Guard.DefinedEnum(type, nameof(type), "track_relation.type_invalid") switch
+        {
+            TrackRelationType.RemixOf => "remixOf",
+            TrackRelationType.VersionOf => "versionOf",
+            TrackRelationType.EditOf => "editOf",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Track relation type is not supported")
+        };
     }
 }

@@ -31,6 +31,11 @@ internal static class SearchResultCodes
         };
     }
 
+    public static string ToCreditRoleCode(string role)
+    {
+        return role;
+    }
+
     public static string ToOwnershipStatusCode(OwnershipStatus status)
     {
         return status switch
@@ -45,15 +50,7 @@ internal static class SearchResultCodes
 
     public static string ToMediumCode(IMedium medium)
     {
-        return medium switch
-        {
-            DigitalFile => "digital",
-            VinylRecord => "vinyl",
-            CompactDisc => "cd",
-            CassetteTape => "cassette",
-            OtherMedium => "other",
-            _ => throw new InvalidOperationException("Medium type is not supported")
-        };
+        return medium.Code;
     }
 
     public static int TypeRank(string type)

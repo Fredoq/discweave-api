@@ -5,6 +5,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.Relations;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence.Configurations;
@@ -48,6 +49,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<TrackRelation> TrackRelations => Set<TrackRelation>();
 
+    public DbSet<CollectionDictionaryEntry> CollectionDictionaryEntries => Set<CollectionDictionaryEntry>();
+
     public bool HasCurrentCollection { get; private set; }
 
     public CollectionId CurrentCollectionId { get; private set; }
@@ -83,6 +86,7 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
         _ = builder.ApplyConfiguration(new ArtistConfiguration());
         _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
+        _ = builder.ApplyConfiguration(new CollectionDictionaryEntryConfiguration());
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
@@ -122,5 +126,6 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = modelBuilder.Entity<Credit>().HasQueryFilter(credit => !HasCurrentCollection || credit.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ArtistRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<TrackRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<CollectionDictionaryEntry>().HasQueryFilter(entry => !HasCurrentCollection || entry.CollectionId == CurrentCollectionId);
     }
 }

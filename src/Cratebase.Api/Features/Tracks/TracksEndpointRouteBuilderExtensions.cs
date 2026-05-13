@@ -1,9 +1,11 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -40,7 +42,12 @@ public static partial class TracksEndpointRouteBuilderExtensions
 
         try
         {
-            Track track = ApplyTrackRequest(Track.Create(currentCollection.CollectionId, TrackId.New(), request.Title), request);
+            Track track = await ApplyTrackRequestAsync(
+                Track.Create(currentCollection.CollectionId, TrackId.New(), request.Title),
+                request,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
             _ = context.Tracks.Add(track);
             await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
             await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
@@ -132,7 +139,12 @@ public static partial class TracksEndpointRouteBuilderExtensions
 
         try
         {
-            _ = ApplyTrackRequest(track, request);
+            _ = await ApplyTrackRequestAsync(
+                track,
+                request,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
             await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
             await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
 
@@ -225,8 +237,22 @@ public static partial class TracksEndpointRouteBuilderExtensions
             cancellationToken);
     }
 
-    private static Track ApplyTrackRequest(Track track, TrackRequest request)
+    private static async Task<Track> ApplyTrackRequestAsync(
+        Track track,
+        TrackRequest request,
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
     {
+        IReadOnlyList<string> genres = await DictionaryValidation.RequireActiveCodesAsync(
+            context,
+            collectionId,
+            DictionaryKind.Genre,
+            request.Genres,
+            "track.genre_invalid",
+            "Track genre is invalid",
+            cancellationToken);
+
         track.Rename(request.Title);
         TrackDetails details = TrackDetails.Empty;
         if (request.DurationSeconds is { } durationSeconds)
@@ -235,7 +261,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         }
 
         track.UpdateDetails(details);
-        track.UpdateCataloging(CatalogingMapper.Create(request.Genres, request.Tags));
+        track.UpdateCataloging(CatalogingMapper.Create(genres, request.Tags));
 
         return track;
     }

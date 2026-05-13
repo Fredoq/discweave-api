@@ -6,19 +6,11 @@ namespace Cratebase.Api.Features.Credits;
 
 internal static class CreditMapper
 {
-    public static CreditRole ParseRole(string role)
+    public static string ParseRole(string role)
     {
-        return role.Trim() switch
-        {
-            "mainArtist" => CreditRole.MainArtist,
-            "featuredArtist" => CreditRole.FeaturedArtist,
-            "remixer" => CreditRole.Remixer,
-            "producer" => CreditRole.Producer,
-            "composer" => CreditRole.Composer,
-            "performer" => CreditRole.Performer,
-            "engineer" => CreditRole.Engineer,
-            _ => throw new DomainException("credit.role_invalid", "Credit role is invalid")
-        };
+        return string.IsNullOrWhiteSpace(role)
+            ? throw new DomainException("credit.role_invalid", "Credit role is invalid")
+            : role.Trim();
     }
 
     public static CreditTarget CreateTarget(string targetType, Guid targetId)
@@ -50,18 +42,8 @@ internal static class CreditMapper
             ToRoleCode(credit.Role));
     }
 
-    public static string ToRoleCode(CreditRole role)
+    public static string ToRoleCode(string role)
     {
-        return role switch
-        {
-            CreditRole.MainArtist => "mainArtist",
-            CreditRole.FeaturedArtist => "featuredArtist",
-            CreditRole.Remixer => "remixer",
-            CreditRole.Producer => "producer",
-            CreditRole.Composer => "composer",
-            CreditRole.Performer => "performer",
-            CreditRole.Engineer => "engineer",
-            _ => throw new InvalidOperationException("Credit role is not supported")
-        };
+        return role;
     }
 }

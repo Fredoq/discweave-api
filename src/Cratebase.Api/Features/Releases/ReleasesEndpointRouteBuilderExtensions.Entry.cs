@@ -1,8 +1,10 @@
 using Cratebase.Api.Features.OwnedItems;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Application.Errors;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -19,14 +21,19 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        Release release = ApplyReleaseRequest(Release.Create(collectionId, ReleaseId.New(), request.Title), request);
+        Release release = await ApplyReleaseRequestAsync(
+            Release.Create(collectionId, ReleaseId.New(), request.Title),
+            request,
+            context,
+            collectionId,
+            cancellationToken);
         IReadOnlyList<ResolvedCredit> releaseCredits = await ResolveCreditsAsync(
             request.ArtistCredits,
             context,
             collectionId,
             cancellationToken);
 
-        if (!request.IsVariousArtists && releaseCredits.All(credit => credit.Role != CreditRole.MainArtist))
+        if (!request.IsVariousArtists && releaseCredits.All(credit => credit.Role != "mainArtist"))
         {
             throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
         }
@@ -41,7 +48,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
 
         await ReplaceReleaseTracklistAsync(request, release, releaseCredits, context, collectionId, cancellationToken);
-        CreateOwnedCopy(request, release, context, collectionId);
+        await CreateOwnedCopyAsync(request, release, context, collectionId, cancellationToken);
 
         return release;
     }
@@ -139,18 +146,27 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         }
     }
 
-    private static void CreateOwnedCopy(
+    private static async Task CreateOwnedCopyAsync(
         ReleaseRequest request,
         Release release,
         CratebaseDbContext context,
-        CollectionId collectionId)
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
     {
         if (request.OwnedCopy is not { } ownedCopy)
         {
             return;
         }
 
-        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium);
+        CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+            context,
+            collectionId,
+            DictionaryKind.MediaType,
+            ownedCopy.Medium.Type ?? string.Empty,
+            "medium.type_invalid",
+            "Medium type is invalid",
+            cancellationToken);
+        IMedium medium = OwnedItemMapper.CreateMedium(ownedCopy.Medium, mediaEntry);
         var item = OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),

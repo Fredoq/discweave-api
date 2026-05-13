@@ -1,10 +1,12 @@
 using Cratebase.Api.Auth;
+using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Http;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -56,7 +58,15 @@ public static class CreditsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("credit.target_conflict", "Credit target does not exist");
             }
 
-            var credit = Credit.Create(currentCollection.CollectionId, CreditId.New(), CreditContributor.FromArtist(contributor), target, CreditMapper.ParseRole(request.Role));
+            string role = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.CreditRole,
+                CreditMapper.ParseRole(request.Role),
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
+            var credit = Credit.Create(currentCollection.CollectionId, CreditId.New(), CreditContributor.FromArtist(contributor), target, role);
             unitOfWork.GetRepository<Credit, CreditId>().Add(credit);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -96,12 +106,22 @@ public static class CreditsEndpointRouteBuilderExtensions
 
         try
         {
+            string? role = string.IsNullOrWhiteSpace(request.Role)
+                ? null
+                : await DictionaryValidation.RequireCodeAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    DictionaryKind.CreditRole,
+                    CreditMapper.ParseRole(request.Role),
+                    "credit.role_invalid",
+                    "Credit role is invalid",
+                    cancellationToken);
             IQueryable<Credit> credits = ApplyFilters(
                 context.Credits.AsNoTracking().Where(credit => credit.CollectionId == currentCollection.CollectionId),
                 request.ContributorArtistId,
                 request.TargetType,
                 request.TargetId,
-                request.Role);
+                role);
             int total = await credits.CountAsync(cancellationToken);
             Credit[] page = await credits.OrderBy(credit => credit.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
@@ -149,7 +169,15 @@ public static class CreditsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("credit.target_conflict", "Credit target does not exist");
             }
 
-            credit.Update(CreditContributor.FromArtist(contributor), target, CreditMapper.ParseRole(request.Role));
+            string role = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                currentCollection.CollectionId,
+                DictionaryKind.CreditRole,
+                CreditMapper.ParseRole(request.Role),
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
+            credit.Update(CreditContributor.FromArtist(contributor), target, role);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(CreditMapper.ToResponse(credit));
@@ -200,8 +228,7 @@ public static class CreditsEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(role))
         {
-            CreditRole parsedRole = CreditMapper.ParseRole(role);
-            credits = credits.Where(credit => credit.Role == parsedRole);
+            credits = credits.Where(credit => credit.Role == role);
         }
 
         if (!string.IsNullOrWhiteSpace(targetType))

@@ -3,6 +3,8 @@ using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Relations;
+using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
 
@@ -55,17 +57,29 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         OwnedItem[] ownedItems = await _context.OwnedItems.AsNoTracking()
             .Where(item => item.CollectionId == _collectionId)
             .ToArrayAsync(cancellationToken);
+        ArtistRelation[] artistRelations = await _context.ArtistRelations.AsNoTracking()
+            .Where(relation => relation.CollectionId == _collectionId)
+            .ToArrayAsync(cancellationToken);
+        TrackRelation[] trackRelations = await _context.TrackRelations.AsNoTracking()
+            .Where(relation => relation.CollectionId == _collectionId)
+            .ToArrayAsync(cancellationToken);
+        CollectionDictionaryEntry[] dictionaryEntries = await _context.CollectionDictionaryEntries.AsNoTracking()
+            .Where(entry => entry.CollectionId == _collectionId)
+            .ToArrayAsync(cancellationToken);
 
         Dictionary<LabelId, string> labelNames = labels.ToDictionary(label => label.Id, label => label.Name);
+        Dictionary<ArtistId, Artist> artistsById = artists.ToDictionary(artist => artist.Id);
         Dictionary<ReleaseId, Release> releasesById = releases.ToDictionary(release => release.Id);
         Dictionary<TrackId, Track> tracksById = tracks.ToDictionary(track => track.Id);
+        var dictionaries = DictionarySearchLookup.From(dictionaryEntries);
 
         AddArtists(term, accumulator, artists);
         AddLabels(term, accumulator, labels);
-        AddReleases(term, accumulator, releases, labelNames);
-        AddTracks(term, accumulator, tracks);
-        AddCredits(term, accumulator, credits, releasesById, tracksById);
-        AddOwnedItems(term, accumulator, ownedItems, releasesById, tracksById);
+        AddReleases(term, accumulator, dictionaries, releases, labelNames);
+        AddTracks(term, accumulator, dictionaries, tracks);
+        AddCredits(term, accumulator, dictionaries, credits, releasesById, tracksById);
+        AddOwnedItems(term, accumulator, dictionaries, ownedItems, releasesById, tracksById);
+        RelationSearchAppender.AddRelations(term, accumulator, dictionaries, artistRelations, trackRelations, artistsById, tracksById);
 
         SearchResultReadModel[] results =
         [
@@ -97,16 +111,13 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         }
     }
 
-    private static void AddReleases(
-        string term,
-        SearchResultAccumulator accumulator,
-        IReadOnlyList<Release> releases,
-        Dictionary<LabelId, string> labelNames)
+    private static void AddReleases(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Release> releases, Dictionary<LabelId, string> labelNames)
     {
         foreach (Release release in releases)
         {
             SearchTarget target = new(release.Id.Value, ReleaseResultType, release.Summary.Title, ReleaseSubtitle(release, labelNames));
             AddIfContains(accumulator, term, target, "title", release.Summary.Title, 100);
+            AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.ReleaseType, release.Summary.Metadata.Type, "release.type", 65);
 
             if (TryGetReleaseLabelName(release, labelNames, out string? labelName) && labelName is not null)
             {
@@ -115,7 +126,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
             foreach (Genre genre in release.Cataloging.Genres)
             {
-                AddIfContains(accumulator, term, target, "genre", genre.Name, 60);
+                AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.Genre, genre.Name, "genre", 60);
             }
 
             foreach (Tag tag in release.Cataloging.Tags)
@@ -125,7 +136,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         }
     }
 
-    private static void AddTracks(string term, SearchResultAccumulator accumulator, IReadOnlyList<Track> tracks)
+    private static void AddTracks(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Track> tracks)
     {
         foreach (Track track in tracks)
         {
@@ -134,7 +145,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
             foreach (Genre genre in track.Cataloging.Genres)
             {
-                AddIfContains(accumulator, term, target, "genre", genre.Name, 60);
+                AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.Genre, genre.Name, "genre", 60);
             }
 
             foreach (Tag tag in track.Cataloging.Tags)
@@ -144,18 +155,13 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         }
     }
 
-    private static void AddCredits(
-        string term,
-        SearchResultAccumulator accumulator,
-        IReadOnlyList<Credit> credits,
-        Dictionary<ReleaseId, Release> releases,
-        Dictionary<TrackId, Track> tracks)
+    private static void AddCredits(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Credit> credits, Dictionary<ReleaseId, Release> releases, Dictionary<TrackId, Track> tracks)
     {
         foreach (Credit credit in credits)
         {
             CreditTarget target = credit.Target;
             string role = SearchResultCodes.ToCreditRoleCode(credit.Role);
-            bool roleMatches = ContainsTerm(role, term);
+            bool roleMatches = dictionaries.Contains(DictionaryKind.CreditRole, role, term);
             bool contributorMatches = ContainsTerm(credit.Contributor.Name, term);
             if (!roleMatches && !contributorMatches)
             {
@@ -173,7 +179,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
                 continue;
             }
 
-            string subtitle = $"{role}: {credit.Contributor.Name}";
+            string subtitle = $"{dictionaries.LabelOrCode(DictionaryKind.CreditRole, role)}: {credit.Contributor.Name}";
             if (roleMatches)
             {
                 accumulator.Add(id, type, title, subtitle, "credit.role", 75);
@@ -186,26 +192,21 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         }
     }
 
-    private static void AddOwnedItems(
-        string term,
-        SearchResultAccumulator accumulator,
-        IReadOnlyList<OwnedItem> ownedItems,
-        Dictionary<ReleaseId, Release> releases,
-        Dictionary<TrackId, Track> tracks)
+    private static void AddOwnedItems(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<OwnedItem> ownedItems, Dictionary<ReleaseId, Release> releases, Dictionary<TrackId, Track> tracks)
     {
         foreach (OwnedItem item in ownedItems)
         {
             string status = SearchResultCodes.ToOwnershipStatusCode(item.Holding.Status);
             string medium = SearchResultCodes.ToMediumCode(item.Holding.Medium);
             bool statusMatches = ContainsTerm(status, term);
-            bool mediumMatches = ContainsTerm(medium, term);
+            bool mediumMatches = dictionaries.Contains(DictionaryKind.MediaType, medium, term);
             if (!statusMatches && !mediumMatches)
             {
                 continue;
             }
 
             string title = OwnedItemTitle(item.Target, releases, tracks);
-            string subtitle = $"{status} on {medium}";
+            string subtitle = $"{status} on {dictionaries.LabelOrCode(DictionaryKind.MediaType, medium)}";
             if (statusMatches)
             {
                 accumulator.Add(item.Id.Value, "ownedItem", title, subtitle, "ownershipStatus", 55);
@@ -227,6 +228,14 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         int score)
     {
         if (ContainsTerm(value, term))
+        {
+            accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
+        }
+    }
+
+    private static void AddIfDictionaryContains(SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, string term, SearchTarget target, DictionaryKind kind, string code, string matchedField, int score)
+    {
+        if (dictionaries.Contains(kind, code, term))
         {
             accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
         }
