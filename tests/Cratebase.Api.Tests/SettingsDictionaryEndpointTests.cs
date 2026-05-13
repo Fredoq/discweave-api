@@ -74,6 +74,104 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
         Assert.Equal("release.type_invalid", inactiveReleaseDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Dictionary endpoints filter by kind and validate kind codes")]
+    public async Task Dictionary_endpoints_filter_by_kind_and_validate_kind_codes()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage genreResponse = await client.GetAsync("/api/settings/dictionaries?kind=genre");
+        using JsonDocument genreDocument = await ReadJsonAsync(genreResponse);
+        using HttpResponseMessage invalidKindResponse = await client.GetAsync("/api/settings/dictionaries?kind=labelType");
+        using JsonDocument invalidKindDocument = await ReadJsonAsync(invalidKindResponse);
+
+        Assert.Equal(HttpStatusCode.OK, genreResponse.StatusCode);
+        JsonElement genreItems = genreDocument.RootElement.GetProperty("items");
+        Assert.Equal(8, genreDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.All(genreItems.EnumerateArray(), entry => Assert.Equal("genre", entry.GetProperty("kind").GetString()));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidKindResponse.StatusCode);
+        Assert.Equal("dictionary_entry.kind_invalid", invalidKindDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact(DisplayName = "Dictionary entries can be updated and unused entries require delete confirmation")]
+    public async Task Dictionary_entries_can_be_updated_and_unused_entries_require_delete_confirmation()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/settings/dictionaries",
+            new { kind = "mediaType", code = "lathe", name = "Lathe cut", sortOrder = 95, mediaProfile = "vinyl" });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Guid entryId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync(
+            "/api/settings/dictionaries",
+            new { kind = "mediaType", code = "lathe", name = "Lathe duplicate", mediaProfile = "vinyl" });
+        using JsonDocument duplicateDocument = await ReadJsonAsync(duplicateResponse);
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/settings/dictionaries/{entryId}",
+            new { name = "Lathe", sortOrder = 96, isActive = false, mediaProfile = "other" });
+        using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
+
+        using HttpResponseMessage deleteWithoutConfirmationResponse = await client.DeleteAsync($"/api/settings/dictionaries/{entryId}");
+        using JsonDocument deleteWithoutConfirmationDocument = await ReadJsonAsync(deleteWithoutConfirmationResponse);
+
+        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/settings/dictionaries/{entryId}");
+        deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"dictionary-entry:{entryId}");
+        using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal("vinyl", createDocument.RootElement.GetProperty("mediaProfile").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+        Assert.Equal("dictionary_entry.code_conflict", duplicateDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal("Lathe", updateDocument.RootElement.GetProperty("name").GetString());
+        Assert.Equal(96, updateDocument.RootElement.GetProperty("sortOrder").GetInt32());
+        Assert.False(updateDocument.RootElement.GetProperty("isActive").GetBoolean());
+        Assert.Equal("other", updateDocument.RootElement.GetProperty("mediaProfile").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, deleteWithoutConfirmationResponse.StatusCode);
+        Assert.Equal("delete.confirmation_required", deleteWithoutConfirmationDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+    }
+
+    [Fact(DisplayName = "Protected built-in dictionary entries cannot be disabled or deleted")]
+    public async Task Protected_builtin_dictionary_entries_cannot_be_disabled_or_deleted()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid mainArtistId = await FindDictionaryEntryIdAsync(client, "creditRole", "mainArtist");
+
+        using HttpResponseMessage deactivateResponse = await client.PutAsJsonAsync(
+            $"/api/settings/dictionaries/{mainArtistId}",
+            new { name = "Main artist", sortOrder = 10, isActive = false });
+        using JsonDocument deactivateDocument = await ReadJsonAsync(deactivateResponse);
+
+        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/settings/dictionaries/{mainArtistId}");
+        deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"dictionary-entry:{mainArtistId}");
+        using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
+        using JsonDocument deleteDocument = await ReadJsonAsync(deleteResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, deactivateResponse.StatusCode);
+        Assert.Equal("dictionary_entry.protected", deactivateDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, deleteResponse.StatusCode);
+        Assert.Equal("dictionary_entry.protected", deleteDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    private static async Task<Guid> FindDictionaryEntryIdAsync(HttpClient client, string kind, string code)
+    {
+        using HttpResponseMessage response = await client.GetAsync($"/api/settings/dictionaries?kind={kind}");
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        return document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(entry => entry.GetProperty("code").GetString() == code)
+            .GetProperty("id")
+            .GetGuid();
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         string content = await response.Content.ReadAsStringAsync();
