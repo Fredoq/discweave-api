@@ -38,12 +38,12 @@ internal static class DictionaryValidation
         string errorMessage,
         CancellationToken cancellationToken)
     {
-        string normalizedCode = code.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedCode))
+        if (string.IsNullOrWhiteSpace(code))
         {
             throw new DomainException(errorCode, errorMessage);
         }
 
+        string normalizedCode = code.Trim();
         CollectionDictionaryEntry? entry = await context.CollectionDictionaryEntries.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.CollectionId == collectionId &&
@@ -63,12 +63,12 @@ internal static class DictionaryValidation
         string errorMessage,
         CancellationToken cancellationToken)
     {
-        string normalizedCode = code.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedCode))
+        if (string.IsNullOrWhiteSpace(code))
         {
             throw new DomainException(errorCode, errorMessage);
         }
 
+        string normalizedCode = code.Trim();
         CollectionDictionaryEntry? entry = await context.CollectionDictionaryEntries.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.CollectionId == collectionId &&
@@ -97,9 +97,26 @@ internal static class DictionaryValidation
         List<string> normalizedCodes = [];
         foreach (string code in codes)
         {
-            normalizedCodes.Add(await RequireActiveCodeAsync(context, collectionId, kind, code, errorCode, errorMessage, cancellationToken));
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                throw new DomainException(errorCode, errorMessage);
+            }
+
+            normalizedCodes.Add(code.Trim());
         }
 
-        return normalizedCodes;
+        string[] distinctCodes = [.. normalizedCodes.Distinct(StringComparer.Ordinal)];
+        string[] activeCodes = await context.CollectionDictionaryEntries.AsNoTracking()
+            .Where(item => item.CollectionId == collectionId &&
+                item.Kind == kind &&
+                item.IsActive &&
+                distinctCodes.Contains(item.Code))
+            .Select(item => item.Code)
+            .ToArrayAsync(cancellationToken);
+        HashSet<string> activeCodeSet = activeCodes.ToHashSet(StringComparer.Ordinal);
+
+        return normalizedCodes.Any(code => !activeCodeSet.Contains(code))
+            ? throw new DomainException(errorCode, errorMessage)
+            : normalizedCodes;
     }
 }

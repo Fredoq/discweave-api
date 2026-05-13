@@ -36,6 +36,7 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         SortOrder = sortOrder;
         IsActive = isActive;
         IsBuiltin = isBuiltin;
+        EnsureMediaProfileMatchesKind(Kind, mediaProfile);
         SetMediaProfile(mediaProfile);
     }
 
@@ -155,6 +156,24 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         }
 
         _mediaProfile = null;
+    }
+
+    private static void EnsureMediaProfileMatchesKind(DictionaryKind kind, IOptionalValue<string> mediaProfile)
+    {
+        if (kind == DictionaryKind.MediaType)
+        {
+            if (mediaProfile is not PresentOptionalValue<string> presentMediaProfile || string.IsNullOrWhiteSpace(presentMediaProfile.Value))
+            {
+                throw new DomainException("dictionary_entry.media_profile_required", "Media type entries require a media profile");
+            }
+
+            return;
+        }
+
+        if (mediaProfile is PresentOptionalValue<string>)
+        {
+            throw new DomainException("dictionary_entry.media_profile_invalid", "Only media type entries can have a media profile");
+        }
     }
 
     private static bool IsProtectedCode(DictionaryKind kind, string code)

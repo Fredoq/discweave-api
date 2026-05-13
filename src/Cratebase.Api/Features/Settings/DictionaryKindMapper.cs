@@ -7,16 +7,18 @@ internal static class DictionaryKindMapper
 {
     public static DictionaryKind Parse(string kind)
     {
-        return kind.Trim() switch
-        {
-            "releaseType" => DictionaryKind.ReleaseType,
-            "creditRole" => DictionaryKind.CreditRole,
-            "genre" => DictionaryKind.Genre,
-            "mediaType" => DictionaryKind.MediaType,
-            "artistRelationType" => DictionaryKind.ArtistRelationType,
-            "trackRelationType" => DictionaryKind.TrackRelationType,
-            _ => throw new DomainException("dictionary_entry.kind_invalid", "Dictionary kind is invalid")
-        };
+        return string.IsNullOrWhiteSpace(kind)
+            ? throw new DomainException("dictionary_entry.kind_invalid", "Dictionary kind is invalid")
+            : kind.Trim() switch
+            {
+                "releaseType" => DictionaryKind.ReleaseType,
+                "creditRole" => DictionaryKind.CreditRole,
+                "genre" => DictionaryKind.Genre,
+                "mediaType" => DictionaryKind.MediaType,
+                "artistRelationType" => DictionaryKind.ArtistRelationType,
+                "trackRelationType" => DictionaryKind.TrackRelationType,
+                _ => throw new DomainException("dictionary_entry.kind_invalid", "Dictionary kind is invalid")
+            };
     }
 
     public static string ToCode(DictionaryKind kind)

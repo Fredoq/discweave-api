@@ -71,6 +71,9 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         {
             DictionaryKind kind = DictionaryKindMapper.Parse(request.Kind);
             int sortOrder = request.SortOrder ?? 100;
+            string mediaProfile = string.IsNullOrWhiteSpace(request.MediaProfile)
+                ? "other"
+                : request.MediaProfile;
             CollectionDictionaryEntry entry = kind == DictionaryKind.MediaType
                 ? CollectionDictionaryEntry.CreateMedia(
                     CollectionDictionaryEntryId.New(),
@@ -79,7 +82,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
                     request.Name,
                     sortOrder,
                     isBuiltin: false,
-                    string.IsNullOrWhiteSpace(request.MediaProfile) ? "other" : request.MediaProfile)
+                    mediaProfile)
                 : CollectionDictionaryEntry.Create(
                     CollectionDictionaryEntryId.New(),
                     currentCollection.CollectionId,

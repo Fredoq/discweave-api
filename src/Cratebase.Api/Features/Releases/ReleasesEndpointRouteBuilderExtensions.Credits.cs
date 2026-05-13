@@ -10,6 +10,8 @@ namespace Cratebase.Api.Features.Releases;
 
 public static partial class ReleasesEndpointRouteBuilderExtensions
 {
+    private const string MainArtistRoleCode = "mainArtist";
+
     private static readonly CreditArtistResolverErrors ReleaseCreditArtistErrors = new(
         "release.artist_conflict",
         "Release artist does not exist",
@@ -36,7 +38,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         return isVariousArtists
             ? throw new DomainException("track.artist_required", "Track artist is required for Various Artists releases")
-            : [.. releaseCredits.Where(credit => credit.Role == "mainArtist")];
+            : [.. releaseCredits.Where(credit => credit.Role == MainArtistRoleCode)];
     }
 
     private static async Task<IReadOnlyList<ResolvedCredit>> ResolveCreditsAsync(
@@ -64,7 +66,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role),
+                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? MainArtistRoleCode : creditRequest.Role),
                 "credit.role_invalid",
                 "Credit role is invalid",
                 cancellationToken);

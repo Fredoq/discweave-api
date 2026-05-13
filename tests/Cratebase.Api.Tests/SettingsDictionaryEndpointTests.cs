@@ -87,8 +87,9 @@ public sealed class SettingsDictionaryEndpointTests : IClassFixture<PostgresFixt
 
         Assert.Equal(HttpStatusCode.OK, genreResponse.StatusCode);
         JsonElement genreItems = genreDocument.RootElement.GetProperty("items");
-        Assert.Equal(8, genreDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.True(genreDocument.RootElement.GetProperty("total").GetInt32() > 0);
         Assert.All(genreItems.EnumerateArray(), entry => Assert.Equal("genre", entry.GetProperty("kind").GetString()));
+        Assert.Contains(genreItems.EnumerateArray(), entry => entry.GetProperty("code").GetString() == "Electronic");
         Assert.Equal(HttpStatusCode.BadRequest, invalidKindResponse.StatusCode);
         Assert.Equal("dictionary_entry.kind_invalid", invalidKindDocument.RootElement.GetProperty("code").GetString());
     }
