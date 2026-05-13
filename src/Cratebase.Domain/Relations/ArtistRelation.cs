@@ -73,6 +73,27 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
             : new ArtistRelation(collectionId, id, sourceArtistId, targetArtistId, type, Optional.From(period));
     }
 
+    public static ArtistRelation Create(
+        ArtistRelationId id,
+        CollectionId collectionId,
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type)
+    {
+        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type));
+    }
+
+    public static ArtistRelation Create(
+        ArtistRelationId id,
+        CollectionId collectionId,
+        ArtistId sourceArtistId,
+        ArtistId targetArtistId,
+        ArtistRelationType type,
+        ArtistRelationPeriod period)
+    {
+        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type), period);
+    }
+
     public void Update(
         ArtistId sourceArtistId,
         ArtistId targetArtistId,
@@ -106,27 +127,6 @@ public sealed class ArtistRelation : IEntity<ArtistRelationId>
         TargetArtistId = targetArtistId;
         Type = Guard.RequiredText(type, nameof(type), "artist_relation.type_required");
         SetPeriod(Optional.From(period));
-    }
-
-    public static ArtistRelation Create(
-        ArtistRelationId id,
-        CollectionId collectionId,
-        ArtistId sourceArtistId,
-        ArtistId targetArtistId,
-        ArtistRelationType type)
-    {
-        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type));
-    }
-
-    public static ArtistRelation Create(
-        ArtistRelationId id,
-        CollectionId collectionId,
-        ArtistId sourceArtistId,
-        ArtistId targetArtistId,
-        ArtistRelationType type,
-        ArtistRelationPeriod period)
-    {
-        return Create(id, collectionId, sourceArtistId, targetArtistId, ToTypeCode(type), period);
     }
 
     public void Update(

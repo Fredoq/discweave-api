@@ -11,6 +11,8 @@ namespace Cratebase.Api.Features.Settings;
 
 public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
 {
+    private const string GenresNavigation = "_genres";
+
     private static async Task<bool> IsEntryUsedAsync(
         CratebaseDbContext context,
         CollectionDictionaryEntry entry,
@@ -34,7 +36,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Release[] releases = await context.Releases.AsNoTracking()
-            .Include("_genres")
+            .Include(GenresNavigation)
             .Where(release => release.CollectionId == entry.CollectionId)
             .ToArrayAsync(cancellationToken);
         if (releases.Any(release => release.Cataloging.Genres.Any(genre => genre.Name == entry.Code)))
@@ -43,7 +45,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         }
 
         Track[] tracks = await context.Tracks.AsNoTracking()
-            .Include("_genres")
+            .Include(GenresNavigation)
             .Where(track => track.CollectionId == entry.CollectionId)
             .ToArrayAsync(cancellationToken);
 
@@ -185,7 +187,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Release[] releases = await context.Releases
-            .Include("_genres")
+            .Include(GenresNavigation)
             .Include("_tags")
             .Where(release => release.CollectionId == entry.CollectionId)
             .ToArrayAsync(cancellationToken);
@@ -195,7 +197,7 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         }
 
         Track[] tracks = await context.Tracks
-            .Include("_genres")
+            .Include(GenresNavigation)
             .Include("_tags")
             .Where(track => track.CollectionId == entry.CollectionId)
             .ToArrayAsync(cancellationToken);
@@ -208,9 +210,9 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
     private static Cataloging ReplaceGenre(Cataloging cataloging, string oldCode, string replacementCode)
     {
         Cataloging updated = Cataloging.Empty;
-        foreach (Genre genre in cataloging.Genres)
+        foreach (string genreName in cataloging.Genres.Select(genre => genre.Name))
         {
-            updated = updated.WithGenre(Genre.FromName(genre.Name == oldCode ? replacementCode : genre.Name));
+            updated = updated.WithGenre(Genre.FromName(genreName == oldCode ? replacementCode : genreName));
         }
 
         foreach (Tag tag in cataloging.Tags)

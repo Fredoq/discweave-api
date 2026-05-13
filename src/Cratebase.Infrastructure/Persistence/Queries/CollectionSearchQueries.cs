@@ -117,7 +117,10 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         {
             SearchTarget target = new(release.Id.Value, ReleaseResultType, release.Summary.Title, ReleaseSubtitle(release, labelNames));
             AddIfContains(accumulator, term, target, "title", release.Summary.Title, 100);
-            AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.ReleaseType, release.Summary.Metadata.Type, "release.type", 65);
+            if (dictionaries.Contains(DictionaryKind.ReleaseType, release.Summary.Metadata.Type, term))
+            {
+                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "release.type", 65);
+            }
 
             if (TryGetReleaseLabelName(release, labelNames, out string? labelName) && labelName is not null)
             {
@@ -126,7 +129,10 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
             foreach (Genre genre in release.Cataloging.Genres)
             {
-                AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.Genre, genre.Name, "genre", 60);
+                if (dictionaries.Contains(DictionaryKind.Genre, genre.Name, term))
+                {
+                    accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
+                }
             }
 
             foreach (Tag tag in release.Cataloging.Tags)
@@ -145,7 +151,10 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
 
             foreach (Genre genre in track.Cataloging.Genres)
             {
-                AddIfDictionaryContains(accumulator, dictionaries, term, target, DictionaryKind.Genre, genre.Name, "genre", 60);
+                if (dictionaries.Contains(DictionaryKind.Genre, genre.Name, term))
+                {
+                    accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
+                }
             }
 
             foreach (Tag tag in track.Cataloging.Tags)
@@ -228,14 +237,6 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         int score)
     {
         if (ContainsTerm(value, term))
-        {
-            accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
-        }
-    }
-
-    private static void AddIfDictionaryContains(SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, string term, SearchTarget target, DictionaryKind kind, string code, string matchedField, int score)
-    {
-        if (dictionaries.Contains(kind, code, term))
         {
             accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
         }

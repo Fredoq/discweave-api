@@ -17,29 +17,6 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
     {
     }
 
-    private CollectionDictionaryEntry(
-        CollectionDictionaryEntryId id,
-        CollectionId collectionId,
-        DictionaryKind kind,
-        string code,
-        string name,
-        int sortOrder,
-        bool isActive,
-        bool isBuiltin,
-        IOptionalValue<string> mediaProfile)
-    {
-        Id = id;
-        CollectionId = collectionId;
-        Kind = Guard.DefinedEnum(kind, nameof(kind), "dictionary_entry.kind_invalid");
-        Code = Guard.RequiredText(code, nameof(code), "dictionary_entry.code_required");
-        Name = Guard.RequiredText(name, nameof(name), "dictionary_entry.name_required");
-        SortOrder = sortOrder;
-        IsActive = isActive;
-        IsBuiltin = isBuiltin;
-        EnsureMediaProfileMatchesKind(Kind, mediaProfile);
-        SetMediaProfile(mediaProfile);
-    }
-
     public CollectionDictionaryEntryId Id { get; private set; }
 
     public CollectionId CollectionId { get; private set; }
@@ -71,16 +48,18 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         int sortOrder,
         bool isBuiltin)
     {
-        return new CollectionDictionaryEntry(
-            id,
-            collectionId,
-            kind,
-            code,
-            name,
-            sortOrder,
-            isActive: true,
-            isBuiltin,
-            Optional.Missing<string>());
+        return FromCreation(
+            new EntryCreation
+            {
+                Id = id,
+                CollectionId = collectionId,
+                Kind = kind,
+                Code = code,
+                Name = name,
+                SortOrder = sortOrder,
+                IsBuiltin = isBuiltin,
+                MediaProfile = Optional.Missing<string>()
+            });
     }
 
     public static CollectionDictionaryEntry CreateMedia(
@@ -92,16 +71,18 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         bool isBuiltin,
         string mediaProfile)
     {
-        return new CollectionDictionaryEntry(
-            id,
-            collectionId,
-            DictionaryKind.MediaType,
-            code,
-            name,
-            sortOrder,
-            isActive: true,
-            isBuiltin,
-            Optional.From(Guard.RequiredText(mediaProfile, nameof(mediaProfile), "dictionary_entry.media_profile_required")));
+        return FromCreation(
+            new EntryCreation
+            {
+                Id = id,
+                CollectionId = collectionId,
+                Kind = DictionaryKind.MediaType,
+                Code = code,
+                Name = name,
+                SortOrder = sortOrder,
+                IsBuiltin = isBuiltin,
+                MediaProfile = Optional.From(Guard.RequiredText(mediaProfile, nameof(mediaProfile), "dictionary_entry.media_profile_required"))
+            });
     }
 
     public void Rename(string name)
@@ -145,6 +126,27 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         }
 
         _mediaProfile = ValidateMediaProfile(mediaProfile);
+    }
+
+    private static CollectionDictionaryEntry FromCreation(EntryCreation creation)
+    {
+        DictionaryKind kind = Guard.DefinedEnum(creation.Kind, nameof(creation.Kind), "dictionary_entry.kind_invalid");
+        EnsureMediaProfileMatchesKind(kind, creation.MediaProfile);
+
+        var entry = new CollectionDictionaryEntry
+        {
+            Id = creation.Id,
+            CollectionId = creation.CollectionId,
+            Kind = kind,
+            Code = Guard.RequiredText(creation.Code, nameof(creation.Code), "dictionary_entry.code_required"),
+            Name = Guard.RequiredText(creation.Name, nameof(creation.Name), "dictionary_entry.name_required"),
+            SortOrder = creation.SortOrder,
+            IsActive = true,
+            IsBuiltin = creation.IsBuiltin
+        };
+        entry.SetMediaProfile(creation.MediaProfile);
+
+        return entry;
     }
 
     private void SetMediaProfile(IOptionalValue<string> mediaProfile)
@@ -191,5 +193,24 @@ public sealed class CollectionDictionaryEntry : IEntity<CollectionDictionaryEntr
         return normalized is "digital" or "vinyl" or "cd" or "cassette" or "other"
             ? normalized
             : throw new DomainException("dictionary_entry.media_profile_invalid", "Media profile is invalid");
+    }
+
+    private sealed class EntryCreation
+    {
+        public CollectionDictionaryEntryId Id { get; init; }
+
+        public CollectionId CollectionId { get; init; }
+
+        public DictionaryKind Kind { get; init; }
+
+        public string Code { get; init; } = string.Empty;
+
+        public string Name { get; init; } = string.Empty;
+
+        public int SortOrder { get; init; }
+
+        public bool IsBuiltin { get; init; }
+
+        public IOptionalValue<string> MediaProfile { get; init; } = Optional.Missing<string>();
     }
 }
