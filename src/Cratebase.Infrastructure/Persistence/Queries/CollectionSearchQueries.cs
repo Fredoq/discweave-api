@@ -127,12 +127,9 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
                 AddIfContains(accumulator, term, target, "label", labelName, 80);
             }
 
-            foreach (Genre genre in release.Cataloging.Genres)
+            foreach (Genre genre in release.Cataloging.Genres.Where(genre => dictionaries.Contains(DictionaryKind.Genre, genre.Name, term)))
             {
-                if (dictionaries.Contains(DictionaryKind.Genre, genre.Name, term))
-                {
-                    accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
-                }
+                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
             }
 
             foreach (Tag tag in release.Cataloging.Tags)
@@ -149,12 +146,9 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             SearchTarget target = new(track.Id.Value, TrackResultType, track.Title, null);
             AddIfContains(accumulator, term, target, "title", track.Title, 100);
 
-            foreach (Genre genre in track.Cataloging.Genres)
+            foreach (Genre genre in track.Cataloging.Genres.Where(genre => dictionaries.Contains(DictionaryKind.Genre, genre.Name, term)))
             {
-                if (dictionaries.Contains(DictionaryKind.Genre, genre.Name, term))
-                {
-                    accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
-                }
+                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
             }
 
             foreach (Tag tag in track.Cataloging.Tags)
