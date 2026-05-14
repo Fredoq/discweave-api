@@ -4,9 +4,10 @@ using System.Text.Json;
 
 namespace Cratebase.Api.Tests;
 
-public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
 {
     private static readonly string[] ReleaseTrackTargetTypes = ["release", "track"];
+    private static readonly string[] ArtistReleaseLabelTargetTypes = ["artist", "release", "label"];
     private static readonly string[] TrackTargetTypes = ["track"];
     private readonly PostgresFixture _postgres;
 
@@ -119,55 +120,6 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.NotFound, missingTargetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
         Assert.Equal(0, emptyListDocument.RootElement.GetProperty("total").GetInt32());
-    }
-
-    [Fact(DisplayName = "Rating showcases rank top values and expose unrated targets")]
-    public async Task Rating_showcases_rank_top_values_and_expose_unrated_targets()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        HttpClient client = await host.CreateAuthenticatedClientAsync();
-        Guid criterionId = await FindOverallCriterionIdAsync(client);
-        Guid firstTrackId = await CreateTrackAsync(client, "Windowlicker");
-        Guid secondTrackId = await CreateTrackAsync(client, "Rhubarb");
-        Guid thirdTrackId = await CreateTrackAsync(client, "Alberto Balsalm");
-        Guid unratedTrackId = await CreateTrackAsync(client, "Stone in Focus");
-
-        using HttpResponseMessage firstRatingResponse = await client.PutAsJsonAsync(
-            $"/api/ratings/track/{firstTrackId}/{criterionId}",
-            new { value = 8 });
-        using HttpResponseMessage secondRatingResponse = await client.PutAsJsonAsync(
-            $"/api/ratings/track/{secondTrackId}/{criterionId}",
-            new { value = 10 });
-        using HttpResponseMessage thirdRatingResponse = await client.PutAsJsonAsync(
-            $"/api/ratings/track/{thirdTrackId}/{criterionId}",
-            new { value = 8 });
-
-        using HttpResponseMessage topResponse = await client.GetAsync(
-            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&scope=collection&limit=10&offset=0");
-        using JsonDocument topDocument = await ReadJsonAsync(topResponse);
-        using HttpResponseMessage unratedResponse = await client.GetAsync(
-            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=unrated&limit=10&offset=0");
-        using JsonDocument unratedDocument = await ReadJsonAsync(unratedResponse);
-        using HttpResponseMessage invalidScopeResponse = await client.GetAsync(
-            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&scope=library&limit=10&offset=0");
-        using JsonDocument invalidScopeDocument = await ReadJsonAsync(invalidScopeResponse);
-
-        Assert.Equal(HttpStatusCode.OK, firstRatingResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, secondRatingResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, thirdRatingResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, topResponse.StatusCode);
-        JsonElement topItems = topDocument.RootElement.GetProperty("items");
-        Assert.Equal(3, topDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal(secondTrackId, topItems[0].GetProperty("targetId").GetGuid());
-        Assert.Equal(10, topItems[0].GetProperty("value").GetInt32());
-        Assert.Equal(thirdTrackId, topItems[1].GetProperty("targetId").GetGuid());
-        Assert.Equal(firstTrackId, topItems[2].GetProperty("targetId").GetGuid());
-        Assert.Equal(HttpStatusCode.OK, unratedResponse.StatusCode);
-        JsonElement unratedItems = unratedDocument.RootElement.GetProperty("items");
-        Assert.Contains(unratedItems.EnumerateArray(), item => item.GetProperty("targetId").GetGuid() == unratedTrackId);
-        Assert.All(unratedItems.EnumerateArray(), item => Assert.True(item.GetProperty("value").ValueKind is JsonValueKind.Null));
-        Assert.Equal(HttpStatusCode.BadRequest, invalidScopeResponse.StatusCode);
-        Assert.Equal("rating_showcase.scope_invalid", invalidScopeDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Rating endpoints preserve collection isolation")]
