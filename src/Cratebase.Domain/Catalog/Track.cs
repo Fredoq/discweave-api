@@ -1,4 +1,3 @@
-using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
 using Cratebase.Domain.SharedKernel.Validation;
@@ -93,11 +92,6 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     public Track WithDuration(TimeSpan duration)
     {
         return WithDetails(Details.WithDuration(duration));
-    }
-
-    public Track WithRating(Rating rating)
-    {
-        return WithDetails(Details.WithRating(rating));
     }
 
     public Track WithCataloging(Cataloging cataloging)

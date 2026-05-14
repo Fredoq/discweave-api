@@ -173,6 +173,34 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "rating_criteria",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    rating_criterion_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_builtin = table.Column<bool>(type: "boolean", nullable: false),
+                    is_protected = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_rating_criteria", x => x.id);
+                    table.UniqueConstraint("ak_rating_criteria_collection_criterion_id", x => new { x.collection_id, x.rating_criterion_id });
+                    table.UniqueConstraint("rating_criterion_id", x => x.rating_criterion_id);
+                    table.ForeignKey(
+                        name: "FK_rating_criteria_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "releases",
                 columns: table => new
                 {
@@ -182,7 +210,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     release_id = table.Column<Guid>(type: "uuid", nullable: false),
                     is_various_artists = table.Column<bool>(type: "boolean", nullable: false),
                     is_not_on_label = table.Column<bool>(type: "boolean", nullable: false),
-                    rating = table.Column<int>(type: "integer", nullable: true),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
                     cover_image_path = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     label_id = table.Column<Guid>(type: "uuid", nullable: true),
@@ -212,8 +239,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     track_id = table.Column<Guid>(type: "uuid", nullable: false),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
-                    duration_ticks = table.Column<long>(type: "bigint", nullable: true),
-                    rating = table.Column<int>(type: "integer", nullable: true)
+                    duration_ticks = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -348,6 +374,24 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "rating_criterion_targets",
+                columns: table => new
+                {
+                    target_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    rating_criterion_id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_rating_criterion_targets", x => new { x.rating_criterion_id, x.target_type });
+                    table.ForeignKey(
+                        name: "FK_rating_criterion_targets_rating_criteria_rating_criterion_id",
+                        column: x => x.rating_criterion_id,
+                        principalTable: "rating_criteria",
+                        principalColumn: "rating_criterion_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -508,6 +552,65 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_owned_items_tracks_collection_id_target_track_id",
+                        columns: x => new { x.collection_id, x.target_track_id },
+                        principalTable: "tracks",
+                        principalColumns: new[] { "collection_id", "track_id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "rating_values",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    rating_value_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    criterion_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    rating = table.Column<int>(type: "integer", nullable: false),
+                    target_artist_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    target_label_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    target_release_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    target_track_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    target_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_rating_values", x => x.id);
+                    table.UniqueConstraint("rating_value_id", x => x.rating_value_id);
+                    table.CheckConstraint("ck_rating_values_target_consistency", "(target_type = 'artist' AND target_artist_id IS NOT NULL AND target_release_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'release' AND target_release_id IS NOT NULL AND target_artist_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_label_id IS NULL) OR (target_type = 'label' AND target_label_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_track_id IS NULL)");
+                    table.ForeignKey(
+                        name: "FK_rating_values_artists_collection_id_target_artist_id",
+                        columns: x => new { x.collection_id, x.target_artist_id },
+                        principalTable: "artists",
+                        principalColumns: new[] { "collection_id", "artist_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_rating_values_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_rating_values_labels_collection_id_target_label_id",
+                        columns: x => new { x.collection_id, x.target_label_id },
+                        principalTable: "labels",
+                        principalColumns: new[] { "collection_id", "label_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_rating_values_rating_criteria_collection_id_criterion_id",
+                        columns: x => new { x.collection_id, x.criterion_id },
+                        principalTable: "rating_criteria",
+                        principalColumns: new[] { "collection_id", "rating_criterion_id" },
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_rating_values_releases_collection_id_target_release_id",
+                        columns: x => new { x.collection_id, x.target_release_id },
+                        principalTable: "releases",
+                        principalColumns: new[] { "collection_id", "release_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_rating_values_tracks_collection_id_target_track_id",
                         columns: x => new { x.collection_id, x.target_track_id },
                         principalTable: "tracks",
                         principalColumns: new[] { "collection_id", "track_id" },
@@ -796,6 +899,95 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "target_track_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_rating_criteria_collection_id",
+                table: "rating_criteria",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_criteria_collection_id_code",
+                table: "rating_criteria",
+                columns: new[] { "collection_id", "code" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id",
+                table: "rating_values",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_criterion_id_target_type_targe~1",
+                table: "rating_values",
+                columns: new[] { "collection_id", "criterion_id", "target_type", "target_label_id" },
+                unique: true,
+                filter: "target_type = 'label'");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_criterion_id_target_type_targe~2",
+                table: "rating_values",
+                columns: new[] { "collection_id", "criterion_id", "target_type", "target_release_id" },
+                unique: true,
+                filter: "target_type = 'release'");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_criterion_id_target_type_targe~3",
+                table: "rating_values",
+                columns: new[] { "collection_id", "criterion_id", "target_type", "target_track_id" },
+                unique: true,
+                filter: "target_type = 'track'");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_criterion_id_target_type_target~",
+                table: "rating_values",
+                columns: new[] { "collection_id", "criterion_id", "target_type", "target_artist_id" },
+                unique: true,
+                filter: "target_type = 'artist'");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_target_artist_id",
+                table: "rating_values",
+                columns: new[] { "collection_id", "target_artist_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_target_label_id",
+                table: "rating_values",
+                columns: new[] { "collection_id", "target_label_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_target_release_id",
+                table: "rating_values",
+                columns: new[] { "collection_id", "target_release_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_collection_id_target_track_id",
+                table: "rating_values",
+                columns: new[] { "collection_id", "target_track_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_criterion_id",
+                table: "rating_values",
+                column: "criterion_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_target_artist_id",
+                table: "rating_values",
+                column: "target_artist_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_target_label_id",
+                table: "rating_values",
+                column: "target_label_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_target_release_id",
+                table: "rating_values",
+                column: "target_release_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_rating_values_target_track_id",
+                table: "rating_values",
+                column: "target_track_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_release_labels_collection_id",
                 table: "release_labels",
                 column: "collection_id");
@@ -912,6 +1104,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "owned_items");
 
             migrationBuilder.DropTable(
+                name: "rating_criterion_targets");
+
+            migrationBuilder.DropTable(
+                name: "rating_values");
+
+            migrationBuilder.DropTable(
                 name: "release_genres");
 
             migrationBuilder.DropTable(
@@ -940,6 +1138,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "artists");
+
+            migrationBuilder.DropTable(
+                name: "rating_criteria");
 
             migrationBuilder.DropTable(
                 name: "labels");

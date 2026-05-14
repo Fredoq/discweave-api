@@ -1,6 +1,5 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
-using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Microsoft.EntityFrameworkCore;
@@ -71,12 +70,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName("title")
                 .HasMaxLength(1024)
                 .IsRequired();
-
-            ComplexTypePropertyBuilder<IOptionalValue<Rating>> ratingProperty = summary.Property(value => value.Rating)
-                .HasColumnName("rating")
-                .HasConversion(PersistenceValueConverters.OptionalRating)
-                .IsRequired(false);
-            ratingProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalRatingComparer);
 
             _ = summary.ComplexProperty(value => value.Metadata, metadata =>
             {

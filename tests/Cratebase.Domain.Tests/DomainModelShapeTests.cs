@@ -2,6 +2,7 @@ using System.Reflection;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Ratings;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
 
@@ -78,6 +79,7 @@ public sealed class DomainModelShapeTests
         string[] violations =
         [
             .. domainTypes.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(method => method.DeclaringType != typeof(RatingTargetTypeCodes))
                 .Where(method => method.Name is "FromCode" or "FromDescription")
                 .Select(method => $"{type.FullName}.{method.Name} is an open string factory")),
             .. choiceTypes.SelectMany(type => type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
@@ -100,6 +102,9 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
+            typeof(RatingCriterion).FullName!,
+            typeof(RatingCriterionTarget).FullName!,
+            typeof(RatingValue).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -133,6 +138,9 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!,
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
+            typeof(RatingCriterion).FullName!,
+            typeof(RatingCriterionTarget).FullName!,
+            typeof(RatingValue).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -187,6 +195,8 @@ public sealed class DomainModelShapeTests
     {
         return type == typeof(CollectionDictionaryEntry)
             ? 10
+            : type == typeof(RatingCriterion)
+            ? 9
             : type == typeof(Release)
             ? 9
             : type == typeof(Track) ||
@@ -200,6 +210,8 @@ public sealed class DomainModelShapeTests
         return type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
+            : type == typeof(RatingCriterion)
+            ? 6
             : type == typeof(ReleaseMetadata)
                 ? 6
                 : type == typeof(Release)

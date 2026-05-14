@@ -1,5 +1,3 @@
-using Cratebase.Domain.Ratings;
-using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Catalog;
@@ -10,21 +8,17 @@ public sealed record ReleaseSummary
     {
         Title = string.Empty;
         Metadata = ReleaseMetadata.Empty;
-        Rating = Optional.Missing<Rating>();
     }
 
-    private ReleaseSummary(string title, ReleaseMetadata metadata, IOptionalValue<Rating>? rating)
+    private ReleaseSummary(string title, ReleaseMetadata metadata)
     {
         Title = title;
         Metadata = metadata;
-        Rating = rating ?? Optional.Missing<Rating>();
     }
 
     public string Title { get; }
 
     public ReleaseMetadata Metadata { get; }
-
-    public IOptionalValue<Rating> Rating { get; }
 
     internal static ReleaseSummary Empty { get; } = new();
 
@@ -32,21 +26,13 @@ public sealed record ReleaseSummary
     {
         return new ReleaseSummary(
             Guard.RequiredText(title, nameof(title), "release.title_required"),
-            ReleaseMetadata.Empty,
-            Optional.Missing<Rating>());
+            ReleaseMetadata.Empty);
     }
 
     public ReleaseSummary WithMetadata(ReleaseMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(metadata);
 
-        return new ReleaseSummary(Title, metadata, Rating);
-    }
-
-    public ReleaseSummary WithRating(Rating rating)
-    {
-        ArgumentNullException.ThrowIfNull(rating);
-
-        return new ReleaseSummary(Title, Metadata, Optional.From(rating));
+        return new ReleaseSummary(Title, metadata);
     }
 }

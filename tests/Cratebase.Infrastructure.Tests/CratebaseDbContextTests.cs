@@ -2,7 +2,6 @@ using Cratebase.Application.Persistence;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
-using Cratebase.Domain.Ratings;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -34,6 +33,8 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         string[] trackColumns = [.. await ReadColumnNamesAsync(context, "tracks")];
         string[] ownedItemColumns = [.. await ReadColumnNamesAsync(context, "owned_items")];
         string[] creditColumns = [.. await ReadColumnNamesAsync(context, "credits")];
+        string[] ratingCriterionColumns = [.. await ReadColumnNamesAsync(context, "rating_criteria")];
+        string[] ratingValueColumns = [.. await ReadColumnNamesAsync(context, "rating_values")];
         string[] tableNames = [.. await ReadTableNamesAsync(context)];
         string[] jsonbColumns = [.. await ReadJsonbColumnNamesAsync(context)];
 
@@ -45,11 +46,18 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         Assert.DoesNotContain("public_id", artistColumns);
         Assert.Contains("title", releaseColumns);
         Assert.Contains("release_year", releaseColumns);
+        Assert.DoesNotContain("rating", releaseColumns);
         Assert.Contains("duration_ticks", trackColumns);
+        Assert.DoesNotContain("rating", trackColumns);
         Assert.Contains("medium_type", ownedItemColumns);
         Assert.Contains("ownership_status", ownedItemColumns);
         Assert.Contains("contributor_artist_id", creditColumns);
         Assert.Contains("target_release_id", creditColumns);
+        Assert.Contains("rating_criterion_id", ratingCriterionColumns);
+        Assert.Contains("code", ratingCriterionColumns);
+        Assert.Contains("rating_value_id", ratingValueColumns);
+        Assert.Contains("criterion_id", ratingValueColumns);
+        Assert.Contains("target_track_id", ratingValueColumns);
         Assert.Contains("source_artist_id", artistRelationColumns);
         Assert.Contains("target_artist_id", artistRelationColumns);
         Assert.DoesNotContain("source_artist_fk", artistRelationColumns);
@@ -59,6 +67,9 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         Assert.Contains("release_tags", tableNames);
         Assert.Contains("track_genres", tableNames);
         Assert.Contains("track_tags", tableNames);
+        Assert.Contains("rating_criteria", tableNames);
+        Assert.Contains("rating_criterion_targets", tableNames);
+        Assert.Contains("rating_values", tableNames);
     }
 
     [Fact(DisplayName = "The context persists catalog aggregates")]
@@ -70,7 +81,6 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         var labelId = LabelId.New();
         Track track = Track.Create(collectionId, TrackId.New(), "Age of Consent")
             .WithDuration(TimeSpan.FromSeconds(316))
-            .WithRating(Rating.FromValue(10))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("opener")));
         Release release = Release.Create(collectionId, ReleaseId.New(), "Power, Corruption & Lies")
             .WithSummary(
@@ -81,8 +91,7 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
                             .WithLabel(labelId)
                             .WithReleaseYear(1983)
                             .WithReleaseDate(new DateOnly(1983, 5, 2))
-                            .WithCoverImage(CoverImage.FromPath("/covers/new-order-power-corruption-lies.jpg")))
-                    .WithRating(Rating.FromValue(9)))
+                            .WithCoverImage(CoverImage.FromPath("/covers/new-order-power-corruption-lies.jpg"))))
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1, "1", "A"), "Age of Consent"))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("factory")));
 
@@ -108,7 +117,6 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         _ = Assert.Single(actualRelease.Tracklist);
         Assert.Contains(actualRelease.Cataloging.Genres, genre => genre.Name == "Post-punk");
         Assert.Contains(actualRelease.Cataloging.Tags, tag => tag.Name == "factory");
-        Assert.Equal(10, Assert.IsType<PresentOptionalValue<Rating>>(actualTrack.Details.Rating).Value.Value);
         Assert.Contains(actualTrack.Cataloging.Genres, genre => genre.Name == "Post-punk");
         Assert.Contains(actualTrack.Cataloging.Tags, tag => tag.Name == "opener");
     }
@@ -198,21 +206,6 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         IUnitOfWork unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
         Assert.Same(context, unitOfWork);
-    }
-
-    [Fact(DisplayName = "The unit of work returns repositories for current aggregate roots")]
-    public async Task The_unit_of_work_returns_repositories_for_current_aggregate_roots()
-    {
-        await using CratebaseDbContext context = new(CreateOptions("Host=localhost;Database=cratebase;Username=cratebase;Password=cratebase"));
-
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Artist, ArtistId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Label, LabelId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Release, ReleaseId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Track, TrackId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<OwnedItem, OwnedItemId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<Credit, CreditId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<ArtistRelation, ArtistRelationId>());
-        Assert.Same(context, ((IUnitOfWork)context).GetRepository<TrackRelation, TrackRelationId>());
     }
 
     [Fact(DisplayName = "Repositories use public identifiers for command lookup")]

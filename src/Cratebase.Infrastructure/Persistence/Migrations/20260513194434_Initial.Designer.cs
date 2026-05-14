@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260513114246_Initial")]
+    [Migration("20260513194434_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -136,10 +136,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         {
                             b1.IsRequired();
 
-                            b1.Property<int?>("Rating")
-                                .HasColumnType("integer")
-                                .HasColumnName("rating");
-
                             b1.Property<string>("Title")
                                 .IsRequired()
                                 .HasMaxLength(1024)
@@ -218,10 +214,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                             b1.Property<long?>("Duration")
                                 .HasColumnType("bigint")
                                 .HasColumnName("duration_ticks");
-
-                            b1.Property<int?>("Rating")
-                                .HasColumnType("integer")
-                                .HasColumnName("rating");
                         });
 
                     b.HasKey("id");
@@ -478,6 +470,164 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.ToTable("credits", null, t =>
                         {
                             t.HasCheckConstraint("ck_credits_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rating_criterion_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBuiltin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_builtin");
+
+                    b.Property<bool>("IsProtected")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_protected");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("rating_criterion_id");
+
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_rating_criteria_collection_criterion_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("CollectionId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("rating_criteria", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Ratings.RatingValue", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("CriterionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criterion_id");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rating_value_id");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<Guid?>("_targetArtistId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_artist_id");
+
+                    b.Property<Guid?>("_targetLabelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_label_id");
+
+                    b.Property<Guid?>("_targetReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_release_id");
+
+                    b.Property<Guid?>("_targetTrackId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_track_id");
+
+                    b.Property<string>("_targetType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("target_type");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("rating_value_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("CriterionId");
+
+                    b.HasIndex("_targetArtistId");
+
+                    b.HasIndex("_targetLabelId");
+
+                    b.HasIndex("_targetReleaseId");
+
+                    b.HasIndex("_targetTrackId");
+
+                    b.HasIndex("CollectionId", "_targetArtistId");
+
+                    b.HasIndex("CollectionId", "_targetLabelId");
+
+                    b.HasIndex("CollectionId", "_targetReleaseId");
+
+                    b.HasIndex("CollectionId", "_targetTrackId");
+
+                    b.HasIndex("CollectionId", "CriterionId", "_targetType", "_targetArtistId")
+                        .IsUnique()
+                        .HasFilter("target_type = 'artist'");
+
+                    b.HasIndex("CollectionId", "CriterionId", "_targetType", "_targetLabelId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_rating_values_collection_id_criterion_id_target_type_targe~1")
+                        .HasFilter("target_type = 'label'");
+
+                    b.HasIndex("CollectionId", "CriterionId", "_targetType", "_targetReleaseId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_rating_values_collection_id_criterion_id_target_type_targe~2")
+                        .HasFilter("target_type = 'release'");
+
+                    b.HasIndex("CollectionId", "CriterionId", "_targetType", "_targetTrackId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_rating_values_collection_id_criterion_id_target_type_targe~3")
+                        .HasFilter("target_type = 'track'");
+
+                    b.ToTable("rating_values", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_rating_values_target_consistency", "(target_type = 'artist' AND target_artist_id IS NOT NULL AND target_release_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'release' AND target_release_id IS NOT NULL AND target_artist_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_label_id IS NULL) OR (target_type = 'label' AND target_label_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_track_id IS NULL)");
                         });
                 });
 
@@ -1185,6 +1335,79 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Cratebase.Domain.Catalog.Release", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_targetReleaseId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Cratebase.Domain.Catalog.Track", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_targetTrackId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsMany("Cratebase.Domain.Ratings.RatingCriterionTarget", "_targets", b1 =>
+                        {
+                            b1.Property<Guid>("rating_criterion_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("rating_criterion_id");
+
+                            b1.Property<string>("TargetType")
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("target_type");
+
+                            b1.HasKey("rating_criterion_id", "TargetType");
+
+                            b1.ToTable("rating_criterion_targets", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("rating_criterion_id")
+                                .HasPrincipalKey("Id");
+                        });
+
+                    b.Navigation("_targets");
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Ratings.RatingValue", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cratebase.Domain.Ratings.RatingCriterion", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "CriterionId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cratebase.Domain.Catalog.Artist", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_targetArtistId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Cratebase.Domain.Catalog.Label", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_targetLabelId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Cratebase.Domain.Catalog.Release", null)
                         .WithMany()

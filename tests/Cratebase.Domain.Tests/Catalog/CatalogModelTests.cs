@@ -1,5 +1,4 @@
 using Cratebase.Domain.Catalog;
-using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
@@ -75,10 +74,10 @@ public sealed class CatalogModelTests
     }
 
     [Fact]
-    public void The_same_track_can_appear_on_multiple_releases_and_keep_one_canonical_rating()
+    public void The_same_track_can_appear_on_multiple_releases_and_keep_one_canonical_identity()
     {
         var collectionId = CollectionId.New();
-        Track track = Track.Create(collectionId, TrackId.New(), "Blue Monday").WithRating(Rating.FromValue(10));
+        var track = Track.Create(collectionId, TrackId.New(), "Blue Monday");
         var firstReleaseId = ReleaseId.New();
         var secondReleaseId = ReleaseId.New();
         Release firstRelease = Release.Create(collectionId, firstReleaseId, "Blue Monday")
@@ -88,7 +87,6 @@ public sealed class CatalogModelTests
 
         Assert.Equal(track.Id, firstRelease.Tracklist.Single().TrackId);
         Assert.Equal(track.Id, secondRelease.Tracklist.Single().TrackId);
-        Assert.Equal(10, Assert.IsType<PresentOptionalValue<Rating>>(track.Details.Rating).Value.Value);
     }
 
     [Fact]
@@ -119,61 +117,6 @@ public sealed class CatalogModelTests
             "   ");
 
         Assert.False(releaseTrack.TitleOverride.HasValue);
-    }
-
-    [Fact]
-    public void Release_rating_is_independent_from_average_track_rating()
-    {
-        var collectionId = CollectionId.New();
-        Track firstTrack = Track.Create(collectionId, TrackId.New(), "Age of Consent").WithRating(Rating.FromValue(10));
-        Track secondTrack = Track.Create(collectionId, TrackId.New(), "We All Stand").WithRating(Rating.FromValue(8));
-        var releaseId = ReleaseId.New();
-        Release release = Release.Create(collectionId, releaseId, "Power, Corruption & Lies")
-            .WithRating(Rating.FromValue(7))
-            .WithTrack(ReleaseTrack.Create(firstTrack.Id, TrackPosition.FromNumber(1)))
-            .WithTrack(ReleaseTrack.Create(secondTrack.Id, TrackPosition.FromNumber(2)));
-
-        ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [firstTrack, secondTrack]);
-
-        Assert.Equal(7, Assert.IsType<PresentOptionalValue<Rating>>(release.Summary.Rating).Value.Value);
-        Assert.Equal(9m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
-        Assert.Equal(2, summary.RatedTrackCount);
-    }
-
-    [Fact]
-    public void Release_track_rating_summary_ignores_unrated_tracks_and_can_be_empty()
-    {
-        var collectionId = CollectionId.New();
-        Track ratedTrack = Track.Create(collectionId, TrackId.New(), "Leave Me Alone").WithRating(Rating.FromValue(9));
-        var unratedTrack = Track.Create(collectionId, TrackId.New(), "The Village");
-        var releaseId = ReleaseId.New();
-        Release release = Release.Create(collectionId, releaseId, "Power, Corruption & Lies")
-            .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(8)))
-            .WithTrack(ReleaseTrack.Create(unratedTrack.Id, TrackPosition.FromNumber(9)));
-
-        ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [ratedTrack, unratedTrack]);
-        ReleaseTrackRatingSummary emptySummary = ReleaseTrackRatingCalculator.Calculate(release, [unratedTrack]);
-
-        Assert.Equal(9m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
-        Assert.Equal(1, summary.RatedTrackCount);
-        Assert.False(emptySummary.AverageRating.HasValue);
-        Assert.Equal(0, emptySummary.RatedTrackCount);
-    }
-
-    [Fact]
-    public void Release_track_rating_summary_tolerates_duplicate_track_snapshots()
-    {
-        var collectionId = CollectionId.New();
-        Track ratedTrack = Track.Create(collectionId, TrackId.New(), "Ceremony").WithRating(Rating.FromValue(10));
-        Track duplicateSnapshot = Track.Create(collectionId, ratedTrack.Id, "Ceremony").WithRating(Rating.FromValue(8));
-        var releaseId = ReleaseId.New();
-        Release release = Release.Create(collectionId, releaseId, "Ceremony")
-            .WithTrack(ReleaseTrack.Create(ratedTrack.Id, TrackPosition.FromNumber(1)));
-
-        ReleaseTrackRatingSummary summary = ReleaseTrackRatingCalculator.Calculate(release, [ratedTrack, duplicateSnapshot]);
-
-        Assert.Equal(10m, Assert.IsType<PresentOptionalValue<decimal>>(summary.AverageRating).Value);
-        Assert.Equal(1, summary.RatedTrackCount);
     }
 
     [Fact]

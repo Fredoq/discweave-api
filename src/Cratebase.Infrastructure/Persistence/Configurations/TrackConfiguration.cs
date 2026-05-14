@@ -1,6 +1,5 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
-using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Microsoft.EntityFrameworkCore;
@@ -68,11 +67,6 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .IsRequired(false);
             durationProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalTimeSpanComparer);
 
-            ComplexTypePropertyBuilder<IOptionalValue<Rating>> ratingProperty = details.Property(value => value.Rating)
-                .HasColumnName("rating")
-                .HasConversion(PersistenceValueConverters.OptionalRating)
-                .IsRequired(false);
-            ratingProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalRatingComparer);
         });
     }
 

@@ -13,6 +13,10 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ArtistId(value));
 
+    public static readonly ValueConverter<ArtistId?, Guid?> NullableArtistId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new ArtistId(value.Value) : null);
+
     public static readonly ValueConverter<CollectionId, Guid> CollectionId = new(
         id => id.Value,
         value => new CollectionId(value));
@@ -24,6 +28,10 @@ internal static class PersistenceValueConverters
     public static readonly ValueConverter<LabelId, Guid> LabelId = new(
         id => id.Value,
         value => new LabelId(value));
+
+    public static readonly ValueConverter<LabelId?, Guid?> NullableLabelId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new LabelId(value.Value) : null);
 
     public static readonly ValueConverter<ReleaseId, Guid> ReleaseId = new(
         id => id.Value,
@@ -48,6 +56,14 @@ internal static class PersistenceValueConverters
     public static readonly ValueConverter<CreditId, Guid> CreditId = new(
         id => id.Value,
         value => new CreditId(value));
+
+    public static readonly ValueConverter<RatingCriterionId, Guid> RatingCriterionId = new(
+        id => id.Value,
+        value => new RatingCriterionId(value));
+
+    public static readonly ValueConverter<RatingValueId, Guid> RatingValueId = new(
+        id => id.Value,
+        value => new RatingValueId(value));
 
     public static readonly ValueConverter<CollectionDictionaryEntryId, Guid> CollectionDictionaryEntryId = new(
         id => id.Value,
@@ -95,11 +111,15 @@ internal static class PersistenceValueConverters
 
     public static readonly ValueConverter<IOptionalValue<Rating>, int?> OptionalRating = new(
         value => OptionalStructValue(value, rating => rating.Value),
-        value => value.HasValue ? Optional.From(Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
+        value => value.HasValue ? Optional.From(Cratebase.Domain.Ratings.Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
+
+    public static readonly ValueConverter<Rating, int> RatingValue = new(
+        value => value.Value,
+        value => Cratebase.Domain.Ratings.Rating.FromValue(value));
 
     public static readonly ValueComparer<IOptionalValue<Rating>> OptionalRatingComparer = OptionalComparer<IOptionalValue<Rating>, int?>(
         value => OptionalStructValue(value, rating => rating.Value),
-        value => value.HasValue ? Optional.From(Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
+        value => value.HasValue ? Optional.From(Cratebase.Domain.Ratings.Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
 
     public static readonly ValueConverter<IOptionalValue<string>, string?> OptionalString = new(
         value => OptionalStringValue(value, text => text),

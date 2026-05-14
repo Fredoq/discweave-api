@@ -1,7 +1,6 @@
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
-using Cratebase.Domain.Ratings;
 
 namespace Cratebase.Domain.Catalog;
 
@@ -128,11 +127,6 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         ArgumentNullException.ThrowIfNull(summary);
 
         return new Release(CollectionId, Id, CurrentState() with { Summary = summary }, Cataloging);
-    }
-
-    public Release WithRating(Rating rating)
-    {
-        return WithSummary(Summary.WithRating(rating));
     }
 
     public Release WithTrack(ReleaseTrack releaseTrack)

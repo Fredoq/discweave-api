@@ -1,36 +1,36 @@
 using Cratebase.Domain.Catalog;
+using Cratebase.Domain.SharedKernel.Ids;
+
 namespace Cratebase.Domain.Ratings;
 
 public static class ReleaseTrackRatingCalculator
 {
-    public static ReleaseTrackRatingSummary Calculate(Release release, IReadOnlyCollection<Track> tracks)
+    public static ReleaseTrackRatingSummary Calculate(
+        Release release,
+        IReadOnlyCollection<RatingValue> ratings,
+        RatingCriterionId criterionId)
     {
         ArgumentNullException.ThrowIfNull(release);
-        ArgumentNullException.ThrowIfNull(tracks);
+        ArgumentNullException.ThrowIfNull(ratings);
 
-        var tracksById = tracks
-            .GroupBy(track => track.Id)
+        var ratingsByTrackId = ratings
+            .Where(rating => rating.CriterionId == criterionId && rating.Target is TrackRatingTarget)
+            .GroupBy(rating => ((TrackRatingTarget)rating.Target).TrackId)
             .ToDictionary(group => group.Key, group => group.First());
-        List<int> ratings = [];
+        List<int> values = [];
 
         foreach (ReleaseTrack releaseTrack in release.Tracklist)
         {
-            if (!tracksById.TryGetValue(releaseTrack.TrackId, out Track? track))
+            if (!ratingsByTrackId.TryGetValue(releaseTrack.TrackId, out RatingValue? rating))
             {
                 continue;
             }
 
-            _ = track.Details.Rating.Match(
-                whenPresent: rating =>
-                {
-                    ratings.Add(rating.Value);
-                    return true;
-                },
-                whenMissing: () => false);
+            values.Add(rating.Rating.Value);
         }
 
-        return ratings.Count == 0
+        return values.Count == 0
             ? ReleaseTrackRatingSummary.Unrated()
-            : ReleaseTrackRatingSummary.FromAverage(decimal.Divide(ratings.Sum(), ratings.Count), ratings.Count);
+            : ReleaseTrackRatingSummary.FromAverage(decimal.Divide(values.Sum(), values.Count), values.Count);
     }
 }
