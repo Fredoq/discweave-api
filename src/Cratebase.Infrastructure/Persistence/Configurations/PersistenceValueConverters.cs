@@ -111,15 +111,15 @@ internal static class PersistenceValueConverters
 
     public static readonly ValueConverter<IOptionalValue<Rating>, int?> OptionalRating = new(
         value => OptionalStructValue(value, rating => rating.Value),
-        value => value.HasValue ? Optional.From(Cratebase.Domain.Ratings.Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
+        value => value.HasValue ? Optional.From(Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
 
     public static readonly ValueConverter<Rating, int> RatingValue = new(
         value => value.Value,
-        value => Cratebase.Domain.Ratings.Rating.FromValue(value));
+        value => Rating.FromValue(value));
 
     public static readonly ValueComparer<IOptionalValue<Rating>> OptionalRatingComparer = OptionalComparer<IOptionalValue<Rating>, int?>(
         value => OptionalStructValue(value, rating => rating.Value),
-        value => value.HasValue ? Optional.From(Cratebase.Domain.Ratings.Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
+        value => value.HasValue ? Optional.From(Rating.FromValue(value.Value)) : Optional.Missing<Rating>());
 
     public static readonly ValueConverter<IOptionalValue<string>, string?> OptionalString = new(
         value => OptionalStringValue(value, text => text),
