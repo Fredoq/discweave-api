@@ -20,20 +20,19 @@ public sealed class RatingCriterion : IEntity<RatingCriterionId>
         CollectionId collectionId,
         string code,
         string name,
-        IReadOnlyList<RatingTargetType> targetTypes,
-        int sortOrder,
-        bool isBuiltin,
-        bool isProtected)
+        CreationOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         Id = id;
         CollectionId = collectionId;
         Code = Guard.RequiredText(code, nameof(code), "rating_criterion.code_required");
         Name = Guard.RequiredText(name, nameof(name), "rating_criterion.name_required");
-        SortOrder = sortOrder;
+        SortOrder = options.SortOrder;
         IsActive = true;
-        IsBuiltin = isBuiltin;
-        IsProtected = isProtected;
-        ReplaceTargetTypes(targetTypes, allowProtectedChange: true);
+        IsBuiltin = options.IsBuiltin;
+        IsProtected = options.IsProtected;
+        ReplaceTargetTypes(options.TargetTypes, allowProtectedChange: true);
     }
 
     public RatingCriterionId Id { get; private set; }
@@ -62,7 +61,18 @@ public sealed class RatingCriterion : IEntity<RatingCriterionId>
         IReadOnlyList<RatingTargetType> targetTypes,
         int sortOrder)
     {
-        return new RatingCriterion(id, collectionId, code, name, targetTypes, sortOrder, isBuiltin: false, isProtected: false);
+        return new RatingCriterion(
+            id,
+            collectionId,
+            code,
+            name,
+            new CreationOptions
+            {
+                TargetTypes = targetTypes,
+                SortOrder = sortOrder,
+                IsBuiltin = false,
+                IsProtected = false
+            });
     }
 
     public static RatingCriterion CreateProtected(
@@ -73,7 +83,18 @@ public sealed class RatingCriterion : IEntity<RatingCriterionId>
         IReadOnlyList<RatingTargetType> targetTypes,
         int sortOrder)
     {
-        return new RatingCriterion(id, collectionId, code, name, targetTypes, sortOrder, isBuiltin: true, isProtected: true);
+        return new RatingCriterion(
+            id,
+            collectionId,
+            code,
+            name,
+            new CreationOptions
+            {
+                TargetTypes = targetTypes,
+                SortOrder = sortOrder,
+                IsBuiltin = true,
+                IsProtected = true
+            });
     }
 
     public void Update(string name, IReadOnlyList<RatingTargetType> targetTypes, int sortOrder, bool isActive)
@@ -141,5 +162,16 @@ public sealed class RatingCriterion : IEntity<RatingCriterionId>
 
         _targets.Clear();
         _targets.AddRange(targetTypes.Select(RatingCriterionTarget.Create));
+    }
+
+    private sealed class CreationOptions
+    {
+        public required IReadOnlyList<RatingTargetType> TargetTypes { get; init; }
+
+        public int SortOrder { get; init; }
+
+        public bool IsBuiltin { get; init; }
+
+        public bool IsProtected { get; init; }
     }
 }

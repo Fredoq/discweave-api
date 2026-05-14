@@ -11,30 +11,25 @@ namespace Cratebase.Api.Features.Ratings;
 public static partial class RatingsEndpointRouteBuilderExtensions
 {
     private static async Task<IResult> ListShowcaseAsync(
-        Guid criterionId,
-        string targetType,
-        string? mode,
-        string? scope,
-        int? limit,
-        int? offset,
+        [AsParameters] RatingShowcaseListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        _ = scope;
+        _ = request.Scope;
 
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
 
         try
         {
-            RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(targetType);
+            RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(request.TargetType);
             RatingCriterion? criterion = await FindUsableCriterionAsync(
                 context,
                 currentCollection.CollectionId,
-                new RatingCriterionId(criterionId),
+                new RatingCriterionId(request.CriterionId),
                 parsedTargetType,
                 cancellationToken);
             if (criterion is null)
@@ -42,7 +37,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 return EndpointErrors.NotFound("rating_criterion.not_found", "Rating criterion was not found");
             }
 
-            string normalizedMode = string.IsNullOrWhiteSpace(mode) ? "top" : mode.Trim();
+            string normalizedMode = string.IsNullOrWhiteSpace(request.Mode) ? "top" : request.Mode.Trim();
 
             return normalizedMode switch
             {

@@ -9,6 +9,12 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class RatingValueConfiguration : IEntityTypeConfiguration<RatingValue>
 {
+    private const string TargetTypeProperty = "_targetType";
+    private const string TargetArtistIdProperty = "_targetArtistId";
+    private const string TargetReleaseIdProperty = "_targetReleaseId";
+    private const string TargetTrackIdProperty = "_targetTrackId";
+    private const string TargetLabelIdProperty = "_targetLabelId";
+
     public void Configure(EntityTypeBuilder<RatingValue> builder)
     {
         _ = builder.ToTable(
@@ -51,24 +57,24 @@ internal sealed class RatingValueConfiguration : IEntityTypeConfiguration<Rating
 
         _ = builder.Ignore(value => value.Target);
 
-        _ = builder.Property<string>("_targetType")
+        _ = builder.Property<string>(TargetTypeProperty)
             .HasColumnName("target_type")
             .HasMaxLength(32)
             .IsRequired();
 
-        _ = builder.Property<ArtistId?>("_targetArtistId")
+        _ = builder.Property<ArtistId?>(TargetArtistIdProperty)
             .HasColumnName("target_artist_id")
             .HasConversion(PersistenceValueConverters.NullableArtistId);
 
-        _ = builder.Property<ReleaseId?>("_targetReleaseId")
+        _ = builder.Property<ReleaseId?>(TargetReleaseIdProperty)
             .HasColumnName("target_release_id")
             .HasConversion(PersistenceValueConverters.NullableReleaseId);
 
-        _ = builder.Property<TrackId?>("_targetTrackId")
+        _ = builder.Property<TrackId?>(TargetTrackIdProperty)
             .HasColumnName("target_track_id")
             .HasConversion(PersistenceValueConverters.NullableTrackId);
 
-        _ = builder.Property<LabelId?>("_targetLabelId")
+        _ = builder.Property<LabelId?>(TargetLabelIdProperty)
             .HasColumnName("target_label_id")
             .HasConversion(PersistenceValueConverters.NullableLabelId);
 
@@ -80,25 +86,25 @@ internal sealed class RatingValueConfiguration : IEntityTypeConfiguration<Rating
 
         _ = builder.HasOne<Artist>()
             .WithMany()
-            .HasForeignKey(nameof(RatingValue.CollectionId), "_targetArtistId")
+            .HasForeignKey(nameof(RatingValue.CollectionId), TargetArtistIdProperty)
             .HasPrincipalKey(nameof(Artist.CollectionId), nameof(Artist.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Release>()
             .WithMany()
-            .HasForeignKey(nameof(RatingValue.CollectionId), "_targetReleaseId")
+            .HasForeignKey(nameof(RatingValue.CollectionId), TargetReleaseIdProperty)
             .HasPrincipalKey(nameof(Release.CollectionId), nameof(Release.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Track>()
             .WithMany()
-            .HasForeignKey(nameof(RatingValue.CollectionId), "_targetTrackId")
+            .HasForeignKey(nameof(RatingValue.CollectionId), TargetTrackIdProperty)
             .HasPrincipalKey(nameof(Track.CollectionId), nameof(Track.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
         _ = builder.HasOne<Label>()
             .WithMany()
-            .HasForeignKey(nameof(RatingValue.CollectionId), "_targetLabelId")
+            .HasForeignKey(nameof(RatingValue.CollectionId), TargetLabelIdProperty)
             .HasPrincipalKey(nameof(Label.CollectionId), nameof(Label.Id))
             .OnDelete(DeleteBehavior.Restrict);
 
@@ -110,20 +116,20 @@ internal sealed class RatingValueConfiguration : IEntityTypeConfiguration<Rating
 
         _ = builder.HasIndex(value => value.CollectionId);
         _ = builder.HasIndex(value => value.CriterionId);
-        _ = builder.HasIndex("_targetArtistId");
-        _ = builder.HasIndex("_targetReleaseId");
-        _ = builder.HasIndex("_targetTrackId");
-        _ = builder.HasIndex("_targetLabelId");
-        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), "_targetType", "_targetArtistId")
+        _ = builder.HasIndex(TargetArtistIdProperty);
+        _ = builder.HasIndex(TargetReleaseIdProperty);
+        _ = builder.HasIndex(TargetTrackIdProperty);
+        _ = builder.HasIndex(TargetLabelIdProperty);
+        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), TargetTypeProperty, TargetArtistIdProperty)
             .IsUnique()
             .HasFilter("target_type = 'artist'");
-        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), "_targetType", "_targetReleaseId")
+        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), TargetTypeProperty, TargetReleaseIdProperty)
             .IsUnique()
             .HasFilter("target_type = 'release'");
-        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), "_targetType", "_targetTrackId")
+        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), TargetTypeProperty, TargetTrackIdProperty)
             .IsUnique()
             .HasFilter("target_type = 'track'");
-        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), "_targetType", "_targetLabelId")
+        _ = builder.HasIndex(nameof(RatingValue.CollectionId), nameof(RatingValue.CriterionId), TargetTypeProperty, TargetLabelIdProperty)
             .IsUnique()
             .HasFilter("target_type = 'label'");
     }

@@ -32,16 +32,12 @@ public static partial class RatingsEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> ListRatingsAsync(
-        string? targetType,
-        Guid? targetId,
-        Guid? criterionId,
-        int? limit,
-        int? offset,
+        [AsParameters] RatingListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
@@ -50,9 +46,9 @@ public static partial class RatingsEndpointRouteBuilderExtensions
             .Where(value => value.CollectionId == currentCollection.CollectionId);
         try
         {
-            if (!string.IsNullOrWhiteSpace(targetType))
+            if (!string.IsNullOrWhiteSpace(request.TargetType))
             {
-                RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(targetType);
+                RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(request.TargetType);
                 query = RatingEndpointHelpers.FilterByTargetType(query, parsedTargetType);
             }
         }
@@ -61,13 +57,13 @@ public static partial class RatingsEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
 
-        if (criterionId is { } parsedCriterionId)
+        if (request.CriterionId is { } parsedCriterionId)
         {
             query = query.Where(value => value.CriterionId == new RatingCriterionId(parsedCriterionId));
         }
 
         RatingValue[] values = await query.ToArrayAsync(cancellationToken);
-        if (targetId is { } parsedTargetId)
+        if (request.TargetId is { } parsedTargetId)
         {
             values = [.. values.Where(value => RatingEndpointHelpers.TargetId(value.Target) == parsedTargetId)];
         }
@@ -84,9 +80,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> UpsertRatingAsync(
-        string targetType,
-        Guid targetId,
-        Guid criterionId,
+        [AsParameters] RatingTargetRouteRequest route,
         RatingValueRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
@@ -94,11 +88,11 @@ public static partial class RatingsEndpointRouteBuilderExtensions
     {
         try
         {
-            RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(targetType);
+            RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(route.TargetType);
             RatingCriterion? criterion = await FindUsableCriterionAsync(
                 context,
                 currentCollection.CollectionId,
-                new RatingCriterionId(criterionId),
+                new RatingCriterionId(route.CriterionId),
                 parsedTargetType,
                 cancellationToken);
             if (criterion is null)
@@ -106,7 +100,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 return EndpointErrors.NotFound("rating_criterion.not_found", "Rating criterion was not found");
             }
 
-            if (!await RatingEndpointHelpers.TargetExistsAsync(context, currentCollection.CollectionId, parsedTargetType, targetId, cancellationToken))
+            if (!await RatingEndpointHelpers.TargetExistsAsync(context, currentCollection.CollectionId, parsedTargetType, route.TargetId, cancellationToken))
             {
                 return EndpointErrors.NotFound("rating_target.not_found", "Rating target was not found");
             }
@@ -116,7 +110,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 parsedTargetType,
-                targetId,
+                route.TargetId,
                 criterion.Id,
                 cancellationToken);
             if (value is null)
@@ -125,7 +119,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                     currentCollection.CollectionId,
                     RatingValueId.New(),
                     criterion.Id,
-                    RatingEndpointHelpers.CreateTarget(parsedTargetType, targetId),
+                    RatingEndpointHelpers.CreateTarget(parsedTargetType, route.TargetId),
                     rating);
                 _ = context.RatingValues.Add(value);
             }
@@ -186,13 +180,27 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         RatingCriterion? criterion = await context.RatingCriteria.SingleOrDefaultAsync(
             entity => entity.CollectionId == collectionId && entity.Id == criterionId,
             cancellationToken);
-        return criterion is null
-            ? null
-            : !criterion.IsActive
-            ? throw new DomainException("rating_criterion.inactive", "Rating criterion is inactive")
-            : criterion.AppliesTo(targetType)
-                ? criterion
-                : throw new DomainException("rating_criterion.target_invalid", "Rating criterion does not apply to the target type");
+        if (criterion is null)
+        {
+            return null;
+        }
+
+        EnsureCriterionCanRateTarget(criterion, targetType);
+
+        return criterion;
+    }
+
+    private static void EnsureCriterionCanRateTarget(RatingCriterion criterion, RatingTargetType targetType)
+    {
+        if (!criterion.IsActive)
+        {
+            throw new DomainException("rating_criterion.inactive", "Rating criterion is inactive");
+        }
+
+        if (!criterion.AppliesTo(targetType))
+        {
+            throw new DomainException("rating_criterion.target_invalid", "Rating criterion does not apply to the target type");
+        }
     }
 
     private static async Task<RatingValue?> FindRatingValueAsync(
