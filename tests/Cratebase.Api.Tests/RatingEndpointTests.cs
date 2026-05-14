@@ -43,6 +43,11 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
             new { name = "Dancefloor Energy", targetTypes = TrackTargetTypes, sortOrder = 25, isActive = false });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
+        using HttpResponseMessage preserveInactiveResponse = await client.PutAsJsonAsync(
+            $"/api/rating-criteria/{criterionId}",
+            new { name = "Floor Energy", targetTypes = TrackTargetTypes, sortOrder = 30 });
+        using JsonDocument preserveInactiveDocument = await ReadJsonAsync(preserveInactiveResponse);
+
         Guid overallId = overall.GetProperty("id").GetGuid();
         using HttpResponseMessage protectedResponse = await client.PutAsJsonAsync(
             $"/api/rating-criteria/{overallId}",
@@ -64,6 +69,9 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("Dancefloor Energy", updateDocument.RootElement.GetProperty("name").GetString());
         Assert.False(updateDocument.RootElement.GetProperty("isActive").GetBoolean());
         AssertTargetTypes(TrackTargetTypes, updateDocument.RootElement.GetProperty("targetTypes"));
+        Assert.Equal(HttpStatusCode.OK, preserveInactiveResponse.StatusCode);
+        Assert.Equal("Floor Energy", preserveInactiveDocument.RootElement.GetProperty("name").GetString());
+        Assert.False(preserveInactiveDocument.RootElement.GetProperty("isActive").GetBoolean());
         Assert.Equal(HttpStatusCode.BadRequest, protectedResponse.StatusCode);
         Assert.Equal("rating_criterion.protected", protectedDocument.RootElement.GetProperty("code").GetString());
     }

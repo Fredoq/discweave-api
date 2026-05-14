@@ -98,7 +98,7 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
         try
         {
             RatingTargetType[] targetTypes = RatingEndpointHelpers.ParseTargetTypes(request.TargetTypes);
-            criterion.Update(request.Name, targetTypes, request.SortOrder ?? criterion.SortOrder, request.IsActive != false);
+            criterion.Update(request.Name, targetTypes, request.SortOrder ?? criterion.SortOrder, request.IsActive ?? criterion.IsActive);
             _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(RatingEndpointHelpers.ToCriterionResponse(criterion));
