@@ -8,6 +8,11 @@ namespace Cratebase.Api.Features.Ratings;
 
 internal static class RatingEndpointHelpers
 {
+    public const string TargetArtistIdProperty = "_targetArtistId";
+    public const string TargetLabelIdProperty = "_targetLabelId";
+    public const string TargetReleaseIdProperty = "_targetReleaseId";
+    public const string TargetTrackIdProperty = "_targetTrackId";
+
     public static RatingCriterionResponse ToCriterionResponse(RatingCriterion criterion)
     {
         return new RatingCriterionResponse(
@@ -96,37 +101,19 @@ internal static class RatingEndpointHelpers
         return query.Where(value => EF.Property<string>(value, "_targetType") == targetTypeCode);
     }
 
-    public static async Task<RatingTargetDisplay[]> LoadTargetDisplaysAsync(
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        RatingTargetType targetType,
-        CancellationToken cancellationToken)
+    public static IQueryable<RatingValue> FilterByTargetId(IQueryable<RatingValue> query, RatingTargetType targetType, Guid targetId)
     {
         return targetType switch
         {
-            RatingTargetType.Artist => [.. (await context.Artists.AsNoTracking()
-                .Where(artist => artist.CollectionId == collectionId)
-                .OrderBy(artist => artist.Name)
-                .ToArrayAsync(cancellationToken))
-                .Select(artist => new RatingTargetDisplay(artist.Id.Value, "artist", artist.Name, null))],
-            RatingTargetType.Release => [.. (await context.Releases.AsNoTracking()
-                .Where(release => release.CollectionId == collectionId)
-                .OrderBy(release => release.Summary.Title)
-                .ToArrayAsync(cancellationToken))
-                .Select(release => new RatingTargetDisplay(release.Id.Value, "release", release.Summary.Title, null))],
-            RatingTargetType.Track => [.. (await context.Tracks.AsNoTracking()
-                .Where(track => track.CollectionId == collectionId)
-                .OrderBy(track => track.Title)
-                .ToArrayAsync(cancellationToken))
-                .Select(track => new RatingTargetDisplay(track.Id.Value, "track", track.Title, null))],
-            RatingTargetType.Label => [.. (await context.Labels.AsNoTracking()
-                .Where(label => label.CollectionId == collectionId)
-                .OrderBy(label => label.Name)
-                .ToArrayAsync(cancellationToken))
-                .Select(label => new RatingTargetDisplay(label.Id.Value, "label", label.Name, null))],
-            _ => []
+            RatingTargetType.Artist => query.Where(value =>
+                EF.Property<ArtistId?>(value, TargetArtistIdProperty) == new ArtistId(targetId)),
+            RatingTargetType.Release => query.Where(value =>
+                EF.Property<ReleaseId?>(value, TargetReleaseIdProperty) == new ReleaseId(targetId)),
+            RatingTargetType.Track => query.Where(value =>
+                EF.Property<TrackId?>(value, TargetTrackIdProperty) == new TrackId(targetId)),
+            RatingTargetType.Label => query.Where(value =>
+                EF.Property<LabelId?>(value, TargetLabelIdProperty) == new LabelId(targetId)),
+            _ => query.Where(_ => false)
         };
     }
 }
-
-internal sealed record RatingTargetDisplay(Guid TargetId, string TargetType, string Title, string? Subtitle);

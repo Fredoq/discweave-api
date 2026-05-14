@@ -10,13 +10,18 @@ namespace Cratebase.Api.Features.Ratings;
 
 public static partial class RatingsEndpointRouteBuilderExtensions
 {
+    private const string CollectionShowcaseScope = "collection";
+
     private static async Task<IResult> ListShowcaseAsync(
         [AsParameters] RatingShowcaseListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        _ = request.Scope;
+        if (!IsSupportedShowcaseScope(request.Scope))
+        {
+            return EndpointErrors.BadRequest("rating_showcase.scope_invalid", "Rating showcase scope is invalid");
+        }
 
         if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
@@ -37,7 +42,7 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 return EndpointErrors.NotFound("rating_criterion.not_found", "Rating criterion was not found");
             }
 
-            string normalizedMode = string.IsNullOrWhiteSpace(request.Mode) ? "top" : request.Mode.Trim();
+            string normalizedMode = string.IsNullOrWhiteSpace(request.Mode) ? "top" : request.Mode.Trim().ToLowerInvariant();
 
             return normalizedMode switch
             {
@@ -66,6 +71,11 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         }
     }
 
+    private static bool IsSupportedShowcaseScope(string? scope)
+    {
+        return string.IsNullOrWhiteSpace(scope) || string.Equals(scope.Trim(), CollectionShowcaseScope, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<IResult> ListTopShowcaseAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -75,35 +85,14 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         int offset,
         CancellationToken cancellationToken)
     {
-        RatingValue[] ratings = await LoadRatingsAsync(context, collectionId, criterionId, targetType, cancellationToken);
-        Dictionary<Guid, RatingTargetDisplay> displays = (await RatingEndpointHelpers.LoadTargetDisplaysAsync(
-                context,
-                collectionId,
-                targetType,
-                cancellationToken))
-            .ToDictionary(display => display.TargetId);
-        RatingValue[] rankedRatings = [.. ratings
-            .Where(rating => displays.ContainsKey(RatingEndpointHelpers.TargetId(rating.Target)))
-            .OrderByDescending(rating => rating.Rating.Value)
-            .ThenBy(rating => displays[RatingEndpointHelpers.TargetId(rating.Target)].Title)
-            .ThenBy(rating => RatingEndpointHelpers.TargetId(rating.Target))];
-
-        RatingShowcaseItemResponse[] items = [.. rankedRatings
-            .Skip(offset)
-            .Take(limit)
-            .Select(rating =>
-            {
-                RatingTargetDisplay display = displays[RatingEndpointHelpers.TargetId(rating.Target)];
-                return new RatingShowcaseItemResponse(
-                    criterionId.Value,
-                    display.TargetType,
-                    display.TargetId,
-                    display.Title,
-                    display.Subtitle,
-                    rating.Rating.Value);
-            })];
-
-        return Results.Ok(new RatingShowcaseResponse(items, limit, offset, rankedRatings.Length));
+        return targetType switch
+        {
+            RatingTargetType.Artist => await ListTopArtistsAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Release => await ListTopReleasesAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Track => await ListTopTracksAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Label => await ListTopLabelsAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            _ => EndpointErrors.BadRequest("rating_target.type_invalid", "Rating target type is invalid")
+        };
     }
 
     private static async Task<IResult> ListUnratedShowcaseAsync(
@@ -115,41 +104,24 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         int offset,
         CancellationToken cancellationToken)
     {
-        RatingValue[] ratings = await LoadRatingsAsync(context, collectionId, criterionId, targetType, cancellationToken);
-        HashSet<Guid> ratedTargetIds = [.. ratings.Select(rating => RatingEndpointHelpers.TargetId(rating.Target))];
-        RatingTargetDisplay[] unratedDisplays = [.. (await RatingEndpointHelpers.LoadTargetDisplaysAsync(
-                context,
-                collectionId,
-                targetType,
-                cancellationToken))
-            .Where(display => !ratedTargetIds.Contains(display.TargetId))
-            .OrderBy(display => display.Title)
-            .ThenBy(display => display.TargetId)];
-
-        RatingShowcaseItemResponse[] items = [.. unratedDisplays
-            .Skip(offset)
-            .Take(limit)
-            .Select(display => new RatingShowcaseItemResponse(
-                criterionId.Value,
-                display.TargetType,
-                display.TargetId,
-                display.Title,
-                display.Subtitle,
-                null))];
-
-        return Results.Ok(new RatingShowcaseResponse(items, limit, offset, unratedDisplays.Length));
+        return targetType switch
+        {
+            RatingTargetType.Artist => await ListUnratedArtistsAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Release => await ListUnratedReleasesAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Track => await ListUnratedTracksAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            RatingTargetType.Label => await ListUnratedLabelsAsync(context, collectionId, criterionId, limit, offset, cancellationToken),
+            _ => EndpointErrors.BadRequest("rating_target.type_invalid", "Rating target type is invalid")
+        };
     }
 
-    private static async Task<RatingValue[]> LoadRatingsAsync(
+    private static IQueryable<RatingValue> BaseRatingQuery(
         CratebaseDbContext context,
         CollectionId collectionId,
         RatingCriterionId criterionId,
-        RatingTargetType targetType,
-        CancellationToken cancellationToken)
+        RatingTargetType targetType)
     {
-        return await RatingEndpointHelpers.FilterByTargetType(
-                context.RatingValues.AsNoTracking().Where(value => value.CollectionId == collectionId && value.CriterionId == criterionId),
-                targetType)
-            .ToArrayAsync(cancellationToken);
+        return RatingEndpointHelpers.FilterByTargetType(
+            context.RatingValues.AsNoTracking().Where(value => value.CollectionId == collectionId && value.CriterionId == criterionId),
+            targetType);
     }
 }

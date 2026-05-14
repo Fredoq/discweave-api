@@ -1,5 +1,6 @@
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -21,7 +22,8 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
 
         _ = group.MapGet("", ListCriteriaAsync).WithName("ListRatingCriteria");
         _ = group.MapPost("", CreateCriterionAsync).WithName("CreateRatingCriterion");
-        _ = group.MapPut("/{criterionId:guid}", UpdateCriterionAsync).WithName("UpdateRatingCriterion");
+        _ = group.MapPut("/{criterionId:guid}", ReplaceCriterionAsync).WithName("ReplaceRatingCriterion");
+        _ = group.MapPatch("/{criterionId:guid}", UpdateCriterionAsync).WithName("UpdateRatingCriterion");
         _ = group.MapDelete("/{criterionId:guid}", DeleteCriterionAsync).WithName("DeleteRatingCriterion");
 
         return endpoints;
@@ -80,6 +82,37 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
+        catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.RatingCriterionCode)
+        {
+            return EndpointErrors.Conflict("rating_criterion.code_conflict", "Rating criterion code already exists");
+        }
+    }
+
+    private static async Task<IResult> ReplaceCriterionAsync(
+        Guid criterionId,
+        ReplaceRatingCriterionRequest request,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
+    {
+        RatingCriterion? criterion = await FindCriterionAsync(context, currentCollection.CollectionId, criterionId, cancellationToken);
+        if (criterion is null)
+        {
+            return EndpointErrors.NotFound("rating_criterion.not_found", "Rating criterion was not found");
+        }
+
+        try
+        {
+            RatingTargetType[] targetTypes = RatingEndpointHelpers.ParseTargetTypes(request.TargetTypes);
+            criterion.Update(request.Name, targetTypes, request.SortOrder, request.IsActive);
+            _ = await context.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(RatingEndpointHelpers.ToCriterionResponse(criterion));
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
     }
 
     private static async Task<IResult> UpdateCriterionAsync(
@@ -97,8 +130,14 @@ public static class RatingCriteriaEndpointRouteBuilderExtensions
 
         try
         {
-            RatingTargetType[] targetTypes = RatingEndpointHelpers.ParseTargetTypes(request.TargetTypes);
-            criterion.Update(request.Name, targetTypes, request.SortOrder ?? criterion.SortOrder, request.IsActive ?? criterion.IsActive);
+            RatingTargetType[] targetTypes = request.TargetTypes is null
+                ? [.. criterion.TargetTypes]
+                : RatingEndpointHelpers.ParseTargetTypes(request.TargetTypes);
+            criterion.Update(
+                request.Name ?? criterion.Name,
+                targetTypes,
+                request.SortOrder ?? criterion.SortOrder,
+                request.IsActive ?? criterion.IsActive);
             _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(RatingEndpointHelpers.ToCriterionResponse(criterion));

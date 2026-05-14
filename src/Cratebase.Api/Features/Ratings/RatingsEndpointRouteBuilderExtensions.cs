@@ -1,5 +1,6 @@
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
+using Cratebase.Application.Errors;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -128,7 +129,29 @@ public static partial class RatingsEndpointRouteBuilderExtensions
                 value.UpdateRating(rating);
             }
 
-            _ = await context.SaveChangesAsync(cancellationToken);
+            try
+            {
+                _ = await context.SaveChangesAsync(cancellationToken);
+            }
+            catch (ResourceConflictException exception) when (exception.Conflict == ResourceConflictException.RatingValueTarget)
+            {
+                context.Entry(value).State = EntityState.Detached;
+                RatingValue? existing = await FindRatingValueAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    parsedTargetType,
+                    route.TargetId,
+                    criterion.Id,
+                    cancellationToken);
+                if (existing is null)
+                {
+                    throw;
+                }
+
+                existing.UpdateRating(rating);
+                _ = await context.SaveChangesAsync(cancellationToken);
+                value = existing;
+            }
 
             return Results.Ok(RatingEndpointHelpers.ToValueResponse(value));
         }
@@ -211,11 +234,11 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         RatingCriterionId criterionId,
         CancellationToken cancellationToken)
     {
-        RatingValue[] values = await RatingEndpointHelpers.FilterByTargetType(
-                context.RatingValues.Where(value => value.CollectionId == collectionId && value.CriterionId == criterionId),
-                targetType)
-            .ToArrayAsync(cancellationToken);
+        IQueryable<RatingValue> query = RatingEndpointHelpers.FilterByTargetType(
+            context.RatingValues.Where(value => value.CollectionId == collectionId && value.CriterionId == criterionId),
+            targetType);
+        query = RatingEndpointHelpers.FilterByTargetId(query, targetType, targetId);
 
-        return values.SingleOrDefault(value => RatingEndpointHelpers.TargetId(value.Target) == targetId);
+        return await query.SingleOrDefaultAsync(cancellationToken);
     }
 }

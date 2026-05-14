@@ -43,9 +43,10 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
             new { name = "Dancefloor Energy", targetTypes = TrackTargetTypes, sortOrder = 25, isActive = false });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
-        using HttpResponseMessage preserveInactiveResponse = await client.PutAsJsonAsync(
+        using HttpResponseMessage preserveInactiveResponse = await PatchAsJsonAsync(
+            client,
             $"/api/rating-criteria/{criterionId}",
-            new { name = "Floor Energy", targetTypes = TrackTargetTypes, sortOrder = 30 });
+            new { name = "Floor Energy", sortOrder = 30 });
         using JsonDocument preserveInactiveDocument = await ReadJsonAsync(preserveInactiveResponse);
 
         Guid overallId = overall.GetProperty("id").GetGuid();
@@ -72,6 +73,7 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.OK, preserveInactiveResponse.StatusCode);
         Assert.Equal("Floor Energy", preserveInactiveDocument.RootElement.GetProperty("name").GetString());
         Assert.False(preserveInactiveDocument.RootElement.GetProperty("isActive").GetBoolean());
+        AssertTargetTypes(TrackTargetTypes, preserveInactiveDocument.RootElement.GetProperty("targetTypes"));
         Assert.Equal(HttpStatusCode.BadRequest, protectedResponse.StatusCode);
         Assert.Equal("rating_criterion.protected", protectedDocument.RootElement.GetProperty("code").GetString());
     }
@@ -127,6 +129,7 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         Guid criterionId = await FindOverallCriterionIdAsync(client);
         Guid firstTrackId = await CreateTrackAsync(client, "Windowlicker");
         Guid secondTrackId = await CreateTrackAsync(client, "Rhubarb");
+        Guid thirdTrackId = await CreateTrackAsync(client, "Alberto Balsalm");
         Guid unratedTrackId = await CreateTrackAsync(client, "Stone in Focus");
 
         using HttpResponseMessage firstRatingResponse = await client.PutAsJsonAsync(
@@ -135,25 +138,36 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         using HttpResponseMessage secondRatingResponse = await client.PutAsJsonAsync(
             $"/api/ratings/track/{secondTrackId}/{criterionId}",
             new { value = 10 });
+        using HttpResponseMessage thirdRatingResponse = await client.PutAsJsonAsync(
+            $"/api/ratings/track/{thirdTrackId}/{criterionId}",
+            new { value = 8 });
 
         using HttpResponseMessage topResponse = await client.GetAsync(
-            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&limit=10&offset=0");
+            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&scope=collection&limit=10&offset=0");
         using JsonDocument topDocument = await ReadJsonAsync(topResponse);
         using HttpResponseMessage unratedResponse = await client.GetAsync(
             $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=unrated&limit=10&offset=0");
         using JsonDocument unratedDocument = await ReadJsonAsync(unratedResponse);
+        using HttpResponseMessage invalidScopeResponse = await client.GetAsync(
+            $"/api/rating-showcases?criterionId={criterionId}&targetType=track&mode=top&scope=library&limit=10&offset=0");
+        using JsonDocument invalidScopeDocument = await ReadJsonAsync(invalidScopeResponse);
 
         Assert.Equal(HttpStatusCode.OK, firstRatingResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, secondRatingResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, thirdRatingResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, topResponse.StatusCode);
         JsonElement topItems = topDocument.RootElement.GetProperty("items");
+        Assert.Equal(3, topDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(secondTrackId, topItems[0].GetProperty("targetId").GetGuid());
         Assert.Equal(10, topItems[0].GetProperty("value").GetInt32());
-        Assert.Equal(firstTrackId, topItems[1].GetProperty("targetId").GetGuid());
+        Assert.Equal(thirdTrackId, topItems[1].GetProperty("targetId").GetGuid());
+        Assert.Equal(firstTrackId, topItems[2].GetProperty("targetId").GetGuid());
         Assert.Equal(HttpStatusCode.OK, unratedResponse.StatusCode);
         JsonElement unratedItems = unratedDocument.RootElement.GetProperty("items");
         Assert.Contains(unratedItems.EnumerateArray(), item => item.GetProperty("targetId").GetGuid() == unratedTrackId);
         Assert.All(unratedItems.EnumerateArray(), item => Assert.True(item.GetProperty("value").ValueKind is JsonValueKind.Null));
+        Assert.Equal(HttpStatusCode.BadRequest, invalidScopeResponse.StatusCode);
+        Assert.Equal("rating_showcase.scope_invalid", invalidScopeDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Rating endpoints preserve collection isolation")]
@@ -243,6 +257,16 @@ public sealed class RatingEndpointTests : IClassFixture<PostgresFixture>
         {
             throw new InvalidOperationException($"Response was not JSON. Status: {response.StatusCode}. Body: {content}", exception);
         }
+    }
+
+    private static async Task<HttpResponseMessage> PatchAsJsonAsync<TValue>(HttpClient client, string requestUri, TValue value)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, requestUri)
+        {
+            Content = JsonContent.Create(value)
+        };
+
+        return await client.SendAsync(request);
     }
 
     private sealed record AuthRequest(string Email, string Password);

@@ -18,6 +18,8 @@ namespace Cratebase.Infrastructure.Persistence;
 
 public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, IdentityRole<Guid>, Guid>, IUnitOfWork
 {
+    private const string RatingCriterionCodeUniqueIndex = "IX_rating_criteria_collection_id_code";
+
     public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options)
         : base(options)
     {
@@ -78,6 +80,14 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsResourceHasDependents(exception))
         {
             throw new ResourceHasDependentsException(exception);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsUniqueConstraintViolation(exception, RatingCriterionCodeUniqueIndex))
+        {
+            throw new ResourceConflictException(ResourceConflictException.RatingCriterionCode, exception);
+        }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsRatingValueTargetConflict(exception))
+        {
+            throw new ResourceConflictException(ResourceConflictException.RatingValueTarget, exception);
         }
         catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
         {
