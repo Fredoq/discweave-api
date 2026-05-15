@@ -46,6 +46,8 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         Assert.DoesNotContain("public_id", artistColumns);
         Assert.Contains("title", releaseColumns);
         Assert.Contains("release_year", releaseColumns);
+        Assert.Contains("cover_image_metadata", releaseColumns);
+        Assert.DoesNotContain("cover_image_path", releaseColumns);
         Assert.DoesNotContain("rating", releaseColumns);
         Assert.Contains("duration_ticks", trackColumns);
         Assert.DoesNotContain("rating", trackColumns);
@@ -91,7 +93,11 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
                             .WithLabel(labelId)
                             .WithReleaseYear(1983)
                             .WithReleaseDate(new DateOnly(1983, 5, 2))
-                            .WithCoverImage(CoverImage.FromPath("/covers/new-order-power-corruption-lies.jpg"))))
+                            .WithCoverImage(CoverImage.FromLocalUpload(
+                                "collections/releases/new-order-power-corruption-lies.webp",
+                                "image/webp",
+                                "Power Corruption Lies.webp",
+                                4_096))))
             .WithTrack(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(1, "1", "A"), "Age of Consent"))
             .WithCataloging(Cataloging.Empty.WithGenre(Genre.FromName("Post-punk")).WithTag(Tag.FromName("factory")));
 
@@ -114,6 +120,9 @@ public sealed class CratebaseDbContextTests : IClassFixture<PostgresFixture>
         Assert.Equal(labelId, Assert.IsType<PresentOptionalValue<LabelId>>(actualRelease.Summary.Metadata.LabelId).Value);
         Assert.Equal(1983, Assert.IsType<PresentOptionalValue<int>>(actualRelease.Summary.Metadata.Year).Value);
         Assert.Equal(new DateOnly(1983, 5, 2), Assert.IsType<PresentOptionalValue<DateOnly>>(actualRelease.Summary.Metadata.ReleaseDate).Value);
+        Assert.Equal(
+            CoverImage.FromLocalUpload("collections/releases/new-order-power-corruption-lies.webp", "image/webp", "Power Corruption Lies.webp", 4_096),
+            Assert.IsType<PresentOptionalValue<CoverImage>>(actualRelease.Summary.Metadata.CoverImage).Value);
         _ = Assert.Single(actualRelease.Tracklist);
         Assert.Contains(actualRelease.Cataloging.Genres, genre => genre.Name == "Post-punk");
         Assert.Contains(actualRelease.Cataloging.Tags, tag => tag.Name == "factory");

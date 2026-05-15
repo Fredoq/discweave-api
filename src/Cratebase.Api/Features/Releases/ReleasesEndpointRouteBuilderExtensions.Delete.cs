@@ -1,4 +1,5 @@
 using Cratebase.Api.Http;
+using Cratebase.Application.Catalog.Releases;
 using Cratebase.Application.Errors;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
@@ -18,6 +19,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         HttpRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
+        IReleaseCoverStorage coverStorage,
         CancellationToken cancellationToken)
     {
         if (!DeleteConfirmation.Matches(request, "release", releaseId))
@@ -38,6 +40,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         try
         {
+            CoverImage? coverImage = TryGetCoverImage(release);
             TrackId[] linkedTrackIds = [.. release.Tracklist.Select(track => track.TrackId).Distinct()];
             Credit[] collectionCredits = await context.Credits
                 .Where(credit => credit.CollectionId == currentCollection.CollectionId)
@@ -70,6 +73,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
             _ = await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            if (coverImage is not null)
+            {
+                await coverStorage.DeleteAsync(coverImage.StorageKey, cancellationToken);
+            }
+
             return Results.NoContent();
         }
         catch (ResourceHasDependentsException)

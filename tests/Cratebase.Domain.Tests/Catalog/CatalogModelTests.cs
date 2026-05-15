@@ -143,7 +143,11 @@ public sealed class CatalogModelTests
             .WithLabel(labelId)
             .WithReleaseYear(1989)
             .WithReleaseDate(releaseDate)
-            .WithCoverImage(CoverImage.FromPath("covers/new-order-technique.jpg"));
+            .WithCoverImage(CoverImage.FromLocalUpload(
+                "collection/release/new-order-technique.jpg",
+                "image/jpeg",
+                "Technique Front.jpg",
+                1_024));
         Cataloging cataloging = Cataloging.Empty
             .WithGenre(Genre.FromName("Alternative Dance"))
             .WithTag(Tag.FromName("favorite"));
@@ -158,10 +162,29 @@ public sealed class CatalogModelTests
         Assert.Equal(1989, Assert.IsType<PresentOptionalValue<int>>(actualMetadata.Year).Value);
         Assert.Equal(releaseDate, Assert.IsType<PresentOptionalValue<DateOnly>>(actualMetadata.ReleaseDate).Value);
         Assert.Equal(
-            "covers/new-order-technique.jpg",
-            Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.Path);
+            "collection/release/new-order-technique.jpg",
+            Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.StorageKey);
+        Assert.Equal("image/jpeg", Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.ContentType);
+        Assert.Equal("Technique Front.jpg", Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.OriginalFileName);
+        Assert.Equal(1_024, Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.SizeBytes);
+        Assert.Equal("localUpload", Assert.IsType<PresentOptionalValue<CoverImage>>(actualMetadata.CoverImage).Value.SourceType);
         Assert.Contains(release.Cataloging.Genres, genre => genre.Name == "Alternative Dance");
         Assert.Contains(release.Cataloging.Tags, tag => tag.Name == "favorite");
+    }
+
+    [Fact]
+    public void Release_metadata_can_replace_and_clear_cover_image()
+    {
+        var firstCover = CoverImage.FromLocalUpload("covers/first.png", "image/png", "first.png", 128);
+        var replacementCover = CoverImage.FromLocalUpload("covers/replacement.webp", "image/webp", "replacement.webp", 256);
+
+        ReleaseMetadata withFirstCover = ReleaseMetadata.Empty.WithCoverImage(firstCover);
+        ReleaseMetadata withReplacementCover = withFirstCover.WithCoverImage(replacementCover);
+        ReleaseMetadata withoutCover = withReplacementCover.WithoutCoverImage();
+
+        Assert.Equal(firstCover, Assert.IsType<PresentOptionalValue<CoverImage>>(withFirstCover.CoverImage).Value);
+        Assert.Equal(replacementCover, Assert.IsType<PresentOptionalValue<CoverImage>>(withReplacementCover.CoverImage).Value);
+        Assert.False(withoutCover.CoverImage.HasValue);
     }
 
     [Fact]
@@ -198,7 +221,11 @@ public sealed class CatalogModelTests
     [Fact]
     public void Cover_image_validates_required_values()
     {
-        Assert.Equal("cover_image.path_required", Assert.Throws<DomainException>(() => CoverImage.FromPath(" ")).Code);
+        Assert.Equal("cover_image.storage_key_required", Assert.Throws<DomainException>(() => CoverImage.FromLocalUpload(" ", "image/png", "cover.png", 10)).Code);
+        Assert.Equal("cover_image.content_type_required", Assert.Throws<DomainException>(() => CoverImage.FromLocalUpload("cover.png", " ", "cover.png", 10)).Code);
+        Assert.Equal("cover_image.original_file_name_required", Assert.Throws<DomainException>(() => CoverImage.FromLocalUpload("cover.png", "image/png", " ", 10)).Code);
+        Assert.Equal("cover_image.size_bytes_required", Assert.Throws<DomainException>(() => CoverImage.FromLocalUpload("cover.png", "image/png", "cover.png", 0)).Code);
+        Assert.Equal("cover_image.source_type_required", Assert.Throws<DomainException>(() => CoverImage.FromStoredMetadata("cover.png", "image/png", "cover.png", 10, " ")).Code);
     }
 
     [Fact]

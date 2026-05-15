@@ -10,9 +10,17 @@ public sealed record ReleaseResponse(
     IReadOnlyList<string> Tags,
     bool IsVariousArtists,
     bool NotOnLabel,
+    CoverImageResponse? CoverImage,
     IReadOnlyList<ReleaseArtistCreditResponse> ArtistCredits,
     IReadOnlyList<ReleaseLabelResponse> Labels,
     IReadOnlyList<ReleaseTracklistItemResponse> Tracklist);
+
+public sealed record CoverImageResponse(
+    string Url,
+    string ContentType,
+    string OriginalFileName,
+    long SizeBytes,
+    string SourceType);
 
 public sealed record ReleaseArtistCreditResponse(Guid ArtistId, string ArtistName, string Role);
 

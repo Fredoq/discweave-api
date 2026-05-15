@@ -211,7 +211,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     is_various_artists = table.Column<bool>(type: "boolean", nullable: false),
                     is_not_on_label = table.Column<bool>(type: "boolean", nullable: false),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
-                    cover_image_path = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    cover_image_metadata = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: true),
                     label_id = table.Column<Guid>(type: "uuid", nullable: true),
                     release_date = table.Column<DateOnly>(type: "date", nullable: true),
                     release_type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),

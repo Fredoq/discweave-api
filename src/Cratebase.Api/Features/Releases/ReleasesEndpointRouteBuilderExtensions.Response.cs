@@ -75,9 +75,22 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             [.. release.Cataloging.Tags.Select(tag => tag.Name)],
             release.IsVariousArtists,
             release.IsNotOnLabel,
+            ToCoverImageResponse(release),
             [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById))]);
+    }
+
+    private static CoverImageResponse? ToCoverImageResponse(Release release)
+    {
+        return release.Summary.Metadata.CoverImage is PresentOptionalValue<CoverImage> { Value: CoverImage coverImage }
+            ? new CoverImageResponse(
+                $"/api/releases/{release.Id.Value}/cover-image",
+                coverImage.ContentType,
+                coverImage.OriginalFileName,
+                coverImage.SizeBytes,
+                coverImage.SourceType)
+            : null;
     }
 
     private static async Task<Credit[]> LoadReleaseCreditsAsync(
