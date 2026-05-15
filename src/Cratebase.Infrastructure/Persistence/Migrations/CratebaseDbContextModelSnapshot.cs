@@ -144,9 +144,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                                     b2.IsRequired();
 
                                     b2.Property<string>("CoverImage")
-                                        .HasMaxLength(2048)
-                                        .HasColumnType("character varying(2048)")
-                                        .HasColumnName("cover_image_path");
+                                        .HasMaxLength(4096)
+                                        .HasColumnType("character varying(4096)")
+                                        .HasColumnName("cover_image_metadata");
 
                                     b2.Property<Guid?>("LabelId")
                                         .HasColumnType("uuid")

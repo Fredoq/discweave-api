@@ -7,6 +7,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         _ = group.MapGet("", ListReleasesAsync).WithName("ListReleases");
         _ = group.MapPut("/{releaseId:guid}", UpdateReleaseAsync).WithName("UpdateRelease");
         _ = group.MapDelete("/{releaseId:guid}", DeleteReleaseAsync).WithName("DeleteRelease");
+        _ = group.MapPut("/{releaseId:guid}/cover-image", PutReleaseCoverImageAsync).WithName("PutReleaseCoverImage");
+        _ = group.MapGet("/{releaseId:guid}/cover-image", GetReleaseCoverImageAsync).WithName("GetReleaseCoverImage");
+        _ = group.MapDelete("/{releaseId:guid}/cover-image", DeleteReleaseCoverImageAsync).WithName("DeleteReleaseCoverImage");
 
         return endpoints;
     }
@@ -193,6 +197,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             cancellationToken);
 
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(releaseType);
+        if (release.Summary.Metadata.CoverImage is PresentOptionalValue<CoverImage> { Value: CoverImage coverImage })
+        {
+            metadata = metadata.WithCoverImage(coverImage);
+        }
+
         if (request.LabelId is not null && request.Labels is { Count: > 0 })
         {
             throw new DomainException("release.label_shape_invalid", "Release request must use either labelId or labels, not both");

@@ -85,4 +85,9 @@ public sealed record ReleaseMetadata
 
         return new ReleaseMetadata(Type, LabelId, Year, ReleaseDate, Optional.From(coverImage));
     }
+
+    public ReleaseMetadata WithoutCoverImage()
+    {
+        return new ReleaseMetadata(Type, LabelId, Year, ReleaseDate, Optional.Missing<CoverImage>());
+    }
 }

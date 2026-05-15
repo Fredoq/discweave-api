@@ -98,8 +98,8 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 releaseDateProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalDateOnlyComparer);
 
                 ComplexTypePropertyBuilder<IOptionalValue<CoverImage>> coverImageProperty = metadata.Property(value => value.CoverImage)
-                    .HasColumnName("cover_image_path")
-                    .HasMaxLength(2048)
+                    .HasColumnName("cover_image_metadata")
+                    .HasMaxLength(4096)
                     .HasConversion(PersistenceValueConverters.OptionalCoverImage)
                     .IsRequired(false);
                 coverImageProperty.Metadata.SetValueComparer(PersistenceValueConverters.OptionalCoverImageComparer);

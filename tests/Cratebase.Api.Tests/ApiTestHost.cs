@@ -7,6 +7,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Cratebase.Api.Tests;
@@ -24,8 +25,16 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public static async Task<ApiTestHost> CreateAsync(PostgresFixture postgres, CancellationToken cancellationToken = default)
     {
+        return await CreateAsync(postgres, new Dictionary<string, string?>(), cancellationToken);
+    }
+
+    public static async Task<ApiTestHost> CreateAsync(
+        PostgresFixture postgres,
+        IReadOnlyDictionary<string, string?> settings,
+        CancellationToken cancellationToken = default)
+    {
         string connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
-        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString);
+        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings);
 
         var host = new ApiTestHost(factory);
         await host.MigrateAsync(cancellationToken);
@@ -116,15 +125,25 @@ internal sealed class ApiTestHost : IAsyncDisposable
     private sealed class ConfiguredApiFactory : WebApplicationFactory<Program>
     {
         private readonly string _connectionString;
+        private readonly IReadOnlyDictionary<string, string?> _settings;
 
-        public ConfiguredApiFactory(string connectionString)
+        public ConfiguredApiFactory(string connectionString, IReadOnlyDictionary<string, string?> settings)
         {
             _connectionString = connectionString;
+            _settings = settings;
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             _ = builder.UseSetting("ConnectionStrings:Cratebase", _connectionString);
+            _ = builder.ConfigureAppConfiguration((context, configuration) =>
+            {
+                _ = context;
+                if (_settings.Count > 0)
+                {
+                    _ = configuration.AddInMemoryCollection(_settings);
+                }
+            });
         }
     }
 

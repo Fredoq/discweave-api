@@ -4,6 +4,7 @@ using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using System.Text.Json;
 
 namespace Cratebase.Infrastructure.Persistence.Configurations;
 
@@ -78,11 +79,11 @@ internal static class PersistenceValueConverters
         value => new TrackRelationId(value));
 
     public static readonly ValueConverter<IOptionalValue<CoverImage>, string?> OptionalCoverImage = new(
-        value => OptionalStringValue(value, coverImage => coverImage.Path),
+        value => OptionalStringValue(value, CoverImageToMetadataJson),
         value => OptionalCoverImageValue(value));
 
     public static readonly ValueComparer<IOptionalValue<CoverImage>> OptionalCoverImageComparer = OptionalComparer<IOptionalValue<CoverImage>, string?>(
-        value => OptionalStringValue(value, coverImage => coverImage.Path),
+        value => OptionalStringValue(value, CoverImageToMetadataJson),
         OptionalCoverImageValue);
 
     public static readonly ValueConverter<IOptionalValue<DateOnly>, DateOnly?> OptionalDateOnly = new(
@@ -150,7 +151,32 @@ internal static class PersistenceValueConverters
 
     private static IOptionalValue<CoverImage> OptionalCoverImageValue(string? value)
     {
-        return value is null ? Optional.Missing<CoverImage>() : Optional.From(CoverImage.FromPath(value));
+        if (value is null)
+        {
+            return Optional.Missing<CoverImage>();
+        }
+
+        CoverImageStorageModel? model = JsonSerializer.Deserialize<CoverImageStorageModel>(value, CoverImageJsonOptions);
+        return model is null
+            ? Optional.Missing<CoverImage>()
+            : Optional.From(CoverImage.FromStoredMetadata(
+                model.StorageKey,
+                model.ContentType,
+                model.OriginalFileName,
+                model.SizeBytes,
+                model.SourceType));
+    }
+
+    private static string CoverImageToMetadataJson(CoverImage coverImage)
+    {
+        return JsonSerializer.Serialize(
+            new CoverImageStorageModel(
+                coverImage.StorageKey,
+                coverImage.ContentType,
+                coverImage.OriginalFileName,
+                coverImage.SizeBytes,
+                coverImage.SourceType),
+            CoverImageJsonOptions);
     }
 
     private static int OptionalHash<TProvider>(TProvider value)
@@ -183,4 +209,13 @@ internal static class PersistenceValueConverters
             ? selector(present.Value)
             : null;
     }
+
+    private static readonly JsonSerializerOptions CoverImageJsonOptions = new(JsonSerializerDefaults.Web);
+
+    private sealed record CoverImageStorageModel(
+        string StorageKey,
+        string ContentType,
+        string OriginalFileName,
+        long SizeBytes,
+        string SourceType);
 }
