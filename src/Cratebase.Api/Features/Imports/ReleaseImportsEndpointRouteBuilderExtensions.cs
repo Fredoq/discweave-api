@@ -218,8 +218,16 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             return EndpointErrors.NotFound("release_import_draft.not_found", "Release import draft was not found");
         }
 
-        draft.Skip();
-        _ = await context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            draft.Skip();
+            _ = await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DomainException exception)
+        {
+            return EndpointErrors.BadRequest(exception.Code, exception.Message);
+        }
+
         ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
             ?? throw new InvalidOperationException("Release import session is required");
         return Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));

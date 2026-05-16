@@ -1,5 +1,6 @@
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
+using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Imports;
@@ -69,6 +70,8 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
     public void UpdateEditableFields(ReleaseImportDraftEditableFields fields)
     {
+        EnsureEditable();
+
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.title_required");
         Type = string.IsNullOrWhiteSpace(fields.Type) ? "unknown" : fields.Type.Trim();
         CatalogNumber = TrimOrNull(fields.CatalogNumber);
@@ -107,7 +110,25 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
     public void Skip()
     {
+        if (Status == ReleaseImportDraftStatus.Confirmed)
+        {
+            throw new DomainException("release_import_draft.confirmed", "Confirmed release import drafts cannot be skipped");
+        }
+
         Status = ReleaseImportDraftStatus.Skipped;
+    }
+
+    private void EnsureEditable()
+    {
+        if (Status == ReleaseImportDraftStatus.Confirmed)
+        {
+            throw new DomainException("release_import_draft.confirmed", "Confirmed release import drafts cannot be edited");
+        }
+
+        if (Status == ReleaseImportDraftStatus.Skipped)
+        {
+            throw new DomainException("release_import_draft.skipped", "Skipped release import drafts cannot be edited");
+        }
     }
 
     private static string? TrimOrNull(string? value)

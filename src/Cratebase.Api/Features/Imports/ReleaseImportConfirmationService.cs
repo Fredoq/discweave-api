@@ -27,14 +27,12 @@ public sealed partial class ReleaseImportConfirmationService
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+        ReleaseImportDraft? draft = await FindDraftForUpdateAsync(context, collectionId, sessionId, draftId, cancellationToken);
         ReleaseImportSession? session = await context.ReleaseImportSessions.SingleOrDefaultAsync(
             candidate => candidate.CollectionId == collectionId && candidate.Id == new ReleaseImportSessionId(sessionId),
             cancellationToken);
-        ReleaseImportDraft? draft = session is null
-            ? null
-            : await context.ReleaseImportDrafts.SingleOrDefaultAsync(
-                candidate => candidate.CollectionId == collectionId && candidate.SessionId == session.Id && candidate.Id == new ReleaseImportDraftId(draftId),
-                cancellationToken);
         if (session is null || draft is null)
         {
             return null;
@@ -42,6 +40,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         if (draft.Status == ReleaseImportDraftStatus.Confirmed)
         {
+            await transaction.CommitAsync(cancellationToken);
             return session;
         }
 
@@ -60,8 +59,6 @@ public sealed partial class ReleaseImportConfirmationService
             throw new DomainException("release_import.tracks_required", "Release import draft has no tracks to confirm");
         }
 
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
-            await context.Database.BeginTransactionAsync(cancellationToken);
         Release release = await CreateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
         draft.Confirm(release.Id);
         await UpdateSessionStatusAsync(context, session, cancellationToken);
@@ -69,6 +66,28 @@ public sealed partial class ReleaseImportConfirmationService
         await transaction.CommitAsync(cancellationToken);
 
         return session;
+    }
+
+    private static async Task<ReleaseImportDraft?> FindDraftForUpdateAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        Guid sessionId,
+        Guid draftId,
+        CancellationToken cancellationToken)
+    {
+        var typedSessionId = new ReleaseImportSessionId(sessionId);
+        var typedDraftId = new ReleaseImportDraftId(draftId);
+
+        return await context.ReleaseImportDrafts
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM release_import_drafts
+                WHERE collection_id = {collectionId.Value}
+                  AND release_import_session_id = {typedSessionId.Value}
+                  AND release_import_draft_id = {typedDraftId.Value}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     private async Task<Release> CreateReleaseAsync(
