@@ -58,10 +58,6 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ImportPatternId(value));
 
-    public static readonly ValueConverter<LocalAgentImportTokenId, Guid> LocalAgentImportTokenId = new(
-        id => id.Value,
-        value => new LocalAgentImportTokenId(value));
-
     public static readonly ValueConverter<TrackId, Guid> TrackId = new(
         id => id.Value,
         value => new TrackId(value));

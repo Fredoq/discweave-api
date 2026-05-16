@@ -6,50 +6,8 @@ using Cratebase.Infrastructure.Persistence;
 
 namespace Cratebase.Api.Features.Imports;
 
-public sealed class LocalAgentImportScanService
+public sealed partial class ReleaseImportScanService
 {
-    private readonly LocalAgentImportTokenService _tokens;
-
-    public LocalAgentImportScanService(LocalAgentImportTokenService tokens)
-    {
-        _tokens = tokens;
-    }
-
-    public async Task<LocalAgentImportScanResult> AcceptAsync(
-        LocalAgentScanUploadRequest request,
-        CratebaseDbContext context,
-        CancellationToken cancellationToken)
-    {
-        if (request.Scan is null)
-        {
-            throw new DomainException("release_import.scan_required", "Local agent scan payload is required");
-        }
-
-        LocalAgentImportToken token = await _tokens.UseAsync(context, request.Token, cancellationToken);
-        ReleaseImportSession session = CreateSession(context, token.CollectionId, request.Scan);
-        _ = await context.SaveChangesAsync(cancellationToken);
-
-        return new LocalAgentImportScanResult(session, token.CollectionId);
-    }
-
-    private static ReleaseImportSession CreateSession(
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        ReleaseFolderScanPayload scan)
-    {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        var session = ReleaseImportSession.Create(collectionId, ReleaseImportSessionId.New(), scan.SourceRoot, now);
-        _ = context.ReleaseImportSessions.Add(session);
-
-        foreach (ReleaseFolderScanDraft scannedDraft in scan.Drafts)
-        {
-            AddDraft(context, collectionId, session.Id, scannedDraft);
-        }
-
-        session.UpdateCounts(scan.Drafts.Count, scan.Drafts.Sum(draft => draft.Tracks.Count), scan.IgnoredFileCount, now);
-        return session;
-    }
-
     private static void AddDraft(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -121,14 +79,24 @@ public sealed class LocalAgentImportScanService
 
     private static ReleaseImportCoverArtifact? ToCoverArtifact(CoverArtifactPayload? artifact)
     {
-        return artifact is null
-            ? null
-            : new ReleaseImportCoverArtifact(
+        if (artifact is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return new ReleaseImportCoverArtifact(
                 artifact.FileName,
                 artifact.Extension,
                 artifact.ContentType,
                 artifact.SizeBytes,
                 Convert.FromBase64String(artifact.ContentBase64));
+        }
+        catch (FormatException exception)
+        {
+            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
+        }
     }
 
     private static List<ReleaseImportArtistCredit> DefaultArtistCredits(ReleaseFolderScanDraft scannedDraft)
@@ -164,5 +132,3 @@ public sealed class LocalAgentImportScanService
             ];
     }
 }
-
-public sealed record LocalAgentImportScanResult(ReleaseImportSession Session, CollectionId CollectionId);

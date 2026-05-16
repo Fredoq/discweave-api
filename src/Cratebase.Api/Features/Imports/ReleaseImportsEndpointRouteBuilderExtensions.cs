@@ -3,7 +3,6 @@ using Cratebase.Api.Http;
 using Cratebase.Application.Security;
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.SharedKernel.Errors;
-using Cratebase.Importing;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,9 +18,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
         _ = group.MapGet("", ListImportsAsync).WithName("ListReleaseImports");
         _ = group.MapGet("/{sessionId:guid}", GetImportAsync).WithName("GetReleaseImport");
-        _ = group.MapGet("/local-agent-downloads/macos", DownloadMacOsLocalAgentAsync).WithName("DownloadMacOsLocalAgent");
-        _ = group.MapPost("/local-agent-tokens", CreateLocalAgentTokenAsync).WithName("CreateLocalAgentImportToken");
-        _ = group.MapPost("/local-agent-scans", AcceptLocalAgentScanAsync).AllowAnonymous().WithName("AcceptLocalAgentImportScan");
+        _ = group.MapGet("/desktop-downloads/macos", DownloadMacOsDesktopAsync).WithName("DownloadMacOsDesktop");
+        _ = group.MapPost("/desktop-folder-scans", AcceptDesktopFolderScanAsync).WithName("AcceptDesktopFolderScan");
         _ = group.MapPut("/{sessionId:guid}/drafts/{draftId:guid}", UpdateDraftAsync).WithName("UpdateReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/confirm", ConfirmDraftAsync).WithName("ConfirmReleaseImportDraft");
         _ = group.MapPost("/{sessionId:guid}/drafts/{draftId:guid}/skip", SkipDraftAsync).WithName("SkipReleaseImportDraft");
@@ -52,48 +50,81 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             : Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));
     }
 
-    private static IResult DownloadMacOsLocalAgentAsync(IWebHostEnvironment environment)
+    private const string MacOsInstallerContentType = "application/x-apple-diskimage";
+    private const string MacOsInstallerDefaultPattern = "Cratebase*.dmg";
+
+    private static IResult DownloadMacOsDesktopAsync(IWebHostEnvironment environment, IConfiguration configuration)
     {
-        string path = Path.Combine(environment.ContentRootPath, "local-agent", "Cratebase.LocalAgent.dmg");
-        return File.Exists(path)
-            ? Results.File(path, "application/x-apple-diskimage", "Cratebase.LocalAgent.dmg")
-            : EndpointErrors.NotFound("local_agent.download_not_found", "Local agent macOS installer is not available in this build");
+        string? path = FindMacOsInstaller(environment, configuration);
+        return path is not null
+            ? Results.File(path, MacOsInstallerContentType, Path.GetFileName(path))
+            : EndpointErrors.NotFound("desktop.download_not_found", "Cratebase macOS desktop installer is not available in this build");
     }
 
-    private static async Task<IResult> CreateLocalAgentTokenAsync(
-        LocalAgentImportTokenService tokens,
+    private static string? FindMacOsInstaller(IWebHostEnvironment environment, IConfiguration configuration)
+    {
+        string? configuredPath = ResolveConfiguredPath(configuration["DesktopDownloads:MacOsInstallerPath"], environment.ContentRootPath);
+        if (configuredPath is not null && File.Exists(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        string pattern = configuration["DesktopDownloads:MacOsInstallerPattern"] ?? MacOsInstallerDefaultPattern;
+        foreach (string directory in CandidateMacOsInstallerDirectories(environment, configuration))
+        {
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            FileInfo? installer = Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path))
+                .OrderByDescending(file => file.LastWriteTimeUtc)
+                .ThenByDescending(file => file.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+            if (installer is not null)
+            {
+                return installer.FullName;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> CandidateMacOsInstallerDirectories(IWebHostEnvironment environment, IConfiguration configuration)
+    {
+        string? configuredDirectory = ResolveConfiguredPath(configuration["DesktopDownloads:MacOsInstallerDirectory"], environment.ContentRootPath);
+        if (configuredDirectory is not null)
+        {
+            yield return configuredDirectory;
+        }
+
+        yield return Path.Combine(environment.ContentRootPath, "desktop");
+    }
+
+    private static string? ResolveConfiguredPath(string? path, string contentRootPath)
+    {
+        return string.IsNullOrWhiteSpace(path)
+            ? null
+            : Path.GetFullPath(
+                Path.IsPathFullyQualified(path)
+                    ? path
+                    : Path.Combine(contentRootPath, path));
+    }
+
+    private static async Task<IResult> AcceptDesktopFolderScanAsync(
+        DesktopFolderScanRequest request,
+        ReleaseImportScanService scans,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        LocalAgentImportTokenIssue token = await tokens.CreateAsync(context, currentCollection.CollectionId, cancellationToken);
-
-        return Results.Ok(new LocalAgentImportTokenResponse(
-            token.Token,
-            token.ExpiresAt,
-            "http://127.0.0.1:43817",
-            1,
-            "/api/imports/local-agent-downloads/macos",
-            token.ReleaseFolderPatterns,
-            token.TrackFilePatterns));
-    }
-
-    private static async Task<IResult> AcceptLocalAgentScanAsync(
-        LocalAgentScanUploadRequest request,
-        LocalAgentImportScanService scans,
-        CratebaseDbContext context,
-        CancellationToken cancellationToken)
-    {
         try
         {
-            LocalAgentImportScanResult result = await scans.AcceptAsync(request, context, cancellationToken);
+            ReleaseImportScanResult result = await scans.AcceptDesktopAsync(request, context, currentCollection.CollectionId, cancellationToken);
             return Results.Created(
                 $"/api/imports/{result.Session.Id.Value}",
                 await ReleaseImportResponseMapper.ToDetailResponseAsync(result.Session, context, result.CollectionId, cancellationToken));
-        }
-        catch (DomainException exception) when (exception.Code.StartsWith("local_agent_import_token.", StringComparison.Ordinal))
-        {
-            return EndpointErrors.Unauthorized(exception.Code, exception.Message);
         }
         catch (DomainException exception)
         {

@@ -1,13 +1,36 @@
 namespace Cratebase.Api.Features.Imports;
 
-public sealed record LocalAgentImportTokenResponse(
-    string Token,
-    DateTimeOffset ExpiresAt,
-    string AgentBaseUrl,
-    int ProtocolVersion,
-    string MacOsDownloadUrl,
-    IReadOnlyList<string> ReleaseFolderPatterns,
-    IReadOnlyList<string> TrackFilePatterns);
+public sealed record DesktopFolderScanRequest(
+    string SourceRoot,
+    IReadOnlyList<DesktopFolderScanFileRequest>? Files,
+    int IgnoredFileCount);
+
+public sealed record DesktopFolderScanFileRequest(
+    string FilePath,
+    string RelativePath,
+    string? Format,
+    long SizeBytes,
+    DateTimeOffset LastModifiedAt,
+    DesktopAudioMetadataRequest? AudioMetadata,
+    DesktopCoverArtifactRequest? CoverArtifact);
+
+public sealed record DesktopAudioMetadataRequest(
+    string? Title,
+    IReadOnlyList<string>? Artists,
+    string? AlbumTitle,
+    IReadOnlyList<string>? AlbumArtists,
+    string? CatalogNumber,
+    string? ReleaseDate,
+    int? Year,
+    int? DurationSeconds,
+    int? TrackNumber);
+
+public sealed record DesktopCoverArtifactRequest(
+    string FileName,
+    string Extension,
+    string ContentType,
+    long SizeBytes,
+    string ContentBase64);
 
 public sealed record ReleaseImportSessionResponse(
     Guid Id,

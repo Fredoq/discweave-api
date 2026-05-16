@@ -521,54 +521,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.ToTable("import_patterns", (string)null);
                 });
 
-            modelBuilder.Entity("Cratebase.Domain.Imports.LocalAgentImportToken", b =>
-                {
-                    b.Property<long>("id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
-
-                    b.Property<Guid>("CollectionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("collection_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("local_agent_import_token_id");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("token_hash");
-
-                    b.Property<DateTimeOffset?>("UsedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("used_at");
-
-                    b.HasKey("id");
-
-                    b.HasAlternateKey("Id")
-                        .HasName("local_agent_import_token_id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("CollectionId", "CreatedAt");
-
-                    b.ToTable("local_agent_import_tokens", (string)null);
-                });
-
             modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportDraft", b =>
                 {
                     b.Property<long>("id")
@@ -1775,16 +1727,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Imports.ImportPattern", b =>
-                {
-                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
-                        .WithMany()
-                        .HasForeignKey("CollectionId")
-                        .HasPrincipalKey("Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Cratebase.Domain.Imports.LocalAgentImportToken", b =>
                 {
                     b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
                         .WithMany()

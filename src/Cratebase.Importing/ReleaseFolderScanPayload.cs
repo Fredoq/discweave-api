@@ -47,5 +47,3 @@ public sealed record CoverArtifactPayload(
     string ContentType,
     long SizeBytes,
     string ContentBase64);
-
-public sealed record LocalAgentScanUploadRequest(string Token, ReleaseFolderScanPayload Scan);

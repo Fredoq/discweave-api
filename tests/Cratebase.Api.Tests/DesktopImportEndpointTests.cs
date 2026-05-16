@@ -4,59 +4,71 @@ using System.Text.Json;
 
 namespace Cratebase.Api.Tests;
 
-public sealed class LocalAgentImportEndpointTests : IClassFixture<PostgresFixture>
+public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
 {
-    private static readonly string[] StevenJulienArtistNames = ["Steven Julien"];
     private static readonly string[] BeginsTrackArtistNames = ["Steve Bicknell", "C.K. & pH 1"];
 
     private readonly PostgresFixture _postgres;
 
-    public LocalAgentImportEndpointTests(PostgresFixture postgres)
+    public DesktopImportEndpointTests(PostgresFixture postgres)
     {
         _postgres = postgres;
     }
 
-    [Fact(DisplayName = "Local agent import endpoints require authentication where expected")]
-    public async Task Local_agent_import_endpoints_require_authentication_where_expected()
+    [Fact(DisplayName = "Desktop import endpoint requires authentication")]
+    public async Task Desktop_import_endpoint_requires_authentication()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = host.CreateClient();
 
         using HttpResponseMessage listResponse = await client.GetAsync("/api/imports");
-        using HttpResponseMessage tokenResponse = await client.PostAsync("/api/imports/local-agent-tokens", null);
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync("/api/imports/desktop-folder-scans", EmptyDesktopScan());
 
         Assert.Equal(HttpStatusCode.Unauthorized, listResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, tokenResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, scanResponse.StatusCode);
     }
 
-    [Fact(DisplayName = "Local agent token is short lived and single use")]
-    public async Task Local_agent_token_is_short_lived_and_single_use()
+    [Fact(DisplayName = "Local agent endpoints are removed")]
+    public async Task Local_agent_endpoints_are_removed()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        string token = await CreateTokenAsync(client);
 
-        using HttpResponseMessage invalidResponse = await client.PostAsJsonAsync(
-            "/api/imports/local-agent-scans",
-            new { token = "invalid", scan = EmptyScan() });
-        using JsonDocument invalidDocument = await ReadJsonAsync(invalidResponse);
-        using HttpResponseMessage firstResponse = await client.PostAsJsonAsync(
-            "/api/imports/local-agent-scans",
-            new { token, scan = EmptyScan() });
-        using HttpResponseMessage secondResponse = await client.PostAsJsonAsync(
-            "/api/imports/local-agent-scans",
-            new { token, scan = EmptyScan() });
-        using JsonDocument secondDocument = await ReadJsonAsync(secondResponse);
+        using HttpResponseMessage tokenResponse = await client.PostAsync("/api/imports/local-agent-tokens", null);
+        using HttpResponseMessage scanResponse = await client.PostAsJsonAsync("/api/imports/local-agent-scans", new { });
+        using HttpResponseMessage downloadResponse = await client.GetAsync("/api/imports/local-agent-downloads/macos");
 
-        Assert.Equal(HttpStatusCode.Unauthorized, invalidResponse.StatusCode);
-        Assert.Equal("local_agent_import_token.invalid", invalidDocument.RootElement.GetProperty("code").GetString());
-        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, secondResponse.StatusCode);
-        Assert.Equal("local_agent_import_token.used", secondDocument.RootElement.GetProperty("code").GetString());
+        AssertOldEndpointIsUnavailable(tokenResponse);
+        AssertOldEndpointIsUnavailable(scanResponse);
+        AssertOldEndpointIsUnavailable(downloadResponse);
     }
 
-    [Fact(DisplayName = "Local agent scan persists draft and confirm creates catalog data")]
-    public async Task Local_agent_scan_persists_draft_and_confirm_creates_catalog_data()
+    [Fact(DisplayName = "Desktop download returns the configured macOS installer")]
+    public async Task Desktop_download_returns_the_configured_macos_installer()
+    {
+        using var installerDirectory = TempImportRoot.Create();
+        string installerPath = Path.Combine(installerDirectory.Path, "Cratebase-0.0.0-arm64.dmg");
+        byte[] installerBytes = [0x43, 0x42, 0x44, 0x4d, 0x47];
+        await File.WriteAllBytesAsync(installerPath, installerBytes);
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(
+            _postgres,
+            new Dictionary<string, string?>
+            {
+                ["DesktopDownloads:MacOsInstallerDirectory"] = installerDirectory.Path
+            });
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage response = await client.GetAsync("/api/imports/desktop-downloads/macos");
+        byte[] responseBytes = await response.Content.ReadAsByteArrayAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/x-apple-diskimage", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("Cratebase-0.0.0-arm64.dmg", response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.Equal(installerBytes, responseBytes);
+    }
+
+    [Fact(DisplayName = "Desktop scan persists draft and confirm creates catalog data")]
+    public async Task Desktop_scan_persists_draft_and_confirm_creates_catalog_data()
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[AA 01, 2016-07-15] Steven Julien - Fallen");
@@ -65,9 +77,8 @@ public sealed class LocalAgentImportEndpointTests : IClassFixture<PostgresFixtur
         await File.WriteAllTextAsync(audioPath, "fake flac");
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
-        string token = await CreateTokenAsync(client);
 
-        using JsonDocument scanDocument = await PostScanAsync(client, token, root.Path, releaseDirectory, audioPath);
+        using JsonDocument scanDocument = await PostScanAsync(client, root.Path, audioPath);
         JsonElement draft = scanDocument.RootElement.GetProperty("drafts")[0];
         JsonElement draftTrack = draft.GetProperty("tracks")[0];
         Guid sessionId = scanDocument.RootElement.GetProperty("id").GetGuid();
@@ -109,71 +120,36 @@ public sealed class LocalAgentImportEndpointTests : IClassFixture<PostgresFixtur
         Assert.Equal("flac", itemDocument.RootElement.GetProperty("items")[0].GetProperty("medium").GetProperty("format").GetString());
     }
 
-    private static async Task<string> CreateTokenAsync(HttpClient client)
-    {
-        using HttpResponseMessage response = await client.PostAsync("/api/imports/local-agent-tokens", null);
-        using JsonDocument document = await ReadJsonAsync(response);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("http://127.0.0.1:43817", document.RootElement.GetProperty("agentBaseUrl").GetString());
-        Assert.NotEmpty(document.RootElement.GetProperty("releaseFolderPatterns").EnumerateArray());
-        return document.RootElement.GetProperty("token").GetString() ?? throw new InvalidOperationException("Token is required");
-    }
-
-    private static async Task<JsonDocument> PostScanAsync(
-        HttpClient client,
-        string token,
-        string rootPath,
-        string releaseDirectory,
-        string audioPath)
+    private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
-            "/api/imports/local-agent-scans",
+            "/api/imports/desktop-folder-scans",
             new
             {
-                token,
-                scan = new
+                sourceRoot = rootPath,
+                ignoredFileCount = 0,
+                files = new[]
                 {
-                    sourceRoot = rootPath,
-                    ignoredFileCount = 0,
-                    drafts = new[]
+                    new
                     {
-                        new
+                        filePath = audioPath,
+                        relativePath = Path.GetRelativePath(rootPath, audioPath),
+                        format = "flac",
+                        sizeBytes = 9,
+                        lastModifiedAt = DateTimeOffset.UtcNow,
+                        audioMetadata = new
                         {
-                            sourcePath = releaseDirectory,
-                            relativePath = Path.GetFileName(releaseDirectory),
-                            title = "Fallen",
-                            type = "unknown",
-                            catalogNumber = "AA 01",
-                            labelName = (string?)null,
-                            releaseDate = "2016-07-15",
-                            year = 2016,
-                            isVariousArtists = false,
-                            notOnLabel = true,
-                            coverPath = (string?)null,
-                            artistNames = StevenJulienArtistNames,
-                            selectedArtistIds = Array.Empty<Guid>(),
-                            genres = Array.Empty<string>(),
-                            tags = Array.Empty<string>(),
-                            issues = Array.Empty<object>(),
-                            coverArtifact = (object?)null,
-                            tracks = new[]
-                            {
-                                new
-                                {
-                                    filePath = audioPath,
-                                    relativePath = "01 Begins.flac",
-                                    format = 1,
-                                    sizeBytes = 9,
-                                    lastModifiedAt = DateTimeOffset.UtcNow,
-                                    duration = (string?)null,
-                                    position = 1,
-                                    title = "Begins",
-                                    artistNames = BeginsTrackArtistNames,
-                                    issues = Array.Empty<object>()
-                                }
-                            }
-                        }
+                            title = (string?)null,
+                            artists = BeginsTrackArtistNames,
+                            albumTitle = (string?)null,
+                            albumArtists = Array.Empty<string>(),
+                            catalogNumber = (string?)null,
+                            releaseDate = (string?)null,
+                            year = (int?)null,
+                            durationSeconds = (int?)null,
+                            trackNumber = (int?)null
+                        },
+                        coverArtifact = (object?)null
                     }
                 }
             });
@@ -183,9 +159,16 @@ public sealed class LocalAgentImportEndpointTests : IClassFixture<PostgresFixtur
         return document;
     }
 
-    private static object EmptyScan()
+    private static object EmptyDesktopScan()
     {
-        return new { sourceRoot = "/tmp/cratebase-empty", drafts = Array.Empty<object>(), ignoredFileCount = 0 };
+        return new { sourceRoot = "/tmp/cratebase-empty", files = Array.Empty<object>(), ignoredFileCount = 0 };
+    }
+
+    private static void AssertOldEndpointIsUnavailable(HttpResponseMessage response)
+    {
+        Assert.True(
+            response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed,
+            $"Expected old endpoint to be unavailable, got {response.StatusCode}");
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

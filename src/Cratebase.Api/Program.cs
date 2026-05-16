@@ -18,8 +18,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCratebaseApplication();
 builder.Services.AddCratebaseInfrastructure(builder.Configuration);
-builder.Services.AddScoped<LocalAgentImportTokenService>();
-builder.Services.AddScoped<LocalAgentImportScanService>();
+builder.Services.AddScoped<ReleaseImportScanService>();
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();

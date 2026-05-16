@@ -61,8 +61,6 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<ImportPattern> ImportPatterns => Set<ImportPattern>();
 
-    public DbSet<LocalAgentImportToken> LocalAgentImportTokens => Set<LocalAgentImportToken>();
-
     public DbSet<ReleaseImportSession> ReleaseImportSessions => Set<ReleaseImportSession>();
 
     public DbSet<ReleaseImportDraft> ReleaseImportDrafts => Set<ReleaseImportDraft>();
@@ -116,7 +114,6 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
-        _ = builder.ApplyConfiguration(new LocalAgentImportTokenConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
         _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
         _ = builder.ApplyConfiguration(new RatingCriterionConfiguration());
@@ -163,7 +160,6 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = modelBuilder.Entity<RatingCriterion>().HasQueryFilter(criterion => !HasCurrentCollection || criterion.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<RatingValue>().HasQueryFilter(value => !HasCurrentCollection || value.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ImportPattern>().HasQueryFilter(pattern => !HasCurrentCollection || pattern.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<LocalAgentImportToken>().HasQueryFilter(token => !HasCurrentCollection || token.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ReleaseImportSession>().HasQueryFilter(session => !HasCurrentCollection || session.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ReleaseImportDraft>().HasQueryFilter(draft => !HasCurrentCollection || draft.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ReleaseImportDraftTrack>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
