@@ -1,6 +1,7 @@
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
 using Cratebase.Domain.SharedKernel.Errors;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Imports;
@@ -74,16 +75,18 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.title_required");
         Type = string.IsNullOrWhiteSpace(fields.Type) ? "unknown" : fields.Type.Trim();
-        CatalogNumber = TrimOrNull(fields.CatalogNumber);
-        LabelName = TrimOrNull(fields.LabelName);
-        ReleaseDate = fields.ReleaseDate;
-        Year = fields.Year ?? fields.ReleaseDate?.Year;
+        string? catalogNumber = OptionalTextOrNull(fields.CatalogNumber);
+        string? labelName = OptionalTextOrNull(fields.LabelName);
+        CatalogNumber = TrimOrNull(catalogNumber);
+        LabelName = TrimOrNull(labelName);
+        ReleaseDate = OptionalValueOrNull(fields.ReleaseDate);
+        Year = OptionalValueOrNull(fields.Year) ?? ReleaseDate?.Year;
         IsVariousArtists = fields.IsVariousArtists;
         NotOnLabel = fields.NotOnLabel;
-        CoverPath = TrimOrNull(fields.CoverPath);
+        CoverPath = TrimOrNull(OptionalTextOrNull(fields.CoverPath));
         _artistNamesJson = ImportJson.Serialize(fields.ArtistNames);
         _artistCreditsJson = ImportJson.Serialize(NormalizeArtistCredits(fields.ArtistCredits, fields.ArtistNames, fields.SelectedArtistIds));
-        _labelsJson = ImportJson.Serialize(NormalizeLabels(fields.Labels, fields.LabelName, fields.CatalogNumber));
+        _labelsJson = ImportJson.Serialize(NormalizeLabels(fields.Labels, labelName, catalogNumber));
         _selectedArtistIdsJson = ImportJson.Serialize(fields.SelectedArtistIds);
         _genresJson = ImportJson.Serialize(fields.Genres);
         _tagsJson = ImportJson.Serialize(fields.Tags);
@@ -95,15 +98,35 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
 
     public void SetCoverArtifact(ReleaseImportCoverArtifact? artifact)
     {
-        CoverFileName = TrimOrNull(artifact?.FileName);
-        CoverExtension = TrimOrNull(artifact?.Extension);
-        CoverContentType = TrimOrNull(artifact?.ContentType);
-        CoverContent = artifact?.Content.ToArray();
-        CoverSizeBytes = CoverContent?.LongLength ?? artifact?.SizeBytes;
+        EnsureEditable();
+
+        if (artifact is null)
+        {
+            CoverFileName = null;
+            CoverExtension = null;
+            CoverContentType = null;
+            CoverContent = null;
+            CoverSizeBytes = null;
+            return;
+        }
+
+        byte[] content = [.. artifact.Content];
+        CoverFileName = TrimOrNull(artifact.FileName);
+        CoverExtension = TrimOrNull(artifact.Extension);
+        CoverContentType = TrimOrNull(artifact.ContentType);
+        CoverContent = content;
+        CoverSizeBytes = content.LongLength;
     }
 
     public void Confirm(ReleaseId releaseId)
     {
+        if (Status == ReleaseImportDraftStatus.Ready)
+        {
+            ConfirmedReleaseId = releaseId;
+            Status = ReleaseImportDraftStatus.Confirmed;
+            return;
+        }
+
         if (Status == ReleaseImportDraftStatus.Confirmed)
         {
             throw new DomainException("release_import_draft.confirmed", "Confirmed release import drafts cannot be confirmed again");
@@ -114,8 +137,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
             throw new DomainException("release_import_draft.skipped", "Skipped release import drafts cannot be confirmed");
         }
 
-        ConfirmedReleaseId = releaseId;
-        Status = ReleaseImportDraftStatus.Confirmed;
+        throw new DomainException("release_import_draft.not_ready", "Only ready release import drafts can be confirmed");
     }
 
     public void Skip()
@@ -149,6 +171,17 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? OptionalTextOrNull(IOptionalValue<string> value)
+    {
+        return value is PresentOptionalValue<string> present ? present.Value : null;
+    }
+
+    private static T? OptionalValueOrNull<T>(IOptionalValue<T> value)
+        where T : struct
+    {
+        return value is PresentOptionalValue<T> present ? present.Value : null;
     }
 
     private static List<ReleaseImportArtistCredit> NormalizeArtistCredits(

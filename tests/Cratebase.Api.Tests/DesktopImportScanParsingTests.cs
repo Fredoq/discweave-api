@@ -48,8 +48,8 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixtur
                 {
                     AudioFile(root.Path, trackOne, "flac"),
                     AudioFile(root.Path, trackTwo, "m4a"),
-                    CoverFile(root.Path, front, "front.jpg", ".jpg", "image/jpeg", 100),
-                    CoverFile(root.Path, cover, "cover.png", ".png", "image/png", 50),
+                    CoverFile(root.Path, front, "front.jpg", ".jpg", "image/jpeg", 5),
+                    CoverFile(root.Path, cover, "cover.png", ".png", "image/png", 5),
                     UnknownFile(root.Path, hidden),
                     UnknownFile(root.Path, notes)
                 }

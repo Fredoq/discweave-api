@@ -23,9 +23,16 @@ public static class TrackFileNameParser
         ArgumentNullException.ThrowIfNull(templates);
 
         string baseName = BaseName(fileName);
-        var templateOrder = templates
-            .Select((template, index) => new { template, index })
-            .ToDictionary(item => item.template, item => item.index, StringComparer.Ordinal);
+        Dictionary<string, int> templateOrder = new(StringComparer.Ordinal);
+        for (int index = 0; index < templates.Count; index++)
+        {
+            string template = templates[index];
+            if (!templateOrder.ContainsKey(template))
+            {
+                templateOrder[template] = index;
+            }
+        }
+
         ParsedTrackFile? best = templates
             .Select(template => ImportTemplatePattern.Compile(template).Match(baseName))
             .Where(match => match is not null)

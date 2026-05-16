@@ -11,6 +11,17 @@ public sealed class ReleaseImportCoverArtifact : IEquatable<ReleaseImportCoverAr
         long sizeBytes,
         byte[] content)
     {
+        ArgumentNullException.ThrowIfNull(content);
+        if (sizeBytes < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sizeBytes), sizeBytes, "Cover artifact size cannot be negative");
+        }
+
+        if (sizeBytes != content.LongLength)
+        {
+            throw new ArgumentException("Cover artifact size must match content length", nameof(sizeBytes));
+        }
+
         FileName = fileName;
         Extension = extension;
         ContentType = contentType;

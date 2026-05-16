@@ -1,6 +1,7 @@
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Importing;
 using Cratebase.Infrastructure.Persistence;
 
@@ -24,13 +25,13 @@ public sealed partial class ReleaseImportScanService
         draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
             scannedDraft.Title,
             scannedDraft.Type,
-            scannedDraft.CatalogNumber,
-            scannedDraft.LabelName,
-            scannedDraft.ReleaseDate,
-            scannedDraft.Year,
+            ToOptional(scannedDraft.CatalogNumber),
+            ToOptional(scannedDraft.LabelName),
+            ToOptional(scannedDraft.ReleaseDate),
+            ToOptional(scannedDraft.Year),
             scannedDraft.IsVariousArtists,
             scannedDraft.NotOnLabel,
-            scannedDraft.CoverPath,
+            ToOptional(scannedDraft.CoverPath),
             scannedDraft.ArtistNames,
             DefaultArtistCredits(scannedDraft),
             DefaultLabels(scannedDraft),
@@ -77,6 +78,17 @@ public sealed partial class ReleaseImportScanService
         _ = context.ReleaseImportDraftTracks.Add(track);
     }
 
+    private static IOptionalValue<string> ToOptional(string? value)
+    {
+        return value is null ? Optional.Missing<string>() : Optional.From(value);
+    }
+
+    private static IOptionalValue<T> ToOptional<T>(T? value)
+        where T : struct
+    {
+        return value is { } present ? Optional.From(present) : Optional.Missing<T>();
+    }
+
     private static ReleaseImportCoverArtifact? ToCoverArtifact(CoverArtifactPayload? artifact)
     {
         if (artifact is null)
@@ -102,6 +114,10 @@ public sealed partial class ReleaseImportScanService
             throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
         }
         catch (ArgumentNullException exception)
+        {
+            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
+        }
+        catch (ArgumentException exception)
         {
             throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
         }

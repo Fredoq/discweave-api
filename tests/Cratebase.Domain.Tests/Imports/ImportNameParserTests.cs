@@ -2,6 +2,7 @@ using Cratebase.Domain.Imports;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 
 namespace Cratebase.Domain.Tests.Imports;
 
@@ -75,6 +76,18 @@ public sealed class ImportNameParserTests
         Assert.Empty(parsed.ArtistNames);
     }
 
+    [Fact(DisplayName = "Track file parser handles duplicate templates")]
+    public void Track_file_parser_handles_duplicate_templates()
+    {
+        ParsedTrackFile parsed = TrackFileNameParser.Parse(
+            "01 - Title.flac",
+            ["{position} - {title}", "{position} - {title}", "{position} {title}"]);
+
+        Assert.Equal(1, parsed.Position);
+        Assert.Equal("Title", parsed.Title);
+        Assert.Empty(parsed.Issues);
+    }
+
     [Fact(DisplayName = "Import domain guards invalid numeric state")]
     public void Import_domain_guards_invalid_numeric_state()
     {
@@ -131,43 +144,32 @@ public sealed class ImportNameParserTests
         var collectionId = CollectionId.New();
         var sessionId = ReleaseImportSessionId.New();
         var draft = ReleaseImportDraft.Create(collectionId, sessionId, ReleaseImportDraftId.New(), "/music/release", "release");
-        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Release",
-            "unknown",
-            null,
-            null,
-            null,
-            null,
-            false,
-            false,
-            null,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            []));
+        draft.UpdateEditableFields(ReadyDraftFields("Release"));
 
         draft.Confirm(ReleaseId.New());
 
-        _ = Assert.Throws<DomainException>(() => draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
-            "Edited",
-            "unknown",
-            null,
-            null,
-            null,
-            null,
-            false,
-            false,
-            null,
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [])));
+        _ = Assert.Throws<DomainException>(() => draft.UpdateEditableFields(ReadyDraftFields("Edited")));
         _ = Assert.Throws<DomainException>(draft.Skip);
+    }
+
+    private static ReleaseImportDraftEditableFields ReadyDraftFields(string title)
+    {
+        return new ReleaseImportDraftEditableFields(
+            title,
+            "unknown",
+            Optional.Missing<string>(),
+            Optional.Missing<string>(),
+            Optional.Missing<DateOnly>(),
+            Optional.Missing<int>(),
+            false,
+            false,
+            Optional.Missing<string>(),
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []);
     }
 }

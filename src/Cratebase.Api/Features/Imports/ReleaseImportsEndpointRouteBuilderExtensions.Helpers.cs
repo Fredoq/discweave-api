@@ -1,6 +1,7 @@
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -41,6 +42,17 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
             : DateOnly.TryParseExact(releaseDate.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly parsed)
             ? parsed
             : throw new DomainException("release_import.release_date_invalid", "Release date must use yyyy-MM-dd format");
+    }
+
+    private static IOptionalValue<string> ToOptional(string? value)
+    {
+        return value is null ? Optional.Missing<string>() : Optional.From(value);
+    }
+
+    private static IOptionalValue<T> ToOptional<T>(T? value)
+        where T : struct
+    {
+        return value is { } present ? Optional.From(present) : Optional.Missing<T>();
     }
 
     private static async Task UpdateTracksAsync(

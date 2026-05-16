@@ -111,10 +111,14 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("2016-07-15", releaseDocument.RootElement.GetProperty("items")[0].GetProperty("releaseDate").GetString());
         Assert.Equal(HttpStatusCode.OK, trackResponse.StatusCode);
         Assert.Equal(1, trackDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal(2, trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits").GetArrayLength());
-        Assert.Equal("Steve Bicknell", trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits")[0].GetProperty("artistName").GetString());
-        Assert.Equal("mainArtist", trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits")[0].GetProperty("role").GetString());
-        Assert.Equal("C.K. & pH 1", trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits")[1].GetProperty("artistName").GetString());
+        JsonElement trackCredits = trackDocument.RootElement.GetProperty("items")[0].GetProperty("credits");
+        Assert.Equal(2, trackCredits.GetArrayLength());
+        Assert.Contains(trackCredits.EnumerateArray(), credit =>
+            credit.GetProperty("artistName").GetString() == "Steve Bicknell" &&
+            credit.GetProperty("role").GetString() == "mainArtist");
+        Assert.Contains(trackCredits.EnumerateArray(), credit =>
+            credit.GetProperty("artistName").GetString() == "C.K. & pH 1" &&
+            credit.GetProperty("role").GetString() == "mainArtist");
         Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal("track", itemDocument.RootElement.GetProperty("items")[0].GetProperty("targetType").GetString());
         Assert.Equal("flac", itemDocument.RootElement.GetProperty("items")[0].GetProperty("medium").GetProperty("format").GetString());
