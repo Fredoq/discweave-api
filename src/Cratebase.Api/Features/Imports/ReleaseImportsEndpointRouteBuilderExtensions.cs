@@ -104,24 +104,31 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static string? ResolveConfiguredPath(string? path, string contentRootPath)
     {
-        return string.IsNullOrWhiteSpace(path)
-            ? null
-            : Path.GetFullPath(
-                Path.IsPathFullyQualified(path)
-                    ? path
-                    : Path.Combine(contentRootPath, path));
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        string configuredPath = Path.IsPathFullyQualified(path)
+            ? path
+            : Path.Combine(contentRootPath, path);
+
+        return Path.GetFullPath(configuredPath);
     }
 
     private static async Task<IResult> AcceptDesktopFolderScanAsync(
         DesktopFolderScanRequest request,
-        ReleaseImportScanService scans,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
-            ReleaseImportScanResult result = await scans.AcceptDesktopAsync(request, context, currentCollection.CollectionId, cancellationToken);
+            ReleaseImportScanResult result = await ReleaseImportScanService.AcceptDesktopAsync(
+                request,
+                context,
+                currentCollection.CollectionId,
+                cancellationToken);
             return Results.Created(
                 $"/api/imports/{result.Session.Id.Value}",
                 await ReleaseImportResponseMapper.ToDetailResponseAsync(result.Session, context, result.CollectionId, cancellationToken));

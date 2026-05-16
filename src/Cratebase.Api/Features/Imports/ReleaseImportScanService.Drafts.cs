@@ -3,7 +3,7 @@ using Cratebase.Importing;
 
 namespace Cratebase.Api.Features.Imports;
 
-public sealed partial class ReleaseImportScanService
+public static partial class ReleaseImportScanService
 {
     private static ReleaseFolderScanDraft CreateDraft(
         string sourceRoot,

@@ -6,7 +6,7 @@ using Cratebase.Importing;
 
 namespace Cratebase.Api.Features.Imports;
 
-public sealed partial class ReleaseImportScanService
+public static partial class ReleaseImportScanService
 {
     private const long MaxCoverArtifactSizeBytes = 10 * 1024 * 1024;
 
@@ -164,19 +164,29 @@ public sealed partial class ReleaseImportScanService
             ? year
             : null;
 
-        return leadingYear is { } partialYear && trimmed.EndsWith("-00-00", StringComparison.Ordinal)
-            ? new ImportDateResult(
+        if (leadingYear is { } partialYear && trimmed.EndsWith("-00-00", StringComparison.Ordinal))
+        {
+            return new ImportDateResult(
                 null,
                 partialYear,
-                [new ImportReviewIssue(ImportIssueCodes.PartialReleaseDate, "Release date has unknown month or day")])
-            : DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate)
-            ? new ImportDateResult(releaseDate, releaseDate.Year, [])
-            : trimmed.Length == 4 && leadingYear is not null
-            ? new ImportDateResult(null, leadingYear, [])
-            : new ImportDateResult(
-                null,
-                leadingYear,
-                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)]);
+                [new ImportReviewIssue(ImportIssueCodes.PartialReleaseDate, "Release date has unknown month or day")]);
+        }
+
+        DateOnly? parsedReleaseDate = null;
+        int? parsedYear = leadingYear;
+        IReadOnlyList<ImportReviewIssue> issues = [];
+
+        if (DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
+        {
+            parsedReleaseDate = releaseDate;
+            parsedYear = releaseDate.Year;
+        }
+        else if (trimmed.Length != 4 || leadingYear is null)
+        {
+            issues = [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)];
+        }
+
+        return new ImportDateResult(parsedReleaseDate, parsedYear, issues);
     }
 
     private static IReadOnlyList<string> CleanNames(IReadOnlyList<string>? values)

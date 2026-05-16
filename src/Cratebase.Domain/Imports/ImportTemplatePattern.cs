@@ -25,7 +25,8 @@ internal sealed class ImportTemplatePattern
         var regex = new StringBuilder("^\\s*");
         int score = 0;
 
-        for (int index = 0; index < template.Length; index++)
+        int index = 0;
+        while (index < template.Length)
         {
             char current = template[index];
             if (current == '{')
@@ -39,11 +40,12 @@ internal sealed class ImportTemplatePattern
                 string token = template[(index + 1)..end];
                 _ = regex.Append(TokenExpression(token));
                 score += TokenScore(token);
-                index = end;
+                index = end + 1;
                 continue;
             }
 
             AppendLiteral(regex, current);
+            index++;
         }
 
         _ = regex.Append("\\s*$");

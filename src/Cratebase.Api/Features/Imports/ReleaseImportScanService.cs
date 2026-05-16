@@ -7,9 +7,9 @@ using Cratebase.Infrastructure.Persistence;
 
 namespace Cratebase.Api.Features.Imports;
 
-public sealed partial class ReleaseImportScanService
+public static partial class ReleaseImportScanService
 {
-    public async Task<ReleaseImportScanResult> AcceptDesktopAsync(
+    public static async Task<ReleaseImportScanResult> AcceptDesktopAsync(
         DesktopFolderScanRequest request,
         CratebaseDbContext context,
         CollectionId collectionId,

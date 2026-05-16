@@ -92,18 +92,25 @@ internal static class ReleaseImportResponseMapper
 
     private static IReadOnlyList<ReleaseImportLabel> EffectiveLabels(ReleaseImportDraft draft)
     {
-        return draft.Labels.Count > 0
-            ? draft.Labels
-            : string.IsNullOrWhiteSpace(draft.LabelName)
-                ? []
-                :
-                [
-                    new ReleaseImportLabel(
-                        null,
-                        draft.LabelName,
-                        draft.CatalogNumber,
-                        string.IsNullOrWhiteSpace(draft.CatalogNumber))
-                ];
+        if (draft.Labels.Count > 0)
+        {
+            return draft.Labels;
+        }
+
+        IReadOnlyList<ReleaseImportLabel> labels = [];
+        if (!string.IsNullOrWhiteSpace(draft.LabelName))
+        {
+            labels =
+            [
+                new ReleaseImportLabel(
+                    null,
+                    draft.LabelName,
+                    draft.CatalogNumber,
+                    string.IsNullOrWhiteSpace(draft.CatalogNumber))
+            ];
+        }
+
+        return labels;
     }
 
     private static ReleaseImportArtistCreditResponse ToArtistCreditResponse(ReleaseImportArtistCredit credit)

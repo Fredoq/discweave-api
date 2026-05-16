@@ -7,8 +7,11 @@ using Cratebase.Infrastructure.Persistence;
 
 namespace Cratebase.Api.Features.Imports;
 
-public sealed partial class ReleaseImportScanService
+public static partial class ReleaseImportScanService
 {
+    private const string CoverInvalidCode = "release_import.cover_invalid";
+    private const string CoverInvalidMessage = "Selected cover image content is invalid";
+
     private static void AddDraft(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -98,9 +101,12 @@ public sealed partial class ReleaseImportScanService
 
         try
         {
-            byte[] content = string.IsNullOrWhiteSpace(artifact.ContentBase64)
-                ? throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid")
-                : Convert.FromBase64String(artifact.ContentBase64);
+            if (string.IsNullOrWhiteSpace(artifact.ContentBase64))
+            {
+                throw CoverInvalid();
+            }
+
+            byte[] content = Convert.FromBase64String(artifact.ContentBase64);
 
             return new ReleaseImportCoverArtifact(
                 artifact.FileName,
@@ -111,16 +117,19 @@ public sealed partial class ReleaseImportScanService
         }
         catch (FormatException exception)
         {
-            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
-        }
-        catch (ArgumentNullException exception)
-        {
-            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
+            throw CoverInvalid(exception);
         }
         catch (ArgumentException exception)
         {
-            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
+            throw CoverInvalid(exception);
         }
+    }
+
+    private static DomainException CoverInvalid(Exception? exception = null)
+    {
+        return exception is null
+            ? new DomainException(CoverInvalidCode, CoverInvalidMessage)
+            : new DomainException(CoverInvalidCode, CoverInvalidMessage, exception);
     }
 
     private static List<ReleaseImportArtistCredit> DefaultArtistCredits(ReleaseFolderScanDraft scannedDraft)

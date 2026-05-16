@@ -16,17 +16,29 @@ internal static class ImportDateParser
             ? year
             : null;
 
-        return leadingYear is { } partialYear && trimmed.EndsWith("-00-00", StringComparison.Ordinal)
-            ? new ImportDateResult(
+        if (leadingYear is { } partialYear && trimmed.EndsWith("-00-00", StringComparison.Ordinal))
+        {
+            return new ImportDateResult(
                 null,
                 partialYear,
-                [new ImportReviewIssue(ImportIssueCodes.PartialReleaseDate, "Release date has unknown month or day")])
-            : DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate)
-            ? new ImportDateResult(releaseDate, releaseDate.Year, [])
-            : new ImportDateResult(
-                null,
-                leadingYear,
-                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)]);
+                [new ImportReviewIssue(ImportIssueCodes.PartialReleaseDate, "Release date has unknown month or day")]);
+        }
+
+        DateOnly? parsedReleaseDate = null;
+        int? parsedYear = leadingYear;
+        IReadOnlyList<ImportReviewIssue> issues = [];
+
+        if (DateOnly.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
+        {
+            parsedReleaseDate = releaseDate;
+            parsedYear = releaseDate.Year;
+        }
+        else
+        {
+            issues = [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)];
+        }
+
+        return new ImportDateResult(parsedReleaseDate, parsedYear, issues);
     }
 }
 

@@ -37,9 +37,12 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
     private static DateOnly? ParseOptionalDate(string? releaseDate)
     {
-        return string.IsNullOrWhiteSpace(releaseDate)
-            ? null
-            : DateOnly.TryParseExact(releaseDate.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly parsed)
+        return string.IsNullOrWhiteSpace(releaseDate) ? null : ParseRequiredDate(releaseDate.Trim());
+    }
+
+    private static DateOnly ParseRequiredDate(string releaseDate)
+    {
+        return DateOnly.TryParseExact(releaseDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly parsed)
             ? parsed
             : throw new DomainException("release_import.release_date_invalid", "Release date must use yyyy-MM-dd format");
     }
