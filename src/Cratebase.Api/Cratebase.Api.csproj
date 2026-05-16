@@ -8,6 +8,7 @@
     <ProjectReference Include="..\Cratebase.Application\Cratebase.Application.csproj" />
     <ProjectReference Include="..\Cratebase.Infrastructure\Cratebase.Infrastructure.csproj" />
     <ProjectReference Include="..\Cratebase.Domain\Cratebase.Domain.csproj" />
+    <ProjectReference Include="..\Cratebase.Importing\Cratebase.Importing.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

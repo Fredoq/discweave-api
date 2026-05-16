@@ -5,6 +5,7 @@ using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Linq.Expressions;
 
 namespace Cratebase.Api.Features.Releases;
@@ -71,6 +72,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             metadata.Type,
             metadata.LabelId.HasValue ? metadata.LabelId.Match(value => value.Value, () => Guid.Empty) : null,
             metadata.Year.HasValue ? metadata.Year.Match(value => value, () => 0) : null,
+            metadata.ReleaseDate.HasValue ? metadata.ReleaseDate.Match(value => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), () => string.Empty) : null,
             [.. release.Cataloging.Genres.Select(genre => genre.Name)],
             [.. release.Cataloging.Tags.Select(tag => tag.Name)],
             release.IsVariousArtists,

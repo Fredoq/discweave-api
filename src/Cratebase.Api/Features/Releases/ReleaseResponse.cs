@@ -6,6 +6,7 @@ public sealed record ReleaseResponse(
     string Type,
     Guid? LabelId,
     int? Year,
+    string? ReleaseDate,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
     bool IsVariousArtists,

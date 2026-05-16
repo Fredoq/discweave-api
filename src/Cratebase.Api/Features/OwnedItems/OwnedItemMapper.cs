@@ -146,6 +146,7 @@ internal static class OwnedItemMapper
             "wav" => AudioFileFormat.Wav,
             "aiff" => AudioFileFormat.Aiff,
             "alac" => AudioFileFormat.Alac,
+            "m4a" => AudioFileFormat.M4a,
             _ => throw new DomainException("digital_file.format_invalid", "Digital file format is invalid")
         };
     }
@@ -187,6 +188,7 @@ internal static class OwnedItemMapper
             AudioFileFormat.Wav => "wav",
             AudioFileFormat.Aiff => "aiff",
             AudioFileFormat.Alac => "alac",
+            AudioFileFormat.M4a => "m4a",
             _ => throw new InvalidOperationException("Audio file format is not supported")
         };
     }

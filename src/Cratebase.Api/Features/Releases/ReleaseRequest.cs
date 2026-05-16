@@ -10,6 +10,8 @@ public sealed record ReleaseRequest
 
     public int? Year { get; init; }
 
+    public string? ReleaseDate { get; init; }
+
     public bool IsVariousArtists { get; init; }
 
     public bool NotOnLabel { get; init; }

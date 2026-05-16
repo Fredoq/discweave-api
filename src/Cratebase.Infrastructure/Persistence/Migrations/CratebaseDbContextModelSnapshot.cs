@@ -470,6 +470,434 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Cratebase.Domain.Imports.ImportPattern", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_pattern_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBuiltin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_builtin");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Template")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("template");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("import_pattern_id");
+
+                    b.HasIndex("CollectionId", "Kind", "SortOrder");
+
+                    b.ToTable("import_patterns", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.LocalAgentImportToken", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("local_agent_import_token_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("local_agent_import_token_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("CollectionId", "CreatedAt");
+
+                    b.ToTable("local_agent_import_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportDraft", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<string>("CatalogNumber")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("catalog_number");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid?>("ConfirmedReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_release_id");
+
+                    b.Property<byte[]>("CoverContent")
+                        .HasColumnType("bytea")
+                        .HasColumnName("cover_content");
+
+                    b.Property<string>("CoverContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("cover_content_type");
+
+                    b.Property<string>("CoverExtension")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("cover_extension");
+
+                    b.Property<string>("CoverFileName")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("cover_file_name");
+
+                    b.Property<string>("CoverPath")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("cover_path");
+
+                    b.Property<long?>("CoverSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cover_size_bytes");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_import_draft_id");
+
+                    b.Property<bool>("IsVariousArtists")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_various_artists");
+
+                    b.Property<string>("LabelName")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("label_name");
+
+                    b.Property<bool>("NotOnLabel")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_not_on_label");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("relative_path");
+
+                    b.Property<DateOnly?>("ReleaseDate")
+                        .HasColumnType("date")
+                        .HasColumnName("release_date");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_import_session_id");
+
+                    b.Property<string>("SourcePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("source_path");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("release_type");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("release_year");
+
+                    b.Property<string>("_artistCreditsJson")
+                        .IsRequired()
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)")
+                        .HasColumnName("artist_credits_json");
+
+                    b.Property<string>("_artistNamesJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("artist_names_json");
+
+                    b.Property<string>("_genresJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("genres_json");
+
+                    b.Property<string>("_issuesJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("issues_json");
+
+                    b.Property<string>("_labelsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("labels_json");
+
+                    b.Property<string>("_selectedArtistIdsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("selected_artist_ids_json");
+
+                    b.Property<string>("_tagsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("tags_json");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("release_import_draft_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("release_import_drafts", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportDraftTrack", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("DraftId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_import_draft_id");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("duration");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("file_path");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("audio_file_format");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_import_draft_track_id");
+
+                    b.Property<bool>("IsSkipped")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_skipped");
+
+                    b.Property<DateTimeOffset>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_modified_at");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position_number");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("relative_path");
+
+                    b.Property<Guid?>("SelectedTrackId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("selected_track_id");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("_artistCreditsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("artist_credits_json");
+
+                    b.Property<string>("_artistNamesJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("artist_names_json");
+
+                    b.Property<string>("_issuesJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("issues_json");
+
+                    b.Property<string>("_selectedArtistIdsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("selected_artist_ids_json");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("release_import_draft_track_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("DraftId");
+
+                    b.ToTable("release_import_draft_tracks", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportSession", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DraftCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("draft_count");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_import_session_id");
+
+                    b.Property<int>("IgnoredFileCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("ignored_file_count");
+
+                    b.Property<string>("SourceRoot")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("source_root");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("TrackCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("track_count");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("release_import_session_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("CollectionId", "CreatedAt");
+
+                    b.ToTable("release_import_sessions", (string)null);
+                });
+
             modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>
                 {
                     b.Property<long>("id")
@@ -1344,6 +1772,56 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CollectionId", "_targetTrackId")
                         .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ImportPattern", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.LocalAgentImportToken", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportDraft", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Imports.ReleaseImportSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportDraftTrack", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Imports.ReleaseImportDraft", null)
+                        .WithMany()
+                        .HasForeignKey("DraftId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Imports.ReleaseImportSession", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>

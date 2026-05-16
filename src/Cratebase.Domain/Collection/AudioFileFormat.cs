@@ -7,5 +7,6 @@ public enum AudioFileFormat
     Ogg = 3,
     Wav = 4,
     Aiff = 5,
-    Alac = 6
+    Alac = 6,
+    M4a = 7
 }

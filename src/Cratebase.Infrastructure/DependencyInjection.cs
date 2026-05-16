@@ -1,11 +1,13 @@
 using Cratebase.Application.Catalog.Releases;
 using Cratebase.Application.Catalog.Artists;
+using Cratebase.Application.Imports;
 using Cratebase.Application.Persistence;
 using Cratebase.Application.Search;
 using Cratebase.Infrastructure.Files;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
 using Cratebase.Infrastructure.Persistence.Queries;
+using Cratebase.Importing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -35,6 +37,7 @@ public static class DependencyInjection
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
+        _ = services.AddSingleton<IAudioMetadataReader, AtlAudioMetadataReader>();
         _ = services.AddIdentityCore<CratebaseUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;

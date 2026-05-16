@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Cratebase.Api;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Features;
+using Cratebase.Api.Features.Imports;
 using Cratebase.Api.Http;
 using Cratebase.Application;
 using Cratebase.Application.Security;
@@ -17,6 +18,9 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCratebaseApplication();
 builder.Services.AddCratebaseInfrastructure(builder.Configuration);
+builder.Services.AddScoped<LocalAgentImportTokenService>();
+builder.Services.AddScoped<LocalAgentImportScanService>();
+builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 builder.Services.ConfigureApplicationCookie(options =>

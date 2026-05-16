@@ -4,6 +4,7 @@ using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Imports;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
@@ -58,6 +59,16 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<RatingValue> RatingValues => Set<RatingValue>();
 
+    public DbSet<ImportPattern> ImportPatterns => Set<ImportPattern>();
+
+    public DbSet<LocalAgentImportToken> LocalAgentImportTokens => Set<LocalAgentImportToken>();
+
+    public DbSet<ReleaseImportSession> ReleaseImportSessions => Set<ReleaseImportSession>();
+
+    public DbSet<ReleaseImportDraft> ReleaseImportDrafts => Set<ReleaseImportDraft>();
+
+    public DbSet<ReleaseImportDraftTrack> ReleaseImportDraftTracks => Set<ReleaseImportDraftTrack>();
+
     public bool HasCurrentCollection { get; private set; }
 
     public CollectionId CurrentCollectionId { get; private set; }
@@ -104,11 +115,16 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new CollectionDictionaryEntryConfiguration());
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
+        _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
+        _ = builder.ApplyConfiguration(new LocalAgentImportTokenConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
         _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
         _ = builder.ApplyConfiguration(new RatingCriterionConfiguration());
         _ = builder.ApplyConfiguration(new RatingValueConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 
@@ -146,5 +162,10 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = modelBuilder.Entity<CollectionDictionaryEntry>().HasQueryFilter(entry => !HasCurrentCollection || entry.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<RatingCriterion>().HasQueryFilter(criterion => !HasCurrentCollection || criterion.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<RatingValue>().HasQueryFilter(value => !HasCurrentCollection || value.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<ImportPattern>().HasQueryFilter(pattern => !HasCurrentCollection || pattern.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<LocalAgentImportToken>().HasQueryFilter(token => !HasCurrentCollection || token.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<ReleaseImportSession>().HasQueryFilter(session => !HasCurrentCollection || session.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<ReleaseImportDraft>().HasQueryFilter(draft => !HasCurrentCollection || draft.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<ReleaseImportDraftTrack>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
     }
 }

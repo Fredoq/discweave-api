@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="z440.atl.core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cratebase.Application\Cratebase.Application.csproj" />
+    <ProjectReference Include="..\Cratebase.Domain\Cratebase.Domain.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

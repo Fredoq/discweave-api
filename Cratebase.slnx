@@ -9,6 +9,8 @@
     <Project Path="src/Cratebase.Application/Cratebase.Application.csproj" />
     <Project Path="src/Cratebase.Domain/Cratebase.Domain.csproj" />
     <Project Path="src/Cratebase.Infrastructure/Cratebase.Infrastructure.csproj" />
+    <Project Path="src/Cratebase.Importing/Cratebase.Importing.csproj" />
+    <Project Path="src/Cratebase.LocalAgent/Cratebase.LocalAgent.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Cratebase.Api.Tests/Cratebase.Api.Tests.csproj" />

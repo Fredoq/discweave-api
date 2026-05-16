@@ -29,6 +29,7 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 src/Cratebase.Api/var/
+src/Cratebase.Api/local-agent/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

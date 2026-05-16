@@ -42,6 +42,26 @@ internal static class PersistenceValueConverters
         id => id.HasValue ? id.Value.Value : null,
         value => value.HasValue ? new ReleaseId(value.Value) : null);
 
+    public static readonly ValueConverter<ReleaseImportSessionId, Guid> ReleaseImportSessionId = new(
+        id => id.Value,
+        value => new ReleaseImportSessionId(value));
+
+    public static readonly ValueConverter<ReleaseImportDraftId, Guid> ReleaseImportDraftId = new(
+        id => id.Value,
+        value => new ReleaseImportDraftId(value));
+
+    public static readonly ValueConverter<ReleaseImportDraftTrackId, Guid> ReleaseImportDraftTrackId = new(
+        id => id.Value,
+        value => new ReleaseImportDraftTrackId(value));
+
+    public static readonly ValueConverter<ImportPatternId, Guid> ImportPatternId = new(
+        id => id.Value,
+        value => new ImportPatternId(value));
+
+    public static readonly ValueConverter<LocalAgentImportTokenId, Guid> LocalAgentImportTokenId = new(
+        id => id.Value,
+        value => new LocalAgentImportTokenId(value));
+
     public static readonly ValueConverter<TrackId, Guid> TrackId = new(
         id => id.Value,
         value => new TrackId(value));

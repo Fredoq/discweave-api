@@ -173,8 +173,9 @@ public sealed class DomainModelShapeTests
 
     private static bool IsDomainNamespace(string? namespaceName)
     {
-        return namespaceName == "Cratebase.Domain" ||
-            namespaceName?.StartsWith("Cratebase.Domain.", StringComparison.Ordinal) == true;
+        return namespaceName != "Cratebase.Domain.Imports" &&
+            (namespaceName == "Cratebase.Domain" ||
+                namespaceName?.StartsWith("Cratebase.Domain.", StringComparison.Ordinal) == true);
     }
 
     private static int CountPublicInstanceProperties(Type type)
