@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260516171356_Initial")]
+    [Migration("20260516182334_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -521,6 +521,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CollectionId", "Kind", "SortOrder");
 
+                    b.HasIndex("CollectionId", "Kind", "Template", "IsBuiltin")
+                        .IsUnique()
+                        .HasDatabaseName("ux_import_patterns_collection_kind_template_builtin");
+
                     b.ToTable("import_patterns", (string)null);
                 });
 
@@ -680,9 +684,14 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("Id")
                         .HasName("release_import_draft_id");
 
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_release_import_drafts_collection_draft_id");
+
                     b.HasIndex("CollectionId");
 
                     b.HasIndex("SessionId");
+
+                    b.HasIndex("CollectionId", "SessionId");
 
                     b.ToTable("release_import_drafts", (string)null);
                 });
@@ -789,6 +798,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DraftId");
 
+                    b.HasIndex("CollectionId", "DraftId");
+
                     b.ToTable("release_import_draft_tracks", (string)null);
                 });
 
@@ -845,6 +856,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
                     b.HasAlternateKey("Id")
                         .HasName("release_import_session_id");
+
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_release_import_sessions_collection_session_id");
 
                     b.HasIndex("CollectionId");
 
@@ -1743,8 +1757,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("Cratebase.Domain.Imports.ReleaseImportSession", null)
                         .WithMany()
-                        .HasForeignKey("SessionId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "SessionId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1753,8 +1767,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("Cratebase.Domain.Imports.ReleaseImportDraft", null)
                         .WithMany()
-                        .HasForeignKey("DraftId")
-                        .HasPrincipalKey("Id")
+                        .HasForeignKey("CollectionId", "DraftId")
+                        .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

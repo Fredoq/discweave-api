@@ -41,6 +41,9 @@ internal sealed class ImportPatternConfiguration : IEntityTypeConfiguration<Impo
 
         _ = builder.HasAlternateKey(pattern => pattern.Id).HasName("import_pattern_id");
         _ = builder.HasIndex(pattern => new { pattern.CollectionId, pattern.Kind, pattern.SortOrder });
+        _ = builder.HasIndex(pattern => new { pattern.CollectionId, pattern.Kind, pattern.Template, pattern.IsBuiltin })
+            .IsUnique()
+            .HasDatabaseName("ux_import_patterns_collection_kind_template_builtin");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

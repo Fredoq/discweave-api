@@ -63,14 +63,16 @@ public static class ReleaseImportFileRules
         };
     }
 
-    public static string CoverContentType(string extension)
+    public static string CoverContentType(string? extension)
     {
-        return extension.ToLowerInvariant() switch
-        {
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".webp" => "image/webp",
-            _ => "application/octet-stream"
-        };
+        return string.IsNullOrWhiteSpace(extension)
+            ? "application/octet-stream"
+            : extension.ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".webp" => "image/webp",
+                _ => "application/octet-stream"
+            };
     }
 }

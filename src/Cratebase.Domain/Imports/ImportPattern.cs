@@ -24,7 +24,7 @@ public sealed class ImportPattern : IEntity<ImportPatternId>
         Id = id;
         Kind = kind;
         Template = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
-        SortOrder = sortOrder;
+        SortOrder = RequiredSortOrder(sortOrder);
         IsActive = true;
         IsBuiltin = isBuiltin;
     }
@@ -56,7 +56,14 @@ public sealed class ImportPattern : IEntity<ImportPatternId>
         }
 
         Template = Guard.RequiredText(template, nameof(template), "import_pattern.template_required");
-        SortOrder = sortOrder;
+        SortOrder = RequiredSortOrder(sortOrder);
         IsActive = isActive;
+    }
+
+    private static int RequiredSortOrder(int sortOrder)
+    {
+        return sortOrder < 0
+            ? throw new DomainException("import_pattern.sort_order_invalid", "Import pattern sort order cannot be negative")
+            : sortOrder;
     }
 }

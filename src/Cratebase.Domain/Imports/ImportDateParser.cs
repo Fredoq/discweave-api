@@ -26,7 +26,7 @@ internal static class ImportDateParser
             : new ImportDateResult(
                 null,
                 leadingYear,
-                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", "error")]);
+                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)]);
     }
 }
 

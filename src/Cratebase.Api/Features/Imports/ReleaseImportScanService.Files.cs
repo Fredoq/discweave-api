@@ -176,7 +176,7 @@ public sealed partial class ReleaseImportScanService
             : new ImportDateResult(
                 null,
                 leadingYear,
-                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", "error")]);
+                [new ImportReviewIssue(ImportIssueCodes.InvalidReleaseDate, "Release date could not be parsed", ImportReviewSeverity.Error)]);
     }
 
     private static IReadOnlyList<string> CleanNames(IReadOnlyList<string>? values)

@@ -38,13 +38,13 @@ public static class ReleaseFolderNameParser
     {
         string? artist = ValueOrNull(match, "artist");
         ImportDateResult date = ImportDateParser.ParseReleaseDate(ValueOrNull(match, "releaseDate"));
-        bool isVariousArtists = ImportArtistNames.IsVariousArtistsName(artist);
+        bool isVariousArtists = ImportArtistNames.IsVariousArtistsName(artist ?? string.Empty);
 
         return new ParsedReleaseFolder(
             ValueOrNull(match, "catalogNumber"),
             date.ReleaseDate,
             date.Year,
-            isVariousArtists ? [] : ImportArtistNames.Split(artist),
+            isVariousArtists ? [] : ImportArtistNames.Split(artist ?? string.Empty),
             isVariousArtists,
             ValueOrNull(match, "title"),
             date.Issues,

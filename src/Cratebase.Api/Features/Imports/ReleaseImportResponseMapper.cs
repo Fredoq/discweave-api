@@ -150,7 +150,18 @@ internal static class ReleaseImportResponseMapper
 
     private static ImportIssueResponse ToIssueResponse(ImportReviewIssue issue)
     {
-        return new ImportIssueResponse(issue.Code, issue.Message, issue.Severity);
+        return new ImportIssueResponse(issue.Code, issue.Message, IssueSeverityCode(issue.Severity));
+    }
+
+    private static string IssueSeverityCode(ImportReviewSeverity severity)
+    {
+        return severity switch
+        {
+            ImportReviewSeverity.Info => "info",
+            ImportReviewSeverity.Warning => "warning",
+            ImportReviewSeverity.Error => "error",
+            _ => throw new InvalidOperationException("Import review issue severity is not supported")
+        };
     }
 
     private static string StatusCode(ReleaseImportSessionStatus status)

@@ -88,7 +88,7 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         _genresJson = ImportJson.Serialize(fields.Genres);
         _tagsJson = ImportJson.Serialize(fields.Tags);
         _issuesJson = ImportJson.Serialize(fields.Issues);
-        Status = fields.Issues.Any(issue => issue.Severity == "error")
+        Status = fields.Issues.Any(issue => issue.Severity == ImportReviewSeverity.Error)
             ? ReleaseImportDraftStatus.NeedsReview
             : ReleaseImportDraftStatus.Ready;
     }
@@ -98,12 +98,22 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         CoverFileName = TrimOrNull(artifact?.FileName);
         CoverExtension = TrimOrNull(artifact?.Extension);
         CoverContentType = TrimOrNull(artifact?.ContentType);
-        CoverSizeBytes = artifact?.SizeBytes;
-        CoverContent = artifact?.Content;
+        CoverContent = artifact?.Content.ToArray();
+        CoverSizeBytes = CoverContent?.LongLength ?? artifact?.SizeBytes;
     }
 
     public void Confirm(ReleaseId releaseId)
     {
+        if (Status == ReleaseImportDraftStatus.Confirmed)
+        {
+            throw new DomainException("release_import_draft.confirmed", "Confirmed release import drafts cannot be confirmed again");
+        }
+
+        if (Status == ReleaseImportDraftStatus.Skipped)
+        {
+            throw new DomainException("release_import_draft.skipped", "Skipped release import drafts cannot be confirmed");
+        }
+
         ConfirmedReleaseId = releaseId;
         Status = ReleaseImportDraftStatus.Confirmed;
     }
@@ -113,6 +123,11 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
         if (Status == ReleaseImportDraftStatus.Confirmed)
         {
             throw new DomainException("release_import_draft.confirmed", "Confirmed release import drafts cannot be skipped");
+        }
+
+        if (Status == ReleaseImportDraftStatus.Skipped)
+        {
+            throw new DomainException("release_import_draft.skipped", "Skipped release import drafts cannot be skipped again");
         }
 
         Status = ReleaseImportDraftStatus.Skipped;
@@ -195,25 +210,3 @@ public sealed class ReleaseImportDraft : IEntity<ReleaseImportDraftId>
             : [new ReleaseImportLabel(null, labelName, TrimOrNull(legacyCatalogNumber), string.IsNullOrWhiteSpace(legacyCatalogNumber))];
     }
 }
-
-public sealed record ReleaseImportArtistCredit(Guid? ArtistId, string Name, string Role);
-
-public sealed record ReleaseImportLabel(Guid? LabelId, string Name, string? CatalogNumber, bool HasNoCatalogNumber);
-
-public sealed record ReleaseImportDraftEditableFields(
-    string Title,
-    string Type,
-    string? CatalogNumber,
-    string? LabelName,
-    DateOnly? ReleaseDate,
-    int? Year,
-    bool IsVariousArtists,
-    bool NotOnLabel,
-    string? CoverPath,
-    IReadOnlyList<string> ArtistNames,
-    IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits,
-    IReadOnlyList<ReleaseImportLabel> Labels,
-    IReadOnlyList<Guid> SelectedArtistIds,
-    IReadOnlyList<string> Genres,
-    IReadOnlyList<string> Tags,
-    IReadOnlyList<ImportReviewIssue> Issues);

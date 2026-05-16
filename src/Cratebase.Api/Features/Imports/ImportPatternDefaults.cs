@@ -18,15 +18,13 @@ internal static class ImportPatternDefaults
 
     public static async Task EnsureAsync(CratebaseDbContext context, CollectionId collectionId, CancellationToken cancellationToken)
     {
-        bool hasPatterns = await context.ImportPatterns.AnyAsync(pattern => pattern.CollectionId == collectionId, cancellationToken);
-        if (hasPatterns)
-        {
-            return;
-        }
-
         foreach ((ImportPatternKind kind, string template, int sortOrder) in Defaults)
         {
-            _ = context.ImportPatterns.Add(ImportPattern.Create(collectionId, ImportPatternId.New(), kind, template, sortOrder, isBuiltin: true));
+            _ = await context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO import_patterns (import_pattern_id, collection_id, kind, template, sort_order, is_active, is_builtin)
+                VALUES ({ImportPatternId.New().Value}, {collectionId.Value}, {kind.ToString()}, {template}, {sortOrder}, {true}, {true})
+                ON CONFLICT (collection_id, kind, template, is_builtin) DO NOTHING
+                """, cancellationToken);
         }
     }
 
@@ -37,7 +35,6 @@ internal static class ImportPatternDefaults
         CancellationToken cancellationToken)
     {
         await EnsureAsync(context, collectionId, cancellationToken);
-        _ = await context.SaveChangesAsync(cancellationToken);
 
         return await context.ImportPatterns.AsNoTracking()
             .Where(pattern => pattern.CollectionId == collectionId && pattern.Kind == kind && pattern.IsActive)

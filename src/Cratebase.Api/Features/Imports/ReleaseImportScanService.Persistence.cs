@@ -86,14 +86,22 @@ public sealed partial class ReleaseImportScanService
 
         try
         {
+            byte[] content = string.IsNullOrWhiteSpace(artifact.ContentBase64)
+                ? throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid")
+                : Convert.FromBase64String(artifact.ContentBase64);
+
             return new ReleaseImportCoverArtifact(
                 artifact.FileName,
                 artifact.Extension,
                 artifact.ContentType,
                 artifact.SizeBytes,
-                Convert.FromBase64String(artifact.ContentBase64));
+                content);
         }
         catch (FormatException exception)
+        {
+            throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
+        }
+        catch (ArgumentNullException exception)
         {
             throw new DomainException("release_import.cover_invalid", "Selected cover image content is invalid", exception);
         }

@@ -1,5 +1,6 @@
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
+using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Imports;
@@ -46,6 +47,11 @@ public sealed class ReleaseImportSession : IEntity<ReleaseImportSessionId>
 
     public void UpdateCounts(int draftCount, int trackCount, int ignoredFileCount, DateTimeOffset updatedAt)
     {
+        if (draftCount < 0 || trackCount < 0 || ignoredFileCount < 0)
+        {
+            throw new DomainException("release_import.counts_invalid", "Release import session counts cannot be negative");
+        }
+
         DraftCount = draftCount;
         TrackCount = trackCount;
         IgnoredFileCount = ignoredFileCount;

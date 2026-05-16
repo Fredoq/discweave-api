@@ -33,6 +33,8 @@ internal sealed class ReleaseImportSessionConfiguration : IEntityTypeConfigurati
         _ = builder.Property(session => session.UpdatedAt).HasColumnName("updated_at");
 
         _ = builder.HasAlternateKey(session => session.Id).HasName("release_import_session_id");
+        _ = builder.HasAlternateKey(session => new { session.CollectionId, session.Id })
+            .HasName("ak_release_import_sessions_collection_session_id");
         _ = builder.HasIndex(session => session.CollectionId);
         _ = builder.HasIndex(session => new { session.CollectionId, session.CreatedAt });
 

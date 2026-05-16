@@ -1,10 +1,11 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Cratebase.Domain.Imports;
 
 internal static class ImportJson
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Options = CreateOptions();
 
     public static string Serialize<T>(IReadOnlyList<T>? values)
     {
@@ -16,5 +17,12 @@ internal static class ImportJson
         return string.IsNullOrWhiteSpace(json)
             ? []
             : JsonSerializer.Deserialize<IReadOnlyList<T>>(json, Options) ?? [];
+    }
+
+    private static JsonSerializerOptions CreateOptions()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter<ImportReviewSeverity>(JsonNamingPolicy.CamelCase));
+        return options;
     }
 }

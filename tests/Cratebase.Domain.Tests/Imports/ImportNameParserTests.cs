@@ -1,4 +1,7 @@
 using Cratebase.Domain.Imports;
+using Cratebase.Domain.Collection;
+using Cratebase.Domain.SharedKernel.Errors;
+using Cratebase.Domain.SharedKernel.Ids;
 
 namespace Cratebase.Domain.Tests.Imports;
 
@@ -59,5 +62,112 @@ public sealed class ImportNameParserTests
         Assert.Equal(4, parsed.Position);
         Assert.Equal(["Dj Sports", "C.K. & pH 1"], parsed.ArtistNames);
         Assert.Equal("Second Wave", parsed.Title);
+    }
+
+    [Fact(DisplayName = "Track file parser respects caller template order")]
+    public void Track_file_parser_respects_caller_template_order()
+    {
+        ParsedTrackFile parsed = TrackFileNameParser.Parse(
+            "01 - Title.flac",
+            ["{position} - {title}", "{position} {title}"]);
+
+        Assert.Equal("Title", parsed.Title);
+        Assert.Empty(parsed.ArtistNames);
+    }
+
+    [Fact(DisplayName = "Import domain guards invalid numeric state")]
+    public void Import_domain_guards_invalid_numeric_state()
+    {
+        var collectionId = CollectionId.New();
+
+        _ = Assert.Throws<DomainException>(() => ImportPattern.Create(
+            collectionId,
+            ImportPatternId.New(),
+            ImportPatternKind.TrackFile,
+            "{position} {title}",
+            -1,
+            isBuiltin: false));
+
+        var session = ReleaseImportSession.Create(
+            collectionId,
+            ReleaseImportSessionId.New(),
+            "/music",
+            DateTimeOffset.UtcNow);
+        _ = Assert.Throws<DomainException>(() => session.UpdateCounts(-1, 0, 0, DateTimeOffset.UtcNow));
+
+        var track = ReleaseImportDraftTrack.Create(
+            collectionId,
+            ReleaseImportDraftId.New(),
+            ReleaseImportDraftTrackId.New(),
+            new DraftTrackFileInfo("/music/01.flac", "01.flac", AudioFileFormat.Flac, 1, DateTimeOffset.UtcNow));
+        _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
+            -1,
+            "Track",
+            null,
+            [],
+            [],
+            [],
+            null,
+            false,
+            [])));
+    }
+
+    [Fact(DisplayName = "Release import cover artifacts are copied")]
+    public void Release_import_cover_artifacts_are_copied()
+    {
+        byte[] original = [1, 2, 3];
+        var artifact = new ReleaseImportCoverArtifact("cover.jpg", ".jpg", "image/jpeg", original.Length, original);
+        original[0] = 9;
+
+        byte[] firstRead = [.. artifact.Content];
+        firstRead[1] = 9;
+
+        Assert.Equal([1, 2, 3], artifact.Content);
+    }
+
+    [Fact(DisplayName = "Release import draft guards terminal transitions")]
+    public void Release_import_draft_guards_terminal_transitions()
+    {
+        var collectionId = CollectionId.New();
+        var sessionId = ReleaseImportSessionId.New();
+        var draft = ReleaseImportDraft.Create(collectionId, sessionId, ReleaseImportDraftId.New(), "/music/release", "release");
+        draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
+            "Release",
+            "unknown",
+            null,
+            null,
+            null,
+            null,
+            false,
+            false,
+            null,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []));
+
+        draft.Confirm(ReleaseId.New());
+
+        _ = Assert.Throws<DomainException>(() => draft.UpdateEditableFields(new ReleaseImportDraftEditableFields(
+            "Edited",
+            "unknown",
+            null,
+            null,
+            null,
+            null,
+            false,
+            false,
+            null,
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [])));
+        _ = Assert.Throws<DomainException>(draft.Skip);
     }
 }

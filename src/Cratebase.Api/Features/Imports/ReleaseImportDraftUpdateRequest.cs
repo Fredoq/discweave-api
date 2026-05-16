@@ -17,18 +17,3 @@ public sealed record ReleaseImportDraftUpdateRequest(
     IReadOnlyList<string>? Tags,
     string? CoverPath,
     IReadOnlyList<ReleaseImportDraftTrackUpdateRequest>? Tracks);
-
-public sealed record ReleaseImportDraftTrackUpdateRequest(
-    Guid Id,
-    int? Position,
-    string Title,
-    int? DurationSeconds,
-    IReadOnlyList<string>? ArtistNames,
-    IReadOnlyList<ReleaseImportArtistCreditRequest>? ArtistCredits,
-    IReadOnlyList<Guid>? SelectedArtistIds,
-    Guid? SelectedTrackId,
-    bool IsSkipped);
-
-public sealed record ReleaseImportArtistCreditRequest(Guid? ArtistId, string? Name, string? Role);
-
-public sealed record ReleaseImportLabelRequest(Guid? LabelId, string? Name, string? CatalogNumber, bool HasNoCatalogNumber);

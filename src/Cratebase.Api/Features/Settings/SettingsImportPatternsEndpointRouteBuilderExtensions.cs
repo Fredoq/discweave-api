@@ -34,12 +34,19 @@ public static partial class SettingsImportPatternsEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         await ImportPatternDefaults.EnsureAsync(context, currentCollection.CollectionId, cancellationToken);
-        _ = await context.SaveChangesAsync(cancellationToken);
         IQueryable<ImportPattern> query = context.ImportPatterns.AsNoTracking().Where(pattern => pattern.CollectionId == currentCollection.CollectionId);
 
         if (!string.IsNullOrWhiteSpace(kind))
         {
-            query = query.Where(pattern => pattern.Kind == ImportPatternKindMapper.Parse(kind));
+            try
+            {
+                ImportPatternKind parsedKind = ImportPatternKindMapper.Parse(kind);
+                query = query.Where(pattern => pattern.Kind == parsedKind);
+            }
+            catch (DomainException exception)
+            {
+                return EndpointErrors.BadRequest(exception.Code, exception.Message);
+            }
         }
 
         ImportPattern[] patterns = await query.OrderBy(pattern => pattern.Kind).ThenBy(pattern => pattern.SortOrder).ToArrayAsync(cancellationToken);
@@ -86,7 +93,12 @@ public static partial class SettingsImportPatternsEndpointRouteBuilderExtensions
 
         try
         {
-            _ = ImportPatternKindMapper.Parse(request.Kind);
+            ImportPatternKind requestedKind = ImportPatternKindMapper.Parse(request.Kind);
+            if (requestedKind != pattern.Kind)
+            {
+                return EndpointErrors.BadRequest("import_pattern.kind_immutable", "Import pattern kind cannot be changed");
+            }
+
             pattern.Update(request.Template, request.SortOrder ?? pattern.SortOrder, request.IsActive ?? pattern.IsActive);
             _ = await context.SaveChangesAsync(cancellationToken);
             return Results.Ok(ToResponse(pattern));

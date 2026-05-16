@@ -51,13 +51,15 @@ internal sealed class ReleaseImportDraftConfiguration : IEntityTypeConfiguration
         _ = builder.Ignore(draft => draft.Issues);
 
         _ = builder.HasAlternateKey(draft => draft.Id).HasName("release_import_draft_id");
+        _ = builder.HasAlternateKey(draft => new { draft.CollectionId, draft.Id })
+            .HasName("ak_release_import_drafts_collection_draft_id");
         _ = builder.HasIndex(draft => draft.CollectionId);
         _ = builder.HasIndex(draft => draft.SessionId);
 
         _ = builder.HasOne<ReleaseImportSession>()
             .WithMany()
-            .HasForeignKey(draft => draft.SessionId)
-            .HasPrincipalKey(session => session.Id)
+            .HasForeignKey(draft => new { draft.CollectionId, draft.SessionId })
+            .HasPrincipalKey(session => new { session.CollectionId, session.Id })
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

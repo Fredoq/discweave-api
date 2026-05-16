@@ -2,15 +2,18 @@ namespace Cratebase.Domain.Imports;
 
 public static class ImportArtistNames
 {
-    public static bool IsVariousArtistsName(string? value)
+    public static bool IsVariousArtistsName(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
         string normalized = Normalize(value);
 
         return normalized is "va" or "various artists";
     }
 
-    public static IReadOnlyList<string> Split(string? value)
+    public static IReadOnlyList<string> Split(string value)
     {
+        ArgumentNullException.ThrowIfNull(value);
+
         return string.IsNullOrWhiteSpace(value) || IsVariousArtistsName(value)
             ? []
             :
@@ -21,7 +24,7 @@ public static class ImportArtistNames
             ];
     }
 
-    private static string Normalize(string? value)
+    private static string Normalize(string value)
     {
         return string.IsNullOrWhiteSpace(value)
             ? string.Empty

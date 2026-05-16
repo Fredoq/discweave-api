@@ -42,8 +42,8 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
 
         _ = builder.HasOne<ReleaseImportDraft>()
             .WithMany()
-            .HasForeignKey(track => track.DraftId)
-            .HasPrincipalKey(draft => draft.Id)
+            .HasForeignKey(track => new { track.CollectionId, track.DraftId })
+            .HasPrincipalKey(draft => new { draft.CollectionId, draft.Id })
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

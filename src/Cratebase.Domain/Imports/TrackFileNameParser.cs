@@ -23,12 +23,17 @@ public static class TrackFileNameParser
         ArgumentNullException.ThrowIfNull(templates);
 
         string baseName = BaseName(fileName);
+        var templateOrder = templates
+            .Select((template, index) => new { template, index })
+            .ToDictionary(item => item.template, item => item.index, StringComparer.Ordinal);
         ParsedTrackFile? best = templates
             .Select(template => ImportTemplatePattern.Compile(template).Match(baseName))
             .Where(match => match is not null)
             .Select(match => ToParsedTrack(match!))
             .OrderByDescending(Score)
-            .ThenBy(parsed => Array.IndexOf(DefaultTemplates, parsed.MatchedTemplate))
+            .ThenBy(parsed => parsed.MatchedTemplate is not null && templateOrder.TryGetValue(parsed.MatchedTemplate, out int index)
+                ? index
+                : int.MaxValue)
             .FirstOrDefault();
 
         return best ?? new ParsedTrackFile(
@@ -48,7 +53,7 @@ public static class TrackFileNameParser
         return new ParsedTrackFile(
             position,
             ValueOrNull(match, "title"),
-            ImportArtistNames.Split(ValueOrNull(match, "artist")),
+            ImportArtistNames.Split(ValueOrNull(match, "artist") ?? string.Empty),
             [],
             match.Template);
     }

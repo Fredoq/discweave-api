@@ -1,4 +1,5 @@
 using Cratebase.Domain.Collection;
+using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
 using Cratebase.Domain.SharedKernel.Validation;
@@ -57,6 +58,11 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 
     public void UpdateEditableFields(DraftTrackEditableFields fields)
     {
+        if (fields.Position is < 1)
+        {
+            throw new DomainException("release_import.track_position_invalid", "Release import track position must be greater than zero");
+        }
+
         Position = fields.Position;
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
         Duration = fields.Duration;
@@ -107,21 +113,3 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }
-
-public sealed record DraftTrackFileInfo(
-    string FilePath,
-    string RelativePath,
-    AudioFileFormat Format,
-    long SizeBytes,
-    DateTimeOffset LastModifiedAt);
-
-public sealed record DraftTrackEditableFields(
-    int? Position,
-    string Title,
-    TimeSpan? Duration,
-    IReadOnlyList<string> ArtistNames,
-    IReadOnlyList<ReleaseImportArtistCredit> ArtistCredits,
-    IReadOnlyList<Guid> SelectedArtistIds,
-    TrackId? SelectedTrackId,
-    bool IsSkipped,
-    IReadOnlyList<ImportReviewIssue> Issues);

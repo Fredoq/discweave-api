@@ -55,7 +55,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         }
 
         ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
-            .Where(track => track.DraftId == draft.Id)
+            .Where(track => track.CollectionId == draft.CollectionId && track.DraftId == draft.Id)
             .ToArrayAsync(cancellationToken);
         Dictionary<Guid, ReleaseImportDraftTrack> tracksById = tracks.ToDictionary(track => track.Id.Value);
 

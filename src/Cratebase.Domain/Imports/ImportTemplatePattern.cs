@@ -5,6 +5,8 @@ namespace Cratebase.Domain.Imports;
 
 internal sealed class ImportTemplatePattern
 {
+    private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(100);
+
     private ImportTemplatePattern(string template, Regex regex, int score)
     {
         Template = template;
@@ -47,7 +49,7 @@ internal sealed class ImportTemplatePattern
         _ = regex.Append("\\s*$");
         return new ImportTemplatePattern(
             template,
-            new Regex(regex.ToString(), RegexOptions.CultureInvariant | RegexOptions.IgnoreCase),
+            new Regex(regex.ToString(), RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, MatchTimeout),
             score);
     }
 

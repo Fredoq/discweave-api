@@ -245,6 +245,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_release_import_sessions", x => x.id);
+                    table.UniqueConstraint("ak_release_import_sessions_collection_session_id", x => new { x.collection_id, x.release_import_session_id });
                     table.UniqueConstraint("release_import_session_id", x => x.release_import_session_id);
                     table.ForeignKey(
                         name: "FK_release_import_sessions_collections_collection_id",
@@ -487,12 +488,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_release_import_drafts", x => x.id);
+                    table.UniqueConstraint("ak_release_import_drafts_collection_draft_id", x => new { x.collection_id, x.release_import_draft_id });
                     table.UniqueConstraint("release_import_draft_id", x => x.release_import_draft_id);
                     table.ForeignKey(
-                        name: "FK_release_import_drafts_release_import_sessions_release_impor~",
-                        column: x => x.release_import_session_id,
+                        name: "FK_release_import_drafts_release_import_sessions_collection_id~",
+                        columns: x => new { x.collection_id, x.release_import_session_id },
                         principalTable: "release_import_sessions",
-                        principalColumn: "release_import_session_id",
+                        principalColumns: new[] { "collection_id", "release_import_session_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -851,10 +853,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_release_import_draft_tracks", x => x.id);
                     table.UniqueConstraint("release_import_draft_track_id", x => x.release_import_draft_track_id);
                     table.ForeignKey(
-                        name: "FK_release_import_draft_tracks_release_import_drafts_release_i~",
-                        column: x => x.release_import_draft_id,
+                        name: "FK_release_import_draft_tracks_release_import_drafts_collectio~",
+                        columns: x => new { x.collection_id, x.release_import_draft_id },
                         principalTable: "release_import_drafts",
-                        principalColumn: "release_import_draft_id",
+                        principalColumns: new[] { "collection_id", "release_import_draft_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -991,6 +993,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_import_patterns_collection_id_kind_sort_order",
                 table: "import_patterns",
                 columns: new[] { "collection_id", "kind", "sort_order" });
+
+            migrationBuilder.CreateIndex(
+                name: "ux_import_patterns_collection_kind_template_builtin",
+                table: "import_patterns",
+                columns: new[] { "collection_id", "kind", "template", "is_builtin" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_labels_collection_id",
@@ -1135,6 +1143,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "collection_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_release_import_draft_tracks_collection_id_release_import_dr~",
+                table: "release_import_draft_tracks",
+                columns: new[] { "collection_id", "release_import_draft_id" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_release_import_draft_tracks_release_import_draft_id",
                 table: "release_import_draft_tracks",
                 column: "release_import_draft_id");
@@ -1143,6 +1156,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_release_import_drafts_collection_id",
                 table: "release_import_drafts",
                 column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_import_drafts_collection_id_release_import_session_~",
+                table: "release_import_drafts",
+                columns: new[] { "collection_id", "release_import_session_id" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_release_import_drafts_release_import_session_id",
