@@ -184,6 +184,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     private static string EscapeCsvField(string? value)
     {
         string field = value ?? string.Empty;
+        if (field.Length > 0 && field[0] is '=' or '+' or '-' or '@' or '\t')
+        {
+            field = $"'{field}";
+        }
+
         return field.IndexOfAny(CsvSpecialChars) >= 0
             ? $"\"{field.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
             : field;

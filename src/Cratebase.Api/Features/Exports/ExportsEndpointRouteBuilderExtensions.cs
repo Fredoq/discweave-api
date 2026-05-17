@@ -75,15 +75,28 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         Dictionary<ArtistId, Artist> artistsById = artists.ToDictionary(artist => artist.Id);
         Dictionary<LabelId, Label> labelsById = labels.ToDictionary(label => label.Id);
         Dictionary<TrackId, Track> tracksById = tracks.ToDictionary(track => track.Id);
+        var releaseCreditsByReleaseId = credits
+            .Where(credit => credit.Target is ReleaseCreditTarget)
+            .GroupBy(credit => ((ReleaseCreditTarget)credit.Target).ReleaseId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(credit => credit.Id.Value).ToArray());
+        var trackCreditsByTrackId = credits
+            .Where(credit => credit.Target is TrackCreditTarget)
+            .GroupBy(credit => ((TrackCreditTarget)credit.Target).TrackId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(credit => credit.Id.Value).ToArray());
+        var appearancesByTrackId = releases
+            .SelectMany(release => release.Tracklist.Select(releaseTrack => new TrackReleaseAppearance(release, releaseTrack)))
+            .GroupBy(appearance => appearance.ReleaseTrack.TrackId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        Credit[] orderedCredits = [.. credits.OrderBy(credit => credit.Id.Value)];
 
         return new ExportSnapshotResponse(
             FormatVersion,
             [.. artists.Select(ToArtistResponse)],
             [.. labels.Select(label => new LabelResponse(label.Id.Value, label.Name))],
-            [.. releases.Select(release => ToReleaseResponse(release, credits, artistsById, labelsById, tracksById))],
-            [.. tracks.Select(track => ToTrackResponse(track, credits, releases, artistsById, labelsById))],
+            [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
+            [.. tracks.Select(track => ToTrackResponse(track, trackCreditsByTrackId, appearancesByTrackId, releaseCreditsByReleaseId, artistsById, labelsById))],
             await LoadOwnedItemsAsync(context, collectionId, cancellationToken),
-            [.. credits.OrderBy(credit => credit.Id.Value).Select(CreditMapper.ToResponse)],
+            [.. orderedCredits.Select(CreditMapper.ToResponse)],
             await LoadArtistRelationsAsync(context, collectionId, cancellationToken),
             await LoadTrackRelationsAsync(context, collectionId, cancellationToken),
             await LoadDictionariesAsync(context, collectionId, cancellationToken),
@@ -106,13 +119,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static ReleaseResponse ToReleaseResponse(
         Release release,
-        IReadOnlyList<Credit> credits,
+        IReadOnlyDictionary<ReleaseId, Credit[]> releaseCreditsByReleaseId,
+        IReadOnlyDictionary<TrackId, Credit[]> trackCreditsByTrackId,
         IReadOnlyDictionary<ArtistId, Artist> artistsById,
         Dictionary<LabelId, Label> labelsById,
         Dictionary<TrackId, Track> tracksById)
     {
         ReleaseMetadata metadata = release.Summary.Metadata;
-        Credit[] releaseCredits = [.. credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
+        Credit[] releaseCredits = releaseCreditsByReleaseId.GetValueOrDefault(release.Id) ?? [];
 
         return new ReleaseResponse(
             release.Id.Value,
@@ -128,17 +142,19 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ToCoverImageResponse(release),
             [.. releaseCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
-            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToReleaseTracklistItemResponse(track, credits, artistsById, tracksById))]);
+            [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToReleaseTracklistItemResponse(track, trackCreditsByTrackId, artistsById, tracksById))]);
     }
 
     private static TrackResponse ToTrackResponse(
         Track track,
-        IReadOnlyList<Credit> credits,
-        IReadOnlyList<Release> releases,
+        IReadOnlyDictionary<TrackId, Credit[]> trackCreditsByTrackId,
+        IReadOnlyDictionary<TrackId, TrackReleaseAppearance[]> appearancesByTrackId,
+        IReadOnlyDictionary<ReleaseId, Credit[]> releaseCreditsByReleaseId,
         IReadOnlyDictionary<ArtistId, Artist> artistsById,
         Dictionary<LabelId, Label> labelsById)
     {
-        Credit[] trackCredits = [.. credits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == track.Id)];
+        Credit[] trackCredits = trackCreditsByTrackId.GetValueOrDefault(track.Id) ?? [];
+        TrackReleaseAppearance[] appearances = appearancesByTrackId.GetValueOrDefault(track.Id) ?? [];
 
         return new TrackResponse(
             track.Id.Value,
@@ -147,10 +163,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
             [.. trackCredits.Select(credit => ToTrackCreditResponse(credit, artistsById))],
-            [.. releases
-                .SelectMany(release => release.Tracklist
-                    .Where(releaseTrack => releaseTrack.TrackId == track.Id)
-                    .Select(releaseTrack => ToTrackReleaseAppearanceResponse(release, releaseTrack, track, credits, artistsById, labelsById)))
+            [.. appearances
+                .Select(appearance => ToTrackReleaseAppearanceResponse(
+                    appearance.Release,
+                    appearance.ReleaseTrack,
+                    track,
+                    releaseCreditsByReleaseId,
+                    artistsById,
+                    labelsById))
                 .OrderBy(appearance => appearance.ReleaseTitle)
                 .ThenBy(appearance => appearance.Position)]);
     }
@@ -175,12 +195,12 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static ReleaseTracklistItemResponse ToReleaseTracklistItemResponse(
         ReleaseTrack releaseTrack,
-        IReadOnlyList<Credit> credits,
+        IReadOnlyDictionary<TrackId, Credit[]> trackCreditsByTrackId,
         IReadOnlyDictionary<ArtistId, Artist> artistsById,
         Dictionary<TrackId, Track> tracksById)
     {
         _ = tracksById.TryGetValue(releaseTrack.TrackId, out Track? track);
-        Credit[] trackCredits = [.. credits.Where(credit => credit.Target is TrackCreditTarget target && target.TrackId == releaseTrack.TrackId)];
+        Credit[] trackCredits = trackCreditsByTrackId.GetValueOrDefault(releaseTrack.TrackId) ?? [];
 
         return new ReleaseTracklistItemResponse(
             releaseTrack.TrackId.Value,
@@ -195,11 +215,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         Release release,
         ReleaseTrack releaseTrack,
         Track track,
-        IReadOnlyList<Credit> credits,
+        IReadOnlyDictionary<ReleaseId, Credit[]> releaseCreditsByReleaseId,
         IReadOnlyDictionary<ArtistId, Artist> artistsById,
         Dictionary<LabelId, Label> labelsById)
     {
-        Credit[] releaseCredits = [.. credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
+        Credit[] releaseCredits = releaseCreditsByReleaseId.GetValueOrDefault(release.Id) ?? [];
         ReleaseLabel? releaseLabel = release.Labels.Count > 0 ? release.Labels[0] : null;
 
         return new TrackReleaseAppearanceResponse(
@@ -212,6 +232,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ToDurationSeconds(track),
             OptionalString(releaseTrack.VersionNote));
     }
+
+    private sealed record TrackReleaseAppearance(Release Release, ReleaseTrack ReleaseTrack);
 
     private static string FormatReleaseArtists(IReadOnlyList<Credit> credits, IReadOnlyDictionary<ArtistId, Artist> artistsById)
     {

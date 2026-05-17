@@ -79,6 +79,7 @@ public sealed class ExportEndpointTests : IClassFixture<PostgresFixture>
 
         Guid labelId = await CreateLabelAsync(client, "Factory Records");
         Guid artistId = await CreateArtistAsync(client, "New Order");
+        Guid formulaArtistId = await CreateArtistAsync(client, "=2+2");
         Guid releaseId = await CreateReleaseWithTrackAsync(client, labelId, artistId);
         _ = await CreateOwnedItemAsync(client, releaseId);
 
@@ -114,6 +115,7 @@ public sealed class ExportEndpointTests : IClassFixture<PostgresFixture>
 
         string artistsCsv = await ReadEntryAsync(archive, "artists.csv");
         Assert.Contains($"{artistId},person,New Order", artistsCsv);
+        Assert.Contains($"{formulaArtistId},person,'=2+2", artistsCsv);
 
         string ownedItemsCsv = await ReadEntryAsync(archive, "owned_items.csv");
         Assert.Contains("target_type,target_id,status,medium_type,medium_description", ownedItemsCsv);
