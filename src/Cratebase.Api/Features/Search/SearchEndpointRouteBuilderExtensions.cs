@@ -1,7 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Search;
+using Microsoft.Extensions.Primitives;
 
 namespace Cratebase.Api.Features.Search;
 
@@ -20,30 +21,23 @@ public static class SearchEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> SearchAsync(
-        [AsParameters] SearchRequest request,
+        HttpRequest request,
         ICollectionSearchQueries searchQueries,
         CancellationToken cancellationToken)
     {
-        string normalizedQuery = string.IsNullOrWhiteSpace(request.Query)
-            ? request.Q?.Trim() ?? string.Empty
-            : request.Query.Trim();
-        var searchQuery = new CollectionSearchQuery(
-            normalizedQuery,
-            request.EntityType,
-            request.Role,
-            request.Media,
-            request.Status,
-            request.LabelId,
-            request.Tag,
-            request.SavedView,
-            0,
-            0);
+        ParsedSearchRequest parsedRequest = ParseRequest(request);
+        if (parsedRequest.Error is not null)
+        {
+            return parsedRequest.Error;
+        }
+
+        CollectionSearchQuery searchQuery = parsedRequest.Query;
         if (!searchQuery.HasCriteria)
         {
             return EndpointErrors.BadRequest("search.criteria_required", "Search query, filter, or saved view is required");
         }
 
-        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(parsedRequest.Limit, parsedRequest.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
@@ -57,6 +51,79 @@ public static class SearchEndpointRouteBuilderExtensions
             result.Limit,
             result.Offset,
             result.Total));
+    }
+
+    private static ParsedSearchRequest ParseRequest(HttpRequest request)
+    {
+        IQueryCollection values = request.Query;
+        string normalizedQuery = string.IsNullOrWhiteSpace(QueryValue(values, "query"))
+            ? QueryValue(values, "q")?.Trim() ?? string.Empty
+            : QueryValue(values, "query")!.Trim();
+
+        return !TryReadGuid(values, "labelId", out Guid? labelId)
+            ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.label_id_invalid", "Search label id must be a valid GUID"))
+            : !TryReadInt(values, "limit", out int? limit)
+                ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.limit_invalid", "Search limit must be an integer"))
+                : !TryReadInt(values, "offset", out int? offset)
+                    ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.offset_invalid", "Search offset must be an integer"))
+                    : new ParsedSearchRequest(
+                new CollectionSearchQuery(
+                    normalizedQuery,
+                    QueryValue(values, "entityType"),
+                    QueryValue(values, "role"),
+                    QueryValue(values, "media"),
+                    QueryValue(values, "status"),
+                    labelId,
+                    QueryValue(values, "tag"),
+                    QueryValue(values, "savedView"),
+                    0,
+                    0),
+                limit,
+                offset,
+                null);
+    }
+
+    private static string? QueryValue(IQueryCollection values, string name)
+    {
+        return values.TryGetValue(name, out StringValues value) ? value.ToString() : null;
+    }
+
+    private static bool TryReadGuid(IQueryCollection values, string name, out Guid? value)
+    {
+        string? raw = QueryValue(values, name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = null;
+            return true;
+        }
+
+        if (Guid.TryParse(raw.Trim(), out Guid parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool TryReadInt(IQueryCollection values, string name, out int? value)
+    {
+        string? raw = QueryValue(values, name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = null;
+            return true;
+        }
+
+        if (int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
     private static SearchResultResponse ToResponse(SearchResultReadModel result)
@@ -81,29 +148,15 @@ public static class SearchEndpointRouteBuilderExtensions
             result.Rank);
     }
 
-    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "ASP.NET Core minimal API parameter binding creates this type at runtime.")]
-    private sealed record SearchRequest
+    private sealed record ParsedSearchRequest(
+        CollectionSearchQuery Query,
+        int? Limit,
+        int? Offset,
+        IResult? Error)
     {
-        public string? Query { get; init; }
-
-        public string? Q { get; init; }
-
-        public string? EntityType { get; init; }
-
-        public string? Role { get; init; }
-
-        public string? Media { get; init; }
-
-        public string? Status { get; init; }
-
-        public Guid? LabelId { get; init; }
-
-        public string? Tag { get; init; }
-
-        public string? SavedView { get; init; }
-
-        public int? Limit { get; init; }
-
-        public int? Offset { get; init; }
+        public static ParsedSearchRequest WithError(IResult error)
+        {
+            return new ParsedSearchRequest(new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, null, 0, 0), null, null, error);
+        }
     }
 }

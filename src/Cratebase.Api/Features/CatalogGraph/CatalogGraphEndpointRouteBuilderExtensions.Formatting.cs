@@ -88,6 +88,6 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
         public IReadOnlyList<CatalogGraphContextResponse.LinkResponse> Media { get; init; } = [];
 
-        public IReadOnlyList<string> Signals { get; init; } = [];
+        public IReadOnlyList<string> CollectorSignals { get; init; } = [];
     }
 }
