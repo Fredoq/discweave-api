@@ -3,6 +3,7 @@ using Cratebase.Api.Features.Admin;
 using Cratebase.Api.Features.ArtistRelations;
 using Cratebase.Api.Features.Auth;
 using Cratebase.Api.Features.Credits;
+using Cratebase.Api.Features.Exports;
 using Cratebase.Api.Features.Imports;
 using Cratebase.Api.Features.Labels;
 using Cratebase.Api.Features.OwnedItems;
@@ -32,6 +33,7 @@ public static class CratebaseEndpointRouteBuilderExtensions
         _ = endpoints.MapArtistRelationsEndpoints();
         _ = endpoints.MapTrackRelationsEndpoints();
         _ = endpoints.MapSearchEndpoints();
+        _ = endpoints.MapExportsEndpoints();
         _ = endpoints.MapReleaseImportsEndpoints();
         _ = endpoints.MapSettingsDictionariesEndpoints();
         _ = endpoints.MapSettingsImportPatternsEndpoints();
