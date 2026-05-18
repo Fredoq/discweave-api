@@ -60,13 +60,24 @@ public static class SearchEndpointRouteBuilderExtensions
             ? QueryValue(values, "q")?.Trim() ?? string.Empty
             : QueryValue(values, "query")!.Trim();
 
-        return !TryReadGuid(values, "labelId", out Guid? labelId)
-            ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.label_id_invalid", "Search label id must be a valid GUID"))
-            : !TryReadInt(values, "limit", out int? limit)
-                ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.limit_invalid", "Search limit must be an integer"))
-                : !TryReadInt(values, "offset", out int? offset)
-                    ? ParsedSearchRequest.WithError(EndpointErrors.BadRequest("search.offset_invalid", "Search offset must be an integer"))
-                    : new ParsedSearchRequest(
+        IResult? parseError = null;
+        ParsedSearchRequest? parsedRequest = null;
+
+        if (!TryReadGuid(values, "labelId", out Guid? labelId))
+        {
+            parseError = EndpointErrors.BadRequest("search.label_id_invalid", "Search label id must be a valid GUID");
+        }
+        else if (!TryReadInt(values, "limit", out int? limit))
+        {
+            parseError = EndpointErrors.BadRequest("search.limit_invalid", "Search limit must be an integer");
+        }
+        else if (!TryReadInt(values, "offset", out int? offset))
+        {
+            parseError = EndpointErrors.BadRequest("search.offset_invalid", "Search offset must be an integer");
+        }
+        else
+        {
+            parsedRequest = new ParsedSearchRequest(
                 new CollectionSearchQuery(
                     normalizedQuery,
                     QueryValue(values, "entityType"),
@@ -81,6 +92,9 @@ public static class SearchEndpointRouteBuilderExtensions
                 limit,
                 offset,
                 null);
+        }
+
+        return parsedRequest ?? ParsedSearchRequest.WithError(parseError!);
     }
 
     private static string? QueryValue(IQueryCollection values, string name)
