@@ -1,5 +1,6 @@
 using Cratebase.Domain.SharedKernel.Ids;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -27,16 +28,30 @@ internal static class SearchDocumentRebuilder
     {
         IReadOnlyList<SearchDocument> documents = await SearchDocumentBuilder.BuildAsync(context, collectionId, cancellationToken);
 
+        await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(context, cancellationToken);
+
         _ = await context.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM search_documents WHERE collection_id = {collectionId.Value}",
             cancellationToken);
 
-        if (documents.Count == 0)
+        if (documents.Count > 0)
         {
-            return;
+            await CopyDocumentsAsync(context, documents, cancellationToken);
         }
 
-        await CopyDocumentsAsync(context, documents, cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+    }
+
+    private static async Task<IDbContextTransaction?> BeginTransactionIfNeededAsync(
+        CratebaseDbContext context,
+        CancellationToken cancellationToken)
+    {
+        return context.Database.CurrentTransaction is not null
+            ? null
+            : await context.Database.BeginTransactionAsync(cancellationToken);
     }
 
     private static async Task CopyDocumentsAsync(
