@@ -1299,6 +1299,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("label_id");
 
+                    b.Property<string>("LabelIdFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label_id_facet");
+
                     b.Property<string>("MatchedFields")
                         .IsRequired()
                         .HasColumnType("text")

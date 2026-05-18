@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Search;
@@ -19,30 +20,22 @@ public static class SearchEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> SearchAsync(
-        string? query,
-        string? q,
-        string? entityType,
-        string? role,
-        string? media,
-        string? status,
-        Guid? labelId,
-        string? tag,
-        string? savedView,
-        int? limit,
-        int? offset,
+        [AsParameters] SearchRequest request,
         ICollectionSearchQueries searchQueries,
         CancellationToken cancellationToken)
     {
-        string normalizedQuery = string.IsNullOrWhiteSpace(query) ? q?.Trim() ?? string.Empty : query.Trim();
+        string normalizedQuery = string.IsNullOrWhiteSpace(request.Query)
+            ? request.Q?.Trim() ?? string.Empty
+            : request.Query.Trim();
         var searchQuery = new CollectionSearchQuery(
             normalizedQuery,
-            entityType,
-            role,
-            media,
-            status,
-            labelId,
-            tag,
-            savedView,
+            request.EntityType,
+            request.Role,
+            request.Media,
+            request.Status,
+            request.LabelId,
+            request.Tag,
+            request.SavedView,
             0,
             0);
         if (!searchQuery.HasCriteria)
@@ -50,7 +43,7 @@ public static class SearchEndpointRouteBuilderExtensions
             return EndpointErrors.BadRequest("search.criteria_required", "Search query, filter, or saved view is required");
         }
 
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
@@ -86,5 +79,31 @@ public static class SearchEndpointRouteBuilderExtensions
             result.Snippets,
             facets,
             result.Rank);
+    }
+
+    [SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "ASP.NET Core minimal API parameter binding creates this type at runtime.")]
+    private sealed record SearchRequest
+    {
+        public string? Query { get; init; }
+
+        public string? Q { get; init; }
+
+        public string? EntityType { get; init; }
+
+        public string? Role { get; init; }
+
+        public string? Media { get; init; }
+
+        public string? Status { get; init; }
+
+        public Guid? LabelId { get; init; }
+
+        public string? Tag { get; init; }
+
+        public string? SavedView { get; init; }
+
+        public int? Limit { get; init; }
+
+        public int? Offset { get; init; }
     }
 }

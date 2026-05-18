@@ -26,10 +26,10 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         ArgumentNullException.ThrowIfNull(query);
 
         var parameters = SearchSqlParameters.From(_collectionId, query);
-        await using DbCommand countCommand = CreateCommand(CountSql, parameters);
+        await using DbCommand countCommand = await CreateCommandAsync(CountSql, parameters, cancellationToken);
         int total = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
 
-        await using DbCommand searchCommand = CreateCommand(SearchSql, parameters);
+        await using DbCommand searchCommand = await CreateCommandAsync(SearchSql, parameters, cancellationToken);
         await using DbDataReader reader = await searchCommand.ExecuteReaderAsync(cancellationToken);
         List<SearchResultReadModel> results = [];
         while (await reader.ReadAsync(cancellationToken))
@@ -40,12 +40,15 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         return new CollectionSearchResult(results, query.Limit, query.Offset, total);
     }
 
-    private DbCommand CreateCommand(string sql, SearchSqlParameters parameters)
+    private async Task<DbCommand> CreateCommandAsync(
+        string sql,
+        SearchSqlParameters parameters,
+        CancellationToken cancellationToken)
     {
         DbConnection connection = _context.Database.GetDbConnection();
         if (connection.State != ConnectionState.Open)
         {
-            connection.Open();
+            await connection.OpenAsync(cancellationToken);
         }
 
         DbCommand command = connection.CreateCommand();
@@ -123,6 +126,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             document.status_facet,
             document.tag_facet,
             document.label_id,
+            document.label_id_facet,
             document.collector_signal_facet,
             CASE WHEN @has_query THEN
                 (ts_rank(document.search_vector, search_input.query) * 10.0) +
@@ -137,7 +141,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
             AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
             AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
-            AND (@label_id IS NULL OR document.label_id = @label_id)
+            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
             AND (
                 @saved_view = '' OR
                 @saved_view = 'all' OR
@@ -150,7 +154,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (
                 @has_query = false OR
                 document.search_vector @@ search_input.query OR
-                document.search_text ILIKE @query_like OR
+                document.search_text ILIKE @query_like ESCAPE '\' OR
                 similarity(document.search_text, @query) >= 0.18
             )
         ORDER BY rank DESC, document.title ASC, document.entity_type ASC, document.entity_id ASC
@@ -171,7 +175,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
             AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
             AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
-            AND (@label_id IS NULL OR document.label_id = @label_id)
+            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
             AND (
                 @saved_view = '' OR
                 @saved_view = 'all' OR
@@ -184,7 +188,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (
                 @has_query = false OR
                 document.search_vector @@ search_input.query OR
-                document.search_text ILIKE @query_like OR
+                document.search_text ILIKE @query_like ESCAPE '\' OR
                 similarity(document.search_text, @query) >= 0.18
             )
         """;
@@ -200,6 +204,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         string StatusPattern,
         string TagPattern,
         Guid? LabelId,
+        string LabelIdPattern,
         string SavedView,
         int Limit,
         int Offset)
@@ -212,13 +217,14 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
                 collectionId.Value,
                 normalizedQuery.Length > 0,
                 normalizedQuery,
-                $"%{normalizedQuery}%",
+                $"%{EscapeLike(normalizedQuery)}%",
                 query.EntityType?.Trim() ?? string.Empty,
                 FacetPattern(query.Role),
                 FacetPattern(query.Media),
                 FacetPattern(query.Status),
                 FacetPattern(query.Tag),
                 query.LabelId,
+                LabelFacetPattern(query.LabelId),
                 SearchDocumentText.NormalizeFacet(query.SavedView ?? string.Empty),
                 query.Limit,
                 query.Offset);
@@ -236,6 +242,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             Add(command, "status_pattern", StatusPattern);
             Add(command, "tag_pattern", TagPattern);
             Add(command, "label_id", LabelId, DbType.Guid);
+            Add(command, "label_id_pattern", LabelIdPattern);
             Add(command, "saved_view", SavedView);
             Add(command, "limit", Limit);
             Add(command, "offset", Offset);
@@ -245,6 +252,21 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
         {
             string normalized = SearchDocumentText.NormalizeFacet(value ?? string.Empty);
             return normalized.Length == 0 ? string.Empty : $"%|{normalized}|%";
+        }
+
+        private static string LabelFacetPattern(Guid? labelId)
+        {
+            return labelId.HasValue
+                ? $"%|{SearchDocumentText.NormalizeFacet(labelId.Value.ToString("D"))}|%"
+                : string.Empty;
+        }
+
+        private static string EscapeLike(string value)
+        {
+            return value
+                .Replace(@"\", @"\\", StringComparison.Ordinal)
+                .Replace("%", @"\%", StringComparison.Ordinal)
+                .Replace("_", @"\_", StringComparison.Ordinal);
         }
 
         private static void Add(DbCommand command, string name, object? value, DbType? dbType = null)

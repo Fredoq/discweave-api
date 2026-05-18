@@ -82,6 +82,11 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
         _ = builder.Property(document => document.LabelId)
             .HasColumnName("label_id");
 
+        _ = builder.Property(document => document.LabelIdFacet)
+            .HasColumnName("label_id_facet")
+            .HasColumnType("text")
+            .IsRequired();
+
         _ = builder.Property(document => document.CollectorSignalFacet)
             .HasColumnName("collector_signal_facet")
             .HasColumnType("text")

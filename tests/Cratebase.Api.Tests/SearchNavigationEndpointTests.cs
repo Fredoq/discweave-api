@@ -71,6 +71,40 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
             snippet => snippet.GetString()?.Contains("Confusion", StringComparison.OrdinalIgnoreCase) == true);
     }
 
+    [Fact(DisplayName = "Search treats wildcard characters as literal query text")]
+    public async Task Search_treats_wildcard_characters_as_literal_query_text()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        _ = await CreateReleaseAsync(client, "Literal Wildcard Control");
+
+        using HttpResponseMessage response = await client.GetAsync("/api/search?query=%25&limit=20&offset=0");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(0, document.RootElement.GetProperty("total").GetInt32());
+        Assert.Empty(document.RootElement.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact(DisplayName = "Search label filter matches every release label")]
+    public async Task Search_label_filter_matches_every_release_label()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        Guid primaryLabelId = await CreateLabelAsync(client, "Primary Filter Label");
+        Guid secondaryLabelId = await CreateLabelAsync(client, "Secondary Filter Label");
+        Guid releaseId = await CreateReleaseWithLabelsAsync(client, "Multi Label Release", [primaryLabelId, secondaryLabelId]);
+
+        using HttpResponseMessage response = await client.GetAsync($"/api/search?entityType=release&labelId={secondaryLabelId}&limit=20&offset=0");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        JsonElement item = Assert.Single(
+            document.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
+        Assert.Equal(primaryLabelId, item.GetProperty("facets").GetProperty("labelId").GetGuid());
+    }
+
     [Fact(DisplayName = "Search documents update immediately after catalog writes")]
     public async Task Search_documents_update_immediately_after_catalog_writes()
     {
@@ -90,6 +124,36 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
             document.RootElement.GetProperty("items").EnumerateArray(),
             result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
         Assert.Contains("label", item.GetProperty("matchedFields").EnumerateArray().Select(field => field.GetString()));
+    }
+
+    [Fact(DisplayName = "Search documents update immediately after release label changes")]
+    public async Task Search_documents_update_immediately_after_release_label_changes()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        Guid oldLabelId = await CreateLabelAsync(client, "Old Label Navigation");
+        Guid newLabelId = await CreateLabelAsync(client, "New Label Navigation");
+        Guid releaseId = await CreateReleaseWithLabelsAsync(client, "Relabeled Search Release", [oldLabelId]);
+
+        using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
+            $"/api/releases/{releaseId}",
+            ReleaseWithLabelsRequest("Relabeled Search Release", [newLabelId]));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        using HttpResponseMessage newLabelResponse = await client.GetAsync($"/api/search?entityType=release&labelId={newLabelId}&limit=20&offset=0");
+        Assert.Equal(HttpStatusCode.OK, newLabelResponse.StatusCode);
+        using JsonDocument newLabelDocument = await ReadJsonAsync(newLabelResponse);
+        Assert.Contains(
+            newLabelDocument.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
+
+        using HttpResponseMessage oldLabelResponse = await client.GetAsync($"/api/search?entityType=release&labelId={oldLabelId}&limit=20&offset=0");
+        Assert.Equal(HttpStatusCode.OK, oldLabelResponse.StatusCode);
+        using JsonDocument oldLabelDocument = await ReadJsonAsync(oldLabelResponse);
+        Assert.DoesNotContain(
+            oldLabelDocument.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
     }
 
     [Fact(DisplayName = "Catalog graph context describes label releases and owned coverage")]
@@ -172,6 +236,30 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateReleaseWithLabelsAsync(HttpClient client, string title, IReadOnlyList<Guid> labelIds)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/releases", ReleaseWithLabelsRequest(title, labelIds));
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static object ReleaseWithLabelsRequest(string title, IReadOnlyList<Guid> labelIds)
+    {
+        return new
+        {
+            title,
+            type = "standalone",
+            isVariousArtists = true,
+            notOnLabel = false,
+            labels = labelIds.Select(labelId => new { labelId, catalogNumber = (string?)null, hasNoCatalogNumber = false }).ToArray(),
+            year = 1983,
+            genres = EmptyStrings,
+            tags = EmptyStrings
+        };
     }
 
     private static async Task<Guid> CreateCreditAsync(HttpClient client, Guid contributorArtistId, string targetType, Guid targetId, string role)

@@ -66,6 +66,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     status_facet = table.Column<string>(type: "text", nullable: false),
                     tag_facet = table.Column<string>(type: "text", nullable: false),
                     label_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    label_id_facet = table.Column<string>(type: "text", nullable: false),
                     collector_signal_facet = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>

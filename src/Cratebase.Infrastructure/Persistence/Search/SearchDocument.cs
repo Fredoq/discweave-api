@@ -34,5 +34,7 @@ internal sealed class SearchDocument
 
     public Guid? LabelId { get; set; }
 
+    public string LabelIdFacet { get; set; } = string.Empty;
+
     public string CollectorSignalFacet { get; set; } = string.Empty;
 }

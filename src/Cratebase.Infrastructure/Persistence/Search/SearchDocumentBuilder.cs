@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Infrastructure.Persistence.Search;
 
-internal static class SearchDocumentBuilder
+internal static partial class SearchDocumentBuilder
 {
     public static async Task<IReadOnlyList<SearchDocument>> BuildAsync(
         CratebaseDbContext context,
@@ -56,20 +56,14 @@ internal static class SearchDocumentBuilder
         string[] targets = [.. credits.Select(credit => CreditTargetTitle(credit, data)).Where(value => value.Length > 0)];
 
         return ToDocument(
-            artist.CollectionId,
-            "artist",
-            artist.Id.Value,
-            artist.Name,
-            SearchResultCodes.ArtistType(artist),
-            string.Join(", ", roles.Concat(relationTypes)),
-            ["name", "credit.role", "credit.contributor", "relation.type"],
-            [artist.Name, .. targets, .. roles.Select(role => Label(data, DictionaryKind.CreditRole, role)), .. relationTypes.Select(type => Label(data, DictionaryKind.ArtistRelationType, type))],
-            roles,
-            [],
-            [],
-            [],
-            null,
-            []);
+            new SearchDocumentContent(artist.CollectionId, "artist", artist.Id.Value, artist.Name)
+            {
+                Subtitle = SearchResultCodes.ArtistType(artist),
+                Summary = string.Join(", ", roles.Concat(relationTypes)),
+                MatchedFields = ["name", "credit.role", "credit.contributor", "relation.type"],
+                SearchParts = [artist.Name, .. targets, .. roles.Select(role => Label(data, DictionaryKind.CreditRole, role)), .. relationTypes.Select(type => Label(data, DictionaryKind.ArtistRelationType, type))],
+                Roles = roles
+            });
     }
 
     private static SearchDocument LabelDocument(Label label, Data data)
@@ -78,20 +72,18 @@ internal static class SearchDocumentBuilder
         OwnedItem[] ownedItems = [.. data.OwnedItems.Where(item => releases.Any(release => item.Target is ReleaseOwnedItemTarget target && target.ReleaseId == release.Id))];
 
         return ToDocument(
-            label.CollectionId,
-            "label",
-            label.Id.Value,
-            label.Name,
-            "label",
-            $"{releases.Length} releases",
-            ["name", "label"],
-            [label.Name, .. releases.Select(release => release.Summary.Title), .. ownedItems.Select(item => item.Holding.Medium.Code)],
-            [],
-            [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
-            [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
-            [],
-            label.Id.Value,
-            CollectorSignals(ownedItems));
+            new SearchDocumentContent(label.CollectionId, "label", label.Id.Value, label.Name)
+            {
+                Subtitle = "label",
+                Summary = $"{releases.Length} releases",
+                MatchedFields = ["name", "label"],
+                SearchParts = [label.Name, .. releases.Select(release => release.Summary.Title), .. ownedItems.Select(item => item.Holding.Medium.Code)],
+                Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
+                Statuses = [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
+                LabelId = label.Id.Value,
+                LabelIds = [label.Id.Value],
+                Signals = CollectorSignals(ownedItems)
+            });
     }
 
     private static SearchDocument ReleaseDocument(Release release, Data data)
@@ -105,20 +97,20 @@ internal static class SearchDocumentBuilder
         Guid? primaryLabelId = labelIds.Length == 0 ? null : labelIds[0].Value;
 
         return ToDocument(
-            release.CollectionId,
-            "release",
-            release.Id.Value,
-            release.Summary.Title,
-            labelNames.FirstOrDefault() ?? "release",
-            string.Join(", ", tags),
-            ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", "medium", "ownershipStatus"],
-            [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
-            roles,
-            [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
-            [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
-            tags,
-            primaryLabelId,
-            CollectorSignals(ownedItems));
+            new SearchDocumentContent(release.CollectionId, "release", release.Id.Value, release.Summary.Title)
+            {
+                Subtitle = labelNames.FirstOrDefault() ?? "release",
+                Summary = string.Join(", ", tags),
+                MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", "medium", "ownershipStatus"],
+                SearchParts = [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
+                Roles = roles,
+                Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
+                Statuses = [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
+                Tags = tags,
+                LabelId = primaryLabelId,
+                LabelIds = [.. labelIds.Select(id => id.Value)],
+                Signals = CollectorSignals(ownedItems)
+            });
     }
 
     private static SearchDocument TrackDocument(Track track, Data data)
@@ -131,20 +123,18 @@ internal static class SearchDocumentBuilder
         string[] tags = [.. track.Cataloging.Tags.Select(tag => tag.Name).Concat(track.Cataloging.Genres.Select(genre => genre.Name)).Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return ToDocument(
-            track.CollectionId,
-            "track",
-            track.Id.Value,
-            track.Title,
-            releases.FirstOrDefault()?.Summary.Title,
-            string.Join(", ", tags),
-            ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", "medium", "ownershipStatus"],
-            [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
-            roles,
-            [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
-            [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
-            tags,
-            null,
-            CollectorSignals(ownedItems));
+            new SearchDocumentContent(track.CollectionId, "track", track.Id.Value, track.Title)
+            {
+                Subtitle = releases.FirstOrDefault()?.Summary.Title,
+                Summary = string.Join(", ", tags),
+                MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", "medium", "ownershipStatus"],
+                SearchParts = [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
+                Roles = roles,
+                Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
+                Statuses = [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
+                Tags = tags,
+                Signals = CollectorSignals(ownedItems)
+            });
     }
 
     private static SearchDocument OwnedItemDocument(OwnedItem item, Data data)
@@ -159,41 +149,37 @@ internal static class SearchDocumentBuilder
         string medium = item.Holding.Medium.Code;
 
         return ToDocument(
-            item.CollectionId,
-            "ownedItem",
-            item.Id.Value,
-            title,
-            $"{status} on {medium}",
-            null,
-            ["ownershipStatus", "medium", "title"],
-            [title, .. OwnedItemSearchParts(item, data)],
-            [],
-            [medium],
-            [status],
-            [],
-            null,
-            CollectorSignals([item]));
+            new SearchDocumentContent(item.CollectionId, "ownedItem", item.Id.Value, title)
+            {
+                Subtitle = $"{status} on {medium}",
+                MatchedFields = ["ownershipStatus", "medium", "title"],
+                SearchParts = [title, .. OwnedItemSearchParts(item, data)],
+                Media = [medium],
+                Statuses = [status],
+                Signals = CollectorSignals([item])
+            });
     }
 
-    private static SearchDocument ToDocument(CollectionId collectionId, string entityType, Guid entityId, string title, string? subtitle, string? summary, string[] matchedFields, string[] searchParts, string[] roles, string[] media, string[] statuses, string[] tags, Guid? labelId, string[] signals)
+    private static SearchDocument ToDocument(SearchDocumentContent content)
     {
         return new SearchDocument
         {
-            CollectionId = collectionId,
-            EntityType = entityType,
-            EntityId = entityId,
-            Title = title,
-            Subtitle = subtitle,
-            Summary = summary,
-            SearchText = string.Join(' ', searchParts.Where(part => !string.IsNullOrWhiteSpace(part))),
-            MatchedFields = SearchDocumentText.Pack(matchedFields),
-            Snippets = SearchDocumentText.Pack(searchParts.Where(part => !string.IsNullOrWhiteSpace(part)).Take(6)),
-            RoleFacet = SearchDocumentText.Facet(roles),
-            MediaFacet = SearchDocumentText.Facet(media),
-            StatusFacet = SearchDocumentText.Facet(statuses),
-            TagFacet = SearchDocumentText.Facet(tags),
-            LabelId = labelId,
-            CollectorSignalFacet = SearchDocumentText.Facet(signals)
+            CollectionId = content.CollectionId,
+            EntityType = content.EntityType,
+            EntityId = content.EntityId,
+            Title = content.Title,
+            Subtitle = content.Subtitle,
+            Summary = content.Summary,
+            SearchText = string.Join(' ', content.SearchParts.Where(part => !string.IsNullOrWhiteSpace(part))),
+            MatchedFields = SearchDocumentText.Pack(content.MatchedFields),
+            Snippets = SearchDocumentText.Pack(content.SearchParts.Where(part => !string.IsNullOrWhiteSpace(part)).Take(6)),
+            RoleFacet = SearchDocumentText.Facet(content.Roles),
+            MediaFacet = SearchDocumentText.Facet(content.Media),
+            StatusFacet = SearchDocumentText.Facet(content.Statuses),
+            TagFacet = SearchDocumentText.Facet(content.Tags),
+            LabelId = content.LabelId,
+            LabelIdFacet = SearchDocumentText.Facet(content.LabelIds.Select(id => id.ToString("D"))),
+            CollectorSignalFacet = SearchDocumentText.Facet(content.Signals)
         };
     }
 
@@ -210,89 +196,4 @@ internal static class SearchDocumentBuilder
         }
     }
 
-    private static string[] OwnedItemSearchParts(OwnedItem item, Data data)
-    {
-        return [StatusCode(item.Holding.Status), item.Holding.Medium.Code, Label(data, DictionaryKind.MediaType, item.Holding.Medium.Code), MediumDescription(item.Holding.Medium), item.Holding.Details.StorageLocation.Match(value => value.Name, () => string.Empty), item.Holding.Details.Condition.Match(value => value.ToString(), () => string.Empty)];
-    }
-
-    private static string[] CollectorSignals(IReadOnlyList<OwnedItem> items)
-    {
-        bool hasDigital = items.Any(item => item.Holding.Medium is DigitalFile);
-        bool hasPhysical = items.Any(item => item.Holding.Medium is not DigitalFile);
-        bool hasLossless = items.Any(item => item.Holding.Medium is DigitalFile digital && IsLossless(digital.Format));
-        bool hasLossy = items.Any(item => item.Holding.Medium is DigitalFile digital && !IsLossless(digital.Format));
-        List<string> signals = [.. items.Select(item => item.Holding.Medium.Code), .. items.Select(item => StatusCode(item.Holding.Status))];
-        if (hasPhysical && !hasDigital)
-        {
-            signals.Add("physicalWithoutDigital");
-        }
-
-        if (hasLossy && !hasLossless)
-        {
-            signals.Add("lossyWithoutLossless");
-        }
-
-        if (items.Any(item => item.Holding.Status == OwnershipStatus.Wanted) && !items.Any(item => item.Holding.Status == OwnershipStatus.Owned))
-        {
-            signals.Add("wantedNotOwned");
-        }
-
-        return [.. signals];
-    }
-
-    private static string CreditTargetTitle(Credit credit, Data data)
-    {
-        return credit.Target switch
-        {
-            ReleaseCreditTarget target when data.Releases.TryGetValue(target.ReleaseId, out Release? release) => release.Summary.Title,
-            TrackCreditTarget target when data.Tracks.TryGetValue(target.TrackId, out Track? track) => track.Title,
-            _ => string.Empty
-        };
-    }
-
-    private static string Label(Data data, DictionaryKind kind, string code)
-    {
-        return data.Dictionaries.LabelOrCode(kind, code);
-    }
-
-    private static string StatusCode(OwnershipStatus status)
-    {
-        return status switch
-        {
-            OwnershipStatus.Owned => "owned",
-            OwnershipStatus.Wanted => "wanted",
-            OwnershipStatus.Sold => "sold",
-            OwnershipStatus.NeedsDigitization => "needsDigitization",
-            _ => throw new InvalidOperationException("Ownership status is not supported")
-        };
-    }
-
-    private static string MediumDescription(IMedium medium)
-    {
-        return medium switch
-        {
-            DigitalFile file => file.Format.ToString(),
-            VinylRecord vinyl => vinyl.FormatDescription,
-            CompactDisc disc => $"{disc.DiscCount} discs",
-            CassetteTape cassette => cassette.TapeType,
-            OtherMedium other => other.Name,
-            _ => medium.Code
-        };
-    }
-
-    private static bool IsLossless(AudioFileFormat format)
-    {
-        return format is AudioFileFormat.Flac or AudioFileFormat.Wav or AudioFileFormat.Aiff or AudioFileFormat.Alac;
-    }
-
-    private sealed record Data(
-        Dictionary<ArtistId, Artist> Artists,
-        Dictionary<LabelId, Label> Labels,
-        Dictionary<ReleaseId, Release> Releases,
-        Dictionary<TrackId, Track> Tracks,
-        IReadOnlyList<OwnedItem> OwnedItems,
-        IReadOnlyList<Credit> Credits,
-        IReadOnlyList<ArtistRelation> ArtistRelations,
-        IReadOnlyList<TrackRelation> TrackRelations,
-        DictionarySearchLookup Dictionaries);
 }
