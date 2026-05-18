@@ -145,6 +145,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (
                 @saved_view = '' OR
                 @saved_view = 'all' OR
+                (@saved_view = 'credits' AND document.role_facet <> '') OR
                 (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
                 (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
                 (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
@@ -179,6 +180,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             AND (
                 @saved_view = '' OR
                 @saved_view = 'all' OR
+                (@saved_view = 'credits' AND document.role_facet <> '') OR
                 (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
                 (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
                 (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR

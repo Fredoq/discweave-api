@@ -33,6 +33,13 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
         Assert.Equal(releaseId, roleItem.GetProperty("id").GetGuid());
         Assert.Equal("producer", roleItem.GetProperty("facets").GetProperty("roles")[0].GetString());
 
+        using HttpResponseMessage creditsViewResponse = await client.GetAsync("/api/search?savedView=credits&limit=20&offset=0");
+        Assert.Equal(HttpStatusCode.OK, creditsViewResponse.StatusCode);
+        using JsonDocument creditsViewDocument = await ReadJsonAsync(creditsViewResponse);
+        Assert.Contains(
+            creditsViewDocument.RootElement.GetProperty("items").EnumerateArray(),
+            result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
+
         using HttpResponseMessage savedViewResponse = await client.GetAsync("/api/search?savedView=needsDigitization&limit=20&offset=0");
         Assert.Equal(HttpStatusCode.OK, savedViewResponse.StatusCode);
         using JsonDocument savedViewDocument = await ReadJsonAsync(savedViewResponse);
