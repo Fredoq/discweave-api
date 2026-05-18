@@ -21,15 +21,33 @@ public static class SearchEndpointRouteBuilderExtensions
     private static async Task<IResult> SearchAsync(
         string? query,
         string? q,
+        string? entityType,
+        string? role,
+        string? media,
+        string? status,
+        Guid? labelId,
+        string? tag,
+        string? savedView,
         int? limit,
         int? offset,
         ICollectionSearchQueries searchQueries,
         CancellationToken cancellationToken)
     {
         string normalizedQuery = string.IsNullOrWhiteSpace(query) ? q?.Trim() ?? string.Empty : query.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedQuery))
+        var searchQuery = new CollectionSearchQuery(
+            normalizedQuery,
+            entityType,
+            role,
+            media,
+            status,
+            labelId,
+            tag,
+            savedView,
+            0,
+            0);
+        if (!searchQuery.HasCriteria)
         {
-            return EndpointErrors.BadRequest("search.query_required", "Search query is required");
+            return EndpointErrors.BadRequest("search.criteria_required", "Search query, filter, or saved view is required");
         }
 
         if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
@@ -38,7 +56,7 @@ public static class SearchEndpointRouteBuilderExtensions
         }
 
         CollectionSearchResult result = await searchQueries.SearchAsync(
-            new CollectionSearchQuery(normalizedQuery, normalizedLimit, normalizedOffset),
+            searchQuery with { Limit = normalizedLimit, Offset = normalizedOffset },
             cancellationToken);
 
         return Results.Ok(new ListResponse<SearchResultResponse>(
@@ -50,6 +68,23 @@ public static class SearchEndpointRouteBuilderExtensions
 
     private static SearchResultResponse ToResponse(SearchResultReadModel result)
     {
-        return new SearchResultResponse(result.Id, result.Type, result.Title, result.Subtitle, result.MatchedFields);
+        var facets = new SearchResultFacetsResponse(
+            result.Facets.Roles,
+            result.Facets.Media,
+            result.Facets.Statuses,
+            result.Facets.Tags,
+            result.Facets.LabelId,
+            result.Facets.CollectorSignals);
+
+        return new SearchResultResponse(
+            result.Id,
+            result.Type,
+            result.Title,
+            result.Subtitle,
+            result.Summary,
+            result.MatchedFields,
+            result.Snippets,
+            facets,
+            result.Rank);
     }
 }

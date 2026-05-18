@@ -11,6 +11,7 @@ using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence.Configurations;
+using Cratebase.Infrastructure.Persistence.Search;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -67,6 +68,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<ReleaseImportDraftTrack> ReleaseImportDraftTracks => Set<ReleaseImportDraftTrack>();
 
+    internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
+
     public bool HasCurrentCollection { get; private set; }
 
     public CollectionId CurrentCollectionId { get; private set; }
@@ -80,7 +83,26 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
     {
         try
         {
-            return await base.SaveChangesAsync(cancellationToken);
+            HashSet<CollectionId> searchCollections = CollectSearchDocumentCollections();
+            if (searchCollections.Count == 0)
+            {
+                return await base.SaveChangesAsync(cancellationToken);
+            }
+
+            if (Database.CurrentTransaction is not null)
+            {
+                int result = await base.SaveChangesAsync(cancellationToken);
+                await SearchDocumentRebuilder.RebuildAsync(this, searchCollections, cancellationToken);
+
+                return result;
+            }
+
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction = await Database.BeginTransactionAsync(cancellationToken);
+            int saved = await base.SaveChangesAsync(cancellationToken);
+            await SearchDocumentRebuilder.RebuildAsync(this, searchCollections, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return saved;
         }
         catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferencedResourceMissing(exception))
         {
@@ -122,6 +144,7 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
+        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 
@@ -163,5 +186,64 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = modelBuilder.Entity<ReleaseImportSession>().HasQueryFilter(session => !HasCurrentCollection || session.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ReleaseImportDraft>().HasQueryFilter(draft => !HasCurrentCollection || draft.CollectionId == CurrentCollectionId);
         _ = modelBuilder.Entity<ReleaseImportDraftTrack>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
+        _ = modelBuilder.Entity<SearchDocument>().HasQueryFilter(document => !HasCurrentCollection || document.CollectionId == CurrentCollectionId);
+    }
+
+    private HashSet<CollectionId> CollectSearchDocumentCollections()
+    {
+        HashSet<CollectionId> collectionIds = [];
+
+        foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            {
+                continue;
+            }
+
+            if (TryGetSearchCollectionId(entry.Entity, out CollectionId collectionId))
+            {
+                _ = collectionIds.Add(collectionId);
+            }
+        }
+
+        return collectionIds;
+    }
+
+    private static bool TryGetSearchCollectionId(object entity, out CollectionId collectionId)
+    {
+        collectionId = default;
+
+        switch (entity)
+        {
+            case Artist artist:
+                collectionId = artist.CollectionId;
+                return true;
+            case Label label:
+                collectionId = label.CollectionId;
+                return true;
+            case Release release:
+                collectionId = release.CollectionId;
+                return true;
+            case Track track:
+                collectionId = track.CollectionId;
+                return true;
+            case OwnedItem ownedItem:
+                collectionId = ownedItem.CollectionId;
+                return true;
+            case Credit credit:
+                collectionId = credit.CollectionId;
+                return true;
+            case ArtistRelation artistRelation:
+                collectionId = artistRelation.CollectionId;
+                return true;
+            case TrackRelation trackRelation:
+                collectionId = trackRelation.CollectionId;
+                return true;
+            case CollectionDictionaryEntry entry:
+                collectionId = entry.CollectionId;
+                return true;
+            default:
+                return false;
+        }
     }
 }

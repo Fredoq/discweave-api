@@ -1267,6 +1267,104 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Cratebase.Infrastructure.Persistence.Search.SearchDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<string>("CollectorSignalFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("collector_signal_facet");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<Guid?>("LabelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("label_id");
+
+                    b.Property<string>("MatchedFields")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("matched_fields");
+
+                    b.Property<string>("MediaFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("media_facet");
+
+                    b.Property<string>("RoleFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role_facet");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("search_text");
+
+                    b.Property<string>("Snippets")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("snippets");
+
+                    b.Property<string>("StatusFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status_facet");
+
+                    b.Property<string>("Subtitle")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("subtitle");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("TagFacet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("tag_facet");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId", "EntityType")
+                        .HasDatabaseName("ix_search_documents_collection_entity_type");
+
+                    b.HasIndex("CollectionId", "LabelId")
+                        .HasDatabaseName("ix_search_documents_collection_label_id");
+
+                    b.HasIndex("CollectionId", "EntityType", "EntityId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_search_documents_collection_entity");
+
+                    b.ToTable("search_documents", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1918,6 +2016,16 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefaultCollectionId")
                         .HasPrincipalKey("Id")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Cratebase.Infrastructure.Persistence.Search.SearchDocument", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

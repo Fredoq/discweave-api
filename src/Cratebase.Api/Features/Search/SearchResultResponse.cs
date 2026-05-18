@@ -5,4 +5,8 @@ public sealed record SearchResultResponse(
     string Type,
     string Title,
     string? Subtitle,
-    IReadOnlyList<string> MatchedFields);
+    string? Summary,
+    IReadOnlyList<string> MatchedFields,
+    IReadOnlyList<string> Snippets,
+    SearchResultFacetsResponse Facets,
+    decimal Rank);
