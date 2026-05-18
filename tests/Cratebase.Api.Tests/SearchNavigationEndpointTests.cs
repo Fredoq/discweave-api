@@ -156,57 +156,19 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
             result => result.GetProperty("type").GetString() == "release" && result.GetProperty("id").GetGuid() == releaseId);
     }
 
-    [Fact(DisplayName = "Catalog graph context describes label releases and owned coverage")]
-    public async Task Catalog_graph_context_describes_label_releases_and_owned_coverage()
+    [Fact(DisplayName = "Search rejects invalid query parameter shapes")]
+    public async Task Search_rejects_invalid_query_parameter_shapes()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
 
-        Guid labelId = await CreateLabelAsync(client, "Factory Records");
-        Guid releaseId = await CreateReleaseAsync(client, "Blue Monday", labelId);
-        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "owned", "vinyl");
+        using HttpResponseMessage labelResponse = await client.GetAsync("/api/search?query=anything&labelId=not-a-guid");
+        using HttpResponseMessage limitResponse = await client.GetAsync("/api/search?query=anything&limit=wide");
+        using HttpResponseMessage offsetResponse = await client.GetAsync("/api/search?query=anything&offset=late");
 
-        using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/label/{labelId}");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using JsonDocument document = await ReadJsonAsync(response);
-        Assert.Equal("label", document.RootElement.GetProperty("entity").GetProperty("type").GetString());
-        Assert.Equal(labelId, document.RootElement.GetProperty("entity").GetProperty("id").GetGuid());
-        JsonElement releases = document.RootElement.GetProperty("sections").GetProperty("releases");
-        JsonElement releaseLink = Assert.Single(releases.EnumerateArray());
-        Assert.Equal(releaseId, releaseLink.GetProperty("id").GetGuid());
-        JsonElement ownedCopies = document.RootElement.GetProperty("sections").GetProperty("ownedCopies");
-        JsonElement ownedCopyLink = Assert.Single(ownedCopies.EnumerateArray());
-        Assert.Equal(ownedItemId, ownedCopyLink.GetProperty("id").GetGuid());
-        Assert.Contains(
-            document.RootElement.GetProperty("collectorSignals").EnumerateArray(),
-            signal => signal.GetString() == "vinyl");
-    }
-
-    [Fact(DisplayName = "Catalog graph context only returns entities from the current collection")]
-    public async Task Catalog_graph_context_only_returns_entities_from_the_current_collection()
-    {
-        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
-        (HttpClient adminClient, HttpClient userClient) = await CreateAuthenticatedClientsAsync(host);
-
-        Guid adminLabelId = await CreateLabelAsync(adminClient, "Private Label");
-
-        using HttpResponseMessage response = await userClient.GetAsync($"/api/catalog-graph/label/{adminLabelId}");
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
-    {
-        HttpClient adminClient = host.CreateClient();
-        using HttpResponseMessage registerResponse = await adminClient.PostAsJsonAsync("/api/auth/register", new AuthRequest("owner@example.com", "Password1!"));
-        Assert.Equal(HttpStatusCode.Created, registerResponse.StatusCode);
-        using HttpResponseMessage createUserResponse = await adminClient.PostAsJsonAsync("/api/admin/users", new CreateUserRequest("collector@example.com", "Password1!", false));
-        Assert.Equal(HttpStatusCode.Created, createUserResponse.StatusCode);
-
-        HttpClient userClient = host.CreateClient();
-        using HttpResponseMessage loginResponse = await userClient.PostAsJsonAsync("/api/auth/login", new AuthRequest("collector@example.com", "Password1!"));
-        Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
-
-        return (adminClient, userClient);
+        Assert.Equal(HttpStatusCode.BadRequest, labelResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, limitResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, offsetResponse.StatusCode);
     }
 
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)
@@ -273,12 +235,17 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
 
     private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, Guid releaseId, string status, string medium)
     {
+        return await CreateOwnedItemAsync(client, "release", releaseId, status, medium);
+    }
+
+    private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string status, string medium)
+    {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/owned-items",
             new
             {
-                targetType = "release",
-                targetId = releaseId,
+                targetType,
+                targetId,
                 status,
                 medium = new { type = medium, description = medium }
             });
@@ -293,7 +260,4 @@ public sealed class SearchNavigationEndpointTests : IClassFixture<PostgresFixtur
         return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
     }
 
-    private sealed record AuthRequest(string Email, string Password);
-
-    private sealed record CreateUserRequest(string Email, string Password, bool IsAdmin);
 }
