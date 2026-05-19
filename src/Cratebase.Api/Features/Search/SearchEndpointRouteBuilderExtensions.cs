@@ -1,6 +1,8 @@
+using System.Globalization;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Search;
+using Microsoft.Extensions.Primitives;
 
 namespace Cratebase.Api.Features.Search;
 
@@ -19,26 +21,29 @@ public static class SearchEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> SearchAsync(
-        string? query,
-        string? q,
-        int? limit,
-        int? offset,
+        HttpRequest request,
         ICollectionSearchQueries searchQueries,
         CancellationToken cancellationToken)
     {
-        string normalizedQuery = string.IsNullOrWhiteSpace(query) ? q?.Trim() ?? string.Empty : query.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedQuery))
+        ParsedSearchRequest parsedRequest = ParseRequest(request);
+        if (parsedRequest.Error is not null)
         {
-            return EndpointErrors.BadRequest("search.query_required", "Search query is required");
+            return parsedRequest.Error;
         }
 
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        CollectionSearchQuery searchQuery = parsedRequest.Query;
+        if (!searchQuery.HasCriteria)
+        {
+            return EndpointErrors.BadRequest("search.criteria_required", "Search query, filter, or saved view is required");
+        }
+
+        if (!Pagination.TryNormalize(parsedRequest.Limit, parsedRequest.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
 
         CollectionSearchResult result = await searchQueries.SearchAsync(
-            new CollectionSearchQuery(normalizedQuery, normalizedLimit, normalizedOffset),
+            searchQuery with { Limit = normalizedLimit, Offset = normalizedOffset },
             cancellationToken);
 
         return Results.Ok(new ListResponse<SearchResultResponse>(
@@ -48,8 +53,124 @@ public static class SearchEndpointRouteBuilderExtensions
             result.Total));
     }
 
+    private static ParsedSearchRequest ParseRequest(HttpRequest request)
+    {
+        IQueryCollection values = request.Query;
+        string normalizedQuery = string.IsNullOrWhiteSpace(QueryValue(values, "query"))
+            ? QueryValue(values, "q")?.Trim() ?? string.Empty
+            : QueryValue(values, "query")!.Trim();
+
+        IResult? parseError = null;
+        ParsedSearchRequest? parsedRequest = null;
+
+        if (!TryReadGuid(values, "labelId", out Guid? labelId))
+        {
+            parseError = EndpointErrors.BadRequest("search.label_id_invalid", "Search label id must be a valid GUID");
+        }
+        else if (!TryReadInt(values, "limit", out int? limit))
+        {
+            parseError = EndpointErrors.BadRequest("search.limit_invalid", "Search limit must be an integer");
+        }
+        else if (!TryReadInt(values, "offset", out int? offset))
+        {
+            parseError = EndpointErrors.BadRequest("search.offset_invalid", "Search offset must be an integer");
+        }
+        else
+        {
+            parsedRequest = new ParsedSearchRequest(
+                new CollectionSearchQuery(
+                    normalizedQuery,
+                    QueryValue(values, "entityType"),
+                    QueryValue(values, "role"),
+                    QueryValue(values, "media"),
+                    QueryValue(values, "status"),
+                    labelId,
+                    QueryValue(values, "tag"),
+                    QueryValue(values, "savedView"),
+                    0,
+                    0),
+                limit,
+                offset,
+                null);
+        }
+
+        return parsedRequest ?? ParsedSearchRequest.WithError(parseError!);
+    }
+
+    private static string? QueryValue(IQueryCollection values, string name)
+    {
+        return values.TryGetValue(name, out StringValues value) ? value.ToString() : null;
+    }
+
+    private static bool TryReadGuid(IQueryCollection values, string name, out Guid? value)
+    {
+        string? raw = QueryValue(values, name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = null;
+            return true;
+        }
+
+        if (Guid.TryParse(raw.Trim(), out Guid parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool TryReadInt(IQueryCollection values, string name, out int? value)
+    {
+        string? raw = QueryValue(values, name);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            value = null;
+            return true;
+        }
+
+        if (int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            value = parsed;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
     private static SearchResultResponse ToResponse(SearchResultReadModel result)
     {
-        return new SearchResultResponse(result.Id, result.Type, result.Title, result.Subtitle, result.MatchedFields);
+        var facets = new SearchResultFacetsResponse(
+            result.Facets.Roles,
+            result.Facets.Media,
+            result.Facets.Statuses,
+            result.Facets.Tags,
+            result.Facets.LabelId,
+            result.Facets.CollectorSignals);
+
+        return new SearchResultResponse(
+            result.Id,
+            result.Type,
+            result.Title,
+            result.Subtitle,
+            result.Summary,
+            result.MatchedFields,
+            result.Snippets,
+            facets,
+            result.Rank);
+    }
+
+    private sealed record ParsedSearchRequest(
+        CollectionSearchQuery Query,
+        int? Limit,
+        int? Offset,
+        IResult? Error)
+    {
+        public static ParsedSearchRequest WithError(IResult error)
+        {
+            return new ParsedSearchRequest(new CollectionSearchQuery(string.Empty, null, null, null, null, null, null, null, 0, 0), null, null, error);
+        }
     }
 }

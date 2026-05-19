@@ -1,20 +1,17 @@
+using System.Data;
+using System.Data.Common;
+using System.Globalization;
 using Cratebase.Application.Search;
 using Cratebase.Application.Security;
-using Cratebase.Domain.Catalog;
-using Cratebase.Domain.Collection;
-using Cratebase.Domain.Credits;
-using Cratebase.Domain.Relations;
-using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Infrastructure.Persistence.Search;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Cratebase.Infrastructure.Persistence.Queries;
 
 public sealed class CollectionSearchQueries : ICollectionSearchQueries
 {
-    private const string ReleaseResultType = "release";
-    private const string TrackResultType = "track";
-
     private readonly CratebaseDbContext _context;
     private readonly CollectionId _collectionId;
 
@@ -28,245 +25,263 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        string term = query.Query.Trim();
-        SearchResultAccumulator accumulator = new();
+        var parameters = SearchSqlParameters.From(_collectionId, query);
+        await using DbCommand countCommand = await CreateCommandAsync(CountSql, parameters, cancellationToken);
+        int total = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
 
-        Artist[] artists = await _context.Artists.AsNoTracking()
-            .Where(artist => artist.CollectionId == _collectionId)
-            .OrderBy(artist => artist.Name)
-            .ToArrayAsync(cancellationToken);
-        Label[] labels = await _context.Labels.AsNoTracking()
-            .Where(label => label.CollectionId == _collectionId)
-            .OrderBy(label => label.Name)
-            .ToArrayAsync(cancellationToken);
-        Release[] releases = await _context.Releases.AsNoTracking()
-            .Include("_genres")
-            .Include("_tags")
-            .Where(release => release.CollectionId == _collectionId)
-            .OrderBy(release => release.Summary.Title)
-            .ToArrayAsync(cancellationToken);
-        Track[] tracks = await _context.Tracks.AsNoTracking()
-            .Include("_genres")
-            .Include("_tags")
-            .Where(track => track.CollectionId == _collectionId)
-            .OrderBy(track => track.Title)
-            .ToArrayAsync(cancellationToken);
-        Credit[] credits = await _context.Credits.AsNoTracking()
-            .Where(credit => credit.CollectionId == _collectionId)
-            .ToArrayAsync(cancellationToken);
-        OwnedItem[] ownedItems = await _context.OwnedItems.AsNoTracking()
-            .Where(item => item.CollectionId == _collectionId)
-            .ToArrayAsync(cancellationToken);
-        ArtistRelation[] artistRelations = await _context.ArtistRelations.AsNoTracking()
-            .Where(relation => relation.CollectionId == _collectionId)
-            .ToArrayAsync(cancellationToken);
-        TrackRelation[] trackRelations = await _context.TrackRelations.AsNoTracking()
-            .Where(relation => relation.CollectionId == _collectionId)
-            .ToArrayAsync(cancellationToken);
-        CollectionDictionaryEntry[] dictionaryEntries = await _context.CollectionDictionaryEntries.AsNoTracking()
-            .Where(entry => entry.CollectionId == _collectionId)
-            .ToArrayAsync(cancellationToken);
-
-        Dictionary<LabelId, string> labelNames = labels.ToDictionary(label => label.Id, label => label.Name);
-        Dictionary<ArtistId, Artist> artistsById = artists.ToDictionary(artist => artist.Id);
-        Dictionary<ReleaseId, Release> releasesById = releases.ToDictionary(release => release.Id);
-        Dictionary<TrackId, Track> tracksById = tracks.ToDictionary(track => track.Id);
-        var dictionaries = DictionarySearchLookup.From(dictionaryEntries);
-
-        AddArtists(term, accumulator, artists);
-        AddLabels(term, accumulator, labels);
-        AddReleases(term, accumulator, dictionaries, releases, labelNames);
-        AddTracks(term, accumulator, dictionaries, tracks);
-        AddCredits(term, accumulator, dictionaries, credits, releasesById, tracksById);
-        AddOwnedItems(term, accumulator, dictionaries, ownedItems, releasesById, tracksById);
-        RelationSearchAppender.AddRelations(term, accumulator, dictionaries, artistRelations, trackRelations, artistsById, tracksById);
-
-        SearchResultReadModel[] results =
-        [
-            .. accumulator.Results
-                .OrderByDescending(result => result.Score)
-                .ThenBy(result => SearchResultCodes.TypeRank(result.Type))
-                .ThenBy(result => result.Title, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(result => result.Id)
-                .Select(result => result.ToReadModel())
-        ];
-        SearchResultReadModel[] page = [.. results.Skip(query.Offset).Take(query.Limit)];
-
-        return new CollectionSearchResult(page, query.Limit, query.Offset, results.Length);
-    }
-
-    private static void AddArtists(string term, SearchResultAccumulator accumulator, IReadOnlyList<Artist> artists)
-    {
-        foreach (Artist artist in artists.Where(artist => ContainsTerm(artist.Name, term)))
+        await using DbCommand searchCommand = await CreateCommandAsync(SearchSql, parameters, cancellationToken);
+        await using DbDataReader reader = await searchCommand.ExecuteReaderAsync(cancellationToken);
+        List<SearchResultReadModel> results = [];
+        while (await reader.ReadAsync(cancellationToken))
         {
-            accumulator.Add(artist.Id.Value, "artist", artist.Name, SearchResultCodes.ArtistType(artist), "name", 100);
-        }
-    }
-
-    private static void AddLabels(string term, SearchResultAccumulator accumulator, IReadOnlyList<Label> labels)
-    {
-        foreach (Label label in labels.Where(label => ContainsTerm(label.Name, term)))
-        {
-            accumulator.Add(label.Id.Value, "label", label.Name, null, "name", 90);
-        }
-    }
-
-    private static void AddReleases(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Release> releases, Dictionary<LabelId, string> labelNames)
-    {
-        foreach (Release release in releases)
-        {
-            SearchTarget target = new(release.Id.Value, ReleaseResultType, release.Summary.Title, ReleaseSubtitle(release, labelNames));
-            AddIfContains(accumulator, term, target, "title", release.Summary.Title, 100);
-            if (dictionaries.Contains(DictionaryKind.ReleaseType, release.Summary.Metadata.Type, term))
-            {
-                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "release.type", 65);
-            }
-
-            if (TryGetReleaseLabelName(release, labelNames, out string? labelName) && labelName is not null)
-            {
-                AddIfContains(accumulator, term, target, "label", labelName, 80);
-            }
-
-            foreach (Genre genre in release.Cataloging.Genres.Where(genre => dictionaries.Contains(DictionaryKind.Genre, genre.Name, term)))
-            {
-                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
-            }
-
-            foreach (Tag tag in release.Cataloging.Tags)
-            {
-                AddIfContains(accumulator, term, target, "tag", tag.Name, 70);
-            }
-        }
-    }
-
-    private static void AddTracks(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Track> tracks)
-    {
-        foreach (Track track in tracks)
-        {
-            SearchTarget target = new(track.Id.Value, TrackResultType, track.Title, null);
-            AddIfContains(accumulator, term, target, "title", track.Title, 100);
-
-            foreach (Genre genre in track.Cataloging.Genres.Where(genre => dictionaries.Contains(DictionaryKind.Genre, genre.Name, term)))
-            {
-                accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, "genre", 60);
-            }
-
-            foreach (Tag tag in track.Cataloging.Tags)
-            {
-                AddIfContains(accumulator, term, target, "tag", tag.Name, 70);
-            }
-        }
-    }
-
-    private static void AddCredits(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<Credit> credits, Dictionary<ReleaseId, Release> releases, Dictionary<TrackId, Track> tracks)
-    {
-        foreach (Credit credit in credits)
-        {
-            CreditTarget target = credit.Target;
-            string role = SearchResultCodes.ToCreditRoleCode(credit.Role);
-            bool roleMatches = dictionaries.Contains(DictionaryKind.CreditRole, role, term);
-            bool contributorMatches = ContainsTerm(credit.Contributor.Name, term);
-            if (!roleMatches && !contributorMatches)
-            {
-                continue;
-            }
-
-            (Guid id, string type, string title) = target switch
-            {
-                ReleaseCreditTarget releaseTarget when releases.TryGetValue(releaseTarget.ReleaseId, out Release? release) => (release.Id.Value, ReleaseResultType, release.Summary.Title),
-                TrackCreditTarget trackTarget when tracks.TryGetValue(trackTarget.TrackId, out Track? track) => (track.Id.Value, TrackResultType, track.Title),
-                _ => (Guid.Empty, string.Empty, string.Empty)
-            };
-            if (id == Guid.Empty)
-            {
-                continue;
-            }
-
-            string subtitle = $"{dictionaries.LabelOrCode(DictionaryKind.CreditRole, role)}: {credit.Contributor.Name}";
-            if (roleMatches)
-            {
-                accumulator.Add(id, type, title, subtitle, "credit.role", 75);
-            }
-
-            if (contributorMatches)
-            {
-                accumulator.Add(id, type, title, subtitle, "credit.contributor", 65);
-            }
-        }
-    }
-
-    private static void AddOwnedItems(string term, SearchResultAccumulator accumulator, DictionarySearchLookup dictionaries, IReadOnlyList<OwnedItem> ownedItems, Dictionary<ReleaseId, Release> releases, Dictionary<TrackId, Track> tracks)
-    {
-        foreach (OwnedItem item in ownedItems)
-        {
-            string status = SearchResultCodes.ToOwnershipStatusCode(item.Holding.Status);
-            string medium = SearchResultCodes.ToMediumCode(item.Holding.Medium);
-            bool statusMatches = ContainsTerm(status, term);
-            bool mediumMatches = dictionaries.Contains(DictionaryKind.MediaType, medium, term);
-            if (!statusMatches && !mediumMatches)
-            {
-                continue;
-            }
-
-            string title = OwnedItemTitle(item.Target, releases, tracks);
-            string subtitle = $"{status} on {dictionaries.LabelOrCode(DictionaryKind.MediaType, medium)}";
-            if (statusMatches)
-            {
-                accumulator.Add(item.Id.Value, "ownedItem", title, subtitle, "ownershipStatus", 55);
-            }
-
-            if (mediumMatches)
-            {
-                accumulator.Add(item.Id.Value, "ownedItem", title, subtitle, "medium", 55);
-            }
-        }
-    }
-
-    private static void AddIfContains(
-        SearchResultAccumulator accumulator,
-        string term,
-        SearchTarget target,
-        string matchedField,
-        string value,
-        int score)
-    {
-        if (ContainsTerm(value, term))
-        {
-            accumulator.Add(target.Id, target.Type, target.Title, target.Subtitle, matchedField, score);
-        }
-    }
-
-    private static bool ContainsTerm(string value, string term)
-    {
-        return value.Contains(term, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ReleaseSubtitle(Release release, Dictionary<LabelId, string> labelNames)
-    {
-        return TryGetReleaseLabelName(release, labelNames, out string? labelName) && labelName is not null ? labelName : "release";
-    }
-
-    private static bool TryGetReleaseLabelName(Release release, Dictionary<LabelId, string> labelNames, out string? labelName)
-    {
-        labelName = null;
-        if (!release.Summary.Metadata.LabelId.HasValue)
-        {
-            return false;
+            results.Add(ReadResult(reader));
         }
 
-        LabelId labelId = release.Summary.Metadata.LabelId.Match(value => value, () => default);
-        return labelNames.TryGetValue(labelId, out labelName);
+        return new CollectionSearchResult(results, query.Limit, query.Offset, total);
     }
 
-    private static string OwnedItemTitle(OwnedItemTarget target, Dictionary<ReleaseId, Release> releases, Dictionary<TrackId, Track> tracks)
+    private async Task<DbCommand> CreateCommandAsync(
+        string sql,
+        SearchSqlParameters parameters,
+        CancellationToken cancellationToken)
     {
-        return target switch
+        DbConnection connection = _context.Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open)
         {
-            ReleaseOwnedItemTarget releaseTarget when releases.TryGetValue(releaseTarget.ReleaseId, out Release? release) => release.Summary.Title,
-            TrackOwnedItemTarget trackTarget when tracks.TryGetValue(trackTarget.TrackId, out Track? track) => track.Title,
-            _ => "Owned item"
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        DbCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
+        parameters.AddTo(command);
+
+        return command;
+    }
+
+    private static SearchResultReadModel ReadResult(DbDataReader reader)
+    {
+        var facets = new SearchResultFacetsReadModel(
+            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("role_facet"))).Select(DisplayRole)],
+            SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("media_facet"))),
+            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("status_facet"))).Select(DisplayStatus)],
+            SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("tag_facet"))),
+            reader.IsDBNull(reader.GetOrdinal("label_id")) ? null : reader.GetGuid(reader.GetOrdinal("label_id")),
+            [.. SearchDocumentText.UnpackFacet(reader.GetString(reader.GetOrdinal("collector_signal_facet"))).Select(DisplaySignal)]);
+
+        return new SearchResultReadModel(
+            reader.GetGuid(reader.GetOrdinal("entity_id")),
+            reader.GetString(reader.GetOrdinal("entity_type")),
+            reader.GetString(reader.GetOrdinal("title")),
+            reader.IsDBNull(reader.GetOrdinal("subtitle")) ? null : reader.GetString(reader.GetOrdinal("subtitle")),
+            reader.IsDBNull(reader.GetOrdinal("summary")) ? null : reader.GetString(reader.GetOrdinal("summary")),
+            SearchDocumentText.Unpack(reader.GetString(reader.GetOrdinal("matched_fields"))),
+            SearchDocumentText.Unpack(reader.GetString(reader.GetOrdinal("snippets"))),
+            facets,
+            Convert.ToDecimal(reader.GetDouble(reader.GetOrdinal("rank")), CultureInfo.InvariantCulture));
+    }
+
+    private static string DisplayRole(string role)
+    {
+        return role switch
+        {
+            "mainartist" => "mainArtist",
+            "featuredartist" => "featuredArtist",
+            _ => role
         };
     }
 
-    private readonly record struct SearchTarget(Guid Id, string Type, string Title, string? Subtitle);
+    private static string DisplayStatus(string status)
+    {
+        return status == "needsdigitization" ? "needsDigitization" : status;
+    }
+
+    private static string DisplaySignal(string signal)
+    {
+        return signal switch
+        {
+            "physicalwithoutdigital" => "physicalWithoutDigital",
+            "lossywithoutlossless" => "lossyWithoutLossless",
+            "wantednotowned" => "wantedNotOwned",
+            "needsdigitization" => "needsDigitization",
+            _ => signal
+        };
+    }
+
+    private const string SearchSql =
+        """
+        WITH search_input AS (
+            SELECT CASE WHEN @has_query THEN websearch_to_tsquery('simple', @query) ELSE NULL::tsquery END AS query
+        )
+        SELECT
+            document.entity_id,
+            document.entity_type,
+            document.title,
+            document.subtitle,
+            document.summary,
+            document.matched_fields,
+            document.snippets,
+            document.role_facet,
+            document.media_facet,
+            document.status_facet,
+            document.tag_facet,
+            document.label_id,
+            document.label_id_facet,
+            document.collector_signal_facet,
+            CASE WHEN @has_query THEN
+                (ts_rank(document.search_vector, search_input.query) * 10.0) +
+                similarity(document.search_text, @query) +
+                CASE WHEN lower(document.title) = lower(@query) THEN 5.0 ELSE 0.0 END
+            ELSE 1.0 END AS rank
+        FROM search_documents document
+        CROSS JOIN search_input
+        WHERE document.collection_id = @collection_id
+            AND (@entity_type = '' OR document.entity_type = @entity_type)
+            AND (@role_pattern = '' OR document.role_facet LIKE @role_pattern)
+            AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
+            AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
+            AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
+            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
+            AND (
+                @saved_view = '' OR
+                @saved_view = 'all' OR
+                (@saved_view = 'credits' AND document.role_facet <> '') OR
+                (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
+                (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
+                (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
+                (@saved_view = 'mp3notlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
+                (@saved_view = 'wantednotowned' AND document.collector_signal_facet LIKE '%|wantednotowned|%')
+            )
+            AND (
+                @has_query = false OR
+                document.search_vector @@ search_input.query OR
+                document.search_text ILIKE @query_like ESCAPE '\' OR
+                similarity(document.search_text, @query) >= 0.18
+            )
+        ORDER BY rank DESC, document.title ASC, document.entity_type ASC, document.entity_id ASC
+        LIMIT @limit OFFSET @offset
+        """;
+
+    private const string CountSql =
+        """
+        WITH search_input AS (
+            SELECT CASE WHEN @has_query THEN websearch_to_tsquery('simple', @query) ELSE NULL::tsquery END AS query
+        )
+        SELECT count(*)
+        FROM search_documents document
+        CROSS JOIN search_input
+        WHERE document.collection_id = @collection_id
+            AND (@entity_type = '' OR document.entity_type = @entity_type)
+            AND (@role_pattern = '' OR document.role_facet LIKE @role_pattern)
+            AND (@media_pattern = '' OR document.media_facet LIKE @media_pattern)
+            AND (@status_pattern = '' OR document.status_facet LIKE @status_pattern)
+            AND (@tag_pattern = '' OR document.tag_facet LIKE @tag_pattern)
+            AND (@label_id IS NULL OR document.label_id = @label_id OR document.label_id_facet LIKE @label_id_pattern)
+            AND (
+                @saved_view = '' OR
+                @saved_view = 'all' OR
+                (@saved_view = 'credits' AND document.role_facet <> '') OR
+                (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
+                (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
+                (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
+                (@saved_view = 'mp3notlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
+                (@saved_view = 'wantednotowned' AND document.collector_signal_facet LIKE '%|wantednotowned|%')
+            )
+            AND (
+                @has_query = false OR
+                document.search_vector @@ search_input.query OR
+                document.search_text ILIKE @query_like ESCAPE '\' OR
+                similarity(document.search_text, @query) >= 0.18
+            )
+        """;
+
+    private sealed record SearchSqlParameters(
+        Guid CollectionId,
+        bool HasQuery,
+        string Query,
+        string QueryLike,
+        string EntityType,
+        string RolePattern,
+        string MediaPattern,
+        string StatusPattern,
+        string TagPattern,
+        Guid? LabelId,
+        string LabelIdPattern,
+        string SavedView,
+        int Limit,
+        int Offset)
+    {
+        public static SearchSqlParameters From(CollectionId collectionId, CollectionSearchQuery query)
+        {
+            string normalizedQuery = query.Query.Trim();
+
+            return new SearchSqlParameters(
+                collectionId.Value,
+                normalizedQuery.Length > 0,
+                normalizedQuery,
+                $"%{EscapeLike(normalizedQuery)}%",
+                query.EntityType?.Trim() ?? string.Empty,
+                FacetPattern(query.Role),
+                FacetPattern(query.Media),
+                FacetPattern(query.Status),
+                FacetPattern(query.Tag),
+                query.LabelId,
+                LabelFacetPattern(query.LabelId),
+                SearchDocumentText.NormalizeFacet(query.SavedView ?? string.Empty),
+                query.Limit,
+                query.Offset);
+        }
+
+        public void AddTo(DbCommand command)
+        {
+            Add(command, "collection_id", CollectionId);
+            Add(command, "has_query", HasQuery);
+            Add(command, "query", Query);
+            Add(command, "query_like", QueryLike);
+            Add(command, "entity_type", EntityType);
+            Add(command, "role_pattern", RolePattern);
+            Add(command, "media_pattern", MediaPattern);
+            Add(command, "status_pattern", StatusPattern);
+            Add(command, "tag_pattern", TagPattern);
+            Add(command, "label_id", LabelId, DbType.Guid);
+            Add(command, "label_id_pattern", LabelIdPattern);
+            Add(command, "saved_view", SavedView);
+            Add(command, "limit", Limit);
+            Add(command, "offset", Offset);
+        }
+
+        private static string FacetPattern(string? value)
+        {
+            string normalized = SearchDocumentText.NormalizeFacet(value ?? string.Empty);
+            return normalized.Length == 0 ? string.Empty : $"%|{normalized}|%";
+        }
+
+        private static string LabelFacetPattern(Guid? labelId)
+        {
+            return labelId.HasValue
+                ? $"%|{SearchDocumentText.NormalizeFacet(labelId.Value.ToString("D"))}|%"
+                : string.Empty;
+        }
+
+        private static string EscapeLike(string value)
+        {
+            return value
+                .Replace(@"\", @"\\", StringComparison.Ordinal)
+                .Replace("%", @"\%", StringComparison.Ordinal)
+                .Replace("_", @"\_", StringComparison.Ordinal);
+        }
+
+        private static void Add(DbCommand command, string name, object? value, DbType? dbType = null)
+        {
+            DbParameter parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value ?? DBNull.Value;
+            if (dbType.HasValue)
+            {
+                parameter.DbType = dbType.Value;
+            }
+
+            _ = command.Parameters.Add(parameter);
+        }
+    }
 }

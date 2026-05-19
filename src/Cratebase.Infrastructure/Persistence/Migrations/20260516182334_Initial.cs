@@ -12,6 +12,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -41,6 +43,41 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_collections", x => x.id);
                     table.UniqueConstraint("collection_id", x => x.collection_id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "search_documents",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    entity_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    entity_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    subtitle = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    summary = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    search_text = table.Column<string>(type: "text", nullable: false),
+                    search_vector = table.Column<string>(type: "tsvector", nullable: false, computedColumnSql: "to_tsvector('simple', coalesce(search_text, ''))", stored: true),
+                    matched_fields = table.Column<string>(type: "text", nullable: false),
+                    snippets = table.Column<string>(type: "text", nullable: false),
+                    role_facet = table.Column<string>(type: "text", nullable: false),
+                    media_facet = table.Column<string>(type: "text", nullable: false),
+                    status_facet = table.Column<string>(type: "text", nullable: false),
+                    tag_facet = table.Column<string>(type: "text", nullable: false),
+                    label_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    label_id_facet = table.Column<string>(type: "text", nullable: false),
+                    collector_signal_facet = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_search_documents", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_search_documents_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1261,11 +1298,33 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_tracks_collection_id",
                 table: "tracks",
                 column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_entity",
+                table: "search_documents",
+                columns: new[] { "collection_id", "entity_type", "entity_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_entity_type",
+                table: "search_documents",
+                columns: new[] { "collection_id", "entity_type" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_label_id",
+                table: "search_documents",
+                columns: new[] { "collection_id", "label_id" });
+
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_vector ON search_documents USING GIN (search_vector)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_text_trgm ON search_documents USING GIN (search_text gin_trgm_ops)");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "search_documents");
+
             migrationBuilder.DropTable(
                 name: "artist_relations");
 

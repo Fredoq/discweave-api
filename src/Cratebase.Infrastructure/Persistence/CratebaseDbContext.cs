@@ -11,15 +11,18 @@ using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence.Configurations;
+using Cratebase.Infrastructure.Persistence.Search;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Cratebase.Infrastructure.Persistence;
 
 public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, IdentityRole<Guid>, Guid>, IUnitOfWork
 {
     private const string RatingCriterionCodeUniqueIndex = "IX_rating_criteria_collection_id_code";
+    private const string CollectionIdProperty = "CollectionId";
 
     public CratebaseDbContext(DbContextOptions<CratebaseDbContext> options)
         : base(options)
@@ -67,6 +70,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<ReleaseImportDraftTrack> ReleaseImportDraftTracks => Set<ReleaseImportDraftTrack>();
 
+    internal DbSet<SearchDocument> SearchDocuments => Set<SearchDocument>();
+
     public bool HasCurrentCollection { get; private set; }
 
     public CollectionId CurrentCollectionId { get; private set; }
@@ -80,7 +85,26 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
     {
         try
         {
-            return await base.SaveChangesAsync(cancellationToken);
+            HashSet<CollectionId> searchCollections = CollectSearchDocumentCollections();
+            if (searchCollections.Count == 0)
+            {
+                return await base.SaveChangesAsync(cancellationToken);
+            }
+
+            if (Database.CurrentTransaction is not null)
+            {
+                int result = await base.SaveChangesAsync(cancellationToken);
+                await SearchDocumentRebuilder.RebuildAsync(this, searchCollections, cancellationToken);
+
+                return result;
+            }
+
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction = await Database.BeginTransactionAsync(cancellationToken);
+            int saved = await base.SaveChangesAsync(cancellationToken);
+            await SearchDocumentRebuilder.RebuildAsync(this, searchCollections, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return saved;
         }
         catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsReferencedResourceMissing(exception))
         {
@@ -122,6 +146,7 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
+        _ = builder.ApplyConfiguration(new SearchDocumentConfiguration());
         _ = builder.ApplyConfiguration(new TrackConfiguration());
         _ = builder.ApplyConfiguration(new TrackRelationConfiguration());
 
@@ -148,20 +173,127 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     private void ConfigureCollectionFilters(ModelBuilder modelBuilder)
     {
-        _ = modelBuilder.Entity<Artist>().HasQueryFilter(artist => !HasCurrentCollection || artist.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<Label>().HasQueryFilter(label => !HasCurrentCollection || label.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<Release>().HasQueryFilter(release => !HasCurrentCollection || release.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<Track>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<OwnedItem>().HasQueryFilter(item => !HasCurrentCollection || item.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<Credit>().HasQueryFilter(credit => !HasCurrentCollection || credit.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<ArtistRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<TrackRelation>().HasQueryFilter(relation => !HasCurrentCollection || relation.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<CollectionDictionaryEntry>().HasQueryFilter(entry => !HasCurrentCollection || entry.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<RatingCriterion>().HasQueryFilter(criterion => !HasCurrentCollection || criterion.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<RatingValue>().HasQueryFilter(value => !HasCurrentCollection || value.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<ImportPattern>().HasQueryFilter(pattern => !HasCurrentCollection || pattern.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<ReleaseImportSession>().HasQueryFilter(session => !HasCurrentCollection || session.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<ReleaseImportDraft>().HasQueryFilter(draft => !HasCurrentCollection || draft.CollectionId == CurrentCollectionId);
-        _ = modelBuilder.Entity<ReleaseImportDraftTrack>().HasQueryFilter(track => !HasCurrentCollection || track.CollectionId == CurrentCollectionId);
+        ConfigureCollectionFilter<Artist>(modelBuilder);
+        ConfigureCollectionFilter<Label>(modelBuilder);
+        ConfigureCollectionFilter<Release>(modelBuilder);
+        ConfigureCollectionFilter<Track>(modelBuilder);
+        ConfigureCollectionFilter<OwnedItem>(modelBuilder);
+        ConfigureCollectionFilter<Credit>(modelBuilder);
+        ConfigureCollectionFilter<ArtistRelation>(modelBuilder);
+        ConfigureCollectionFilter<TrackRelation>(modelBuilder);
+        ConfigureCollectionFilter<CollectionDictionaryEntry>(modelBuilder);
+        ConfigureCollectionFilter<RatingCriterion>(modelBuilder);
+        ConfigureCollectionFilter<RatingValue>(modelBuilder);
+        ConfigureCollectionFilter<ImportPattern>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportSession>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
+        ConfigureCollectionFilter<SearchDocument>(modelBuilder);
+    }
+
+    private void ConfigureCollectionFilter<TEntity>(ModelBuilder modelBuilder)
+        where TEntity : class
+    {
+        _ = modelBuilder.Entity<TEntity>().HasQueryFilter(entity =>
+            !HasCurrentCollection || EF.Property<CollectionId>(entity, CollectionIdProperty) == CurrentCollectionId);
+    }
+
+    private HashSet<CollectionId> CollectSearchDocumentCollections()
+    {
+        HashSet<CollectionId> collectionIds = [];
+
+        foreach (EntityEntry entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            {
+                continue;
+            }
+
+            if (TryGetSearchCollectionId(entry, out CollectionId collectionId))
+            {
+                _ = collectionIds.Add(collectionId);
+            }
+        }
+
+        return collectionIds;
+    }
+
+    private bool TryGetSearchCollectionId(EntityEntry entry, out CollectionId collectionId)
+    {
+        switch (entry.Entity)
+        {
+            case Artist artist:
+                collectionId = artist.CollectionId;
+                return true;
+            case Label label:
+                collectionId = label.CollectionId;
+                return true;
+            case Release release:
+                collectionId = release.CollectionId;
+                return true;
+            case Track track:
+                collectionId = track.CollectionId;
+                return true;
+            case OwnedItem ownedItem:
+                collectionId = ownedItem.CollectionId;
+                return true;
+            case Credit credit:
+                collectionId = credit.CollectionId;
+                return true;
+            case ArtistRelation artistRelation:
+                collectionId = artistRelation.CollectionId;
+                return true;
+            case TrackRelation trackRelation:
+                collectionId = trackRelation.CollectionId;
+                return true;
+            case CollectionDictionaryEntry dictionaryEntry:
+                collectionId = dictionaryEntry.CollectionId;
+                return true;
+            default:
+                return TryGetOwnedSearchCollectionId(entry, out collectionId);
+        }
+    }
+
+    private bool TryGetOwnedSearchCollectionId(EntityEntry entry, out CollectionId collectionId)
+    {
+        collectionId = default;
+
+        if (!entry.Metadata.IsOwned())
+        {
+            return false;
+        }
+
+        if (TryReadCollectionIdProperty(entry, out collectionId))
+        {
+            return true;
+        }
+
+        if (HasCurrentCollection)
+        {
+            collectionId = CurrentCollectionId;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadCollectionIdProperty(EntityEntry entry, out CollectionId collectionId)
+    {
+        collectionId = default;
+        if (entry.Metadata.FindProperty(CollectionIdProperty) is null)
+        {
+            return false;
+        }
+
+        object? value = entry.State == EntityState.Deleted
+            ? entry.Property(CollectionIdProperty).OriginalValue
+            : entry.Property(CollectionIdProperty).CurrentValue;
+        if (value is not CollectionId id)
+        {
+            return false;
+        }
+
+        collectionId = id;
+        return true;
     }
 }
