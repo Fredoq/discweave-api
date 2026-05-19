@@ -65,8 +65,8 @@ public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<PostgresFi
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
             new { title, type = "standalone", isVariousArtists = true, year = 1983, genres = EmptyStrings, tags = EmptyStrings });
-        using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }
@@ -82,8 +82,8 @@ public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<PostgresFi
                 status,
                 medium = new { type = medium, description = medium }
             });
-        using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }
@@ -104,8 +104,8 @@ public sealed class SearchAuditSavedViewEndpointTests : IClassFixture<PostgresFi
                     format
                 }
             });
-        using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
 
         return document.RootElement.GetProperty("id").GetGuid();
     }

@@ -91,6 +91,8 @@ internal static partial class SearchDocumentBuilder
         Dictionary<ReleaseId, Release> Releases,
         Dictionary<TrackId, Track> Tracks,
         IReadOnlyList<OwnedItem> OwnedItems,
+        Dictionary<ReleaseId, OwnedItem[]> OwnedItemsByReleaseId,
+        Dictionary<TrackId, OwnedItem[]> OwnedItemsByTrackId,
         IReadOnlyList<Credit> Credits,
         IReadOnlyList<ArtistRelation> ArtistRelations,
         IReadOnlyList<TrackRelation> TrackRelations,

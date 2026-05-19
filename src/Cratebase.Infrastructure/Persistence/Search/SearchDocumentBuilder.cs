@@ -25,6 +25,8 @@ internal static partial class SearchDocumentBuilder
         ArtistRelation[] artistRelations = await context.ArtistRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         TrackRelation[] trackRelations = await context.TrackRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         CollectionDictionaryEntry[] entries = await context.CollectionDictionaryEntries.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
+        Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId = OwnedItemsByReleaseId(ownedItems);
+        Dictionary<TrackId, OwnedItem[]> ownedItemsByTrackId = OwnedItemsByTrackId(ownedItems);
 
         Data data = new(
             artists.ToDictionary(item => item.Id),
@@ -32,6 +34,8 @@ internal static partial class SearchDocumentBuilder
             releases.ToDictionary(item => item.Id),
             tracks.ToDictionary(item => item.Id),
             ownedItems,
+            ownedItemsByReleaseId,
+            ownedItemsByTrackId,
             credits,
             artistRelations,
             trackRelations,
@@ -164,10 +168,26 @@ internal static partial class SearchDocumentBuilder
     {
         return item.Target switch
         {
-            ReleaseOwnedItemTarget target => [.. data.OwnedItems.Where(candidate => candidate.Target is ReleaseOwnedItemTarget candidateTarget && candidateTarget.ReleaseId == target.ReleaseId)],
-            TrackOwnedItemTarget target => [.. data.OwnedItems.Where(candidate => candidate.Target is TrackOwnedItemTarget candidateTarget && candidateTarget.TrackId == target.TrackId)],
+            ReleaseOwnedItemTarget target when data.OwnedItemsByReleaseId.TryGetValue(target.ReleaseId, out OwnedItem[]? items) => items,
+            TrackOwnedItemTarget target when data.OwnedItemsByTrackId.TryGetValue(target.TrackId, out OwnedItem[]? items) => items,
             _ => [item]
         };
+    }
+
+    private static Dictionary<ReleaseId, OwnedItem[]> OwnedItemsByReleaseId(IReadOnlyList<OwnedItem> ownedItems)
+    {
+        return ownedItems
+            .Where(item => item.Target is ReleaseOwnedItemTarget)
+            .GroupBy(item => ((ReleaseOwnedItemTarget)item.Target).ReleaseId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+    }
+
+    private static Dictionary<TrackId, OwnedItem[]> OwnedItemsByTrackId(IReadOnlyList<OwnedItem> ownedItems)
+    {
+        return ownedItems
+            .Where(item => item.Target is TrackOwnedItemTarget)
+            .GroupBy(item => ((TrackOwnedItemTarget)item.Target).TrackId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
     }
 
     private static SearchDocument ToDocument(SearchDocumentContent content)
