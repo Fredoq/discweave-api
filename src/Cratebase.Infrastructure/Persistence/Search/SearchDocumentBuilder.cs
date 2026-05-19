@@ -156,8 +156,18 @@ internal static partial class SearchDocumentBuilder
                 SearchParts = [title, .. OwnedItemSearchParts(item, data)],
                 Media = [medium],
                 Statuses = [status],
-                Signals = CollectorSignals([item])
+                Signals = CollectorSignals(TargetOwnedItems(item, data))
             });
+    }
+
+    private static OwnedItem[] TargetOwnedItems(OwnedItem item, Data data)
+    {
+        return item.Target switch
+        {
+            ReleaseOwnedItemTarget target => [.. data.OwnedItems.Where(candidate => candidate.Target is ReleaseOwnedItemTarget candidateTarget && candidateTarget.ReleaseId == target.ReleaseId)],
+            TrackOwnedItemTarget target => [.. data.OwnedItems.Where(candidate => candidate.Target is TrackOwnedItemTarget candidateTarget && candidateTarget.TrackId == target.TrackId)],
+            _ => [item]
+        };
     }
 
     private static SearchDocument ToDocument(SearchDocumentContent content)
