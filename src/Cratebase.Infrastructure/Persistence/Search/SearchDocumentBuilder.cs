@@ -25,8 +25,8 @@ internal static partial class SearchDocumentBuilder
         ArtistRelation[] artistRelations = await context.ArtistRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         TrackRelation[] trackRelations = await context.TrackRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         CollectionDictionaryEntry[] entries = await context.CollectionDictionaryEntries.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
-        Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId = OwnedItemsByReleaseId(ownedItems);
-        Dictionary<TrackId, OwnedItem[]> ownedItemsByTrackId = OwnedItemsByTrackId(ownedItems);
+        Dictionary<ReleaseId, OwnedItem[]> ownedItemsByReleaseId = BuildOwnedItemsByReleaseId(ownedItems);
+        Dictionary<TrackId, OwnedItem[]> ownedItemsByTrackId = BuildOwnedItemsByTrackId(ownedItems);
 
         Data data = new(
             artists.ToDictionary(item => item.Id),
@@ -174,7 +174,7 @@ internal static partial class SearchDocumentBuilder
         };
     }
 
-    private static Dictionary<ReleaseId, OwnedItem[]> OwnedItemsByReleaseId(IReadOnlyList<OwnedItem> ownedItems)
+    private static Dictionary<ReleaseId, OwnedItem[]> BuildOwnedItemsByReleaseId(IReadOnlyList<OwnedItem> ownedItems)
     {
         return ownedItems
             .Where(item => item.Target is ReleaseOwnedItemTarget)
@@ -182,7 +182,7 @@ internal static partial class SearchDocumentBuilder
             .ToDictionary(group => group.Key, group => group.ToArray());
     }
 
-    private static Dictionary<TrackId, OwnedItem[]> OwnedItemsByTrackId(IReadOnlyList<OwnedItem> ownedItems)
+    private static Dictionary<TrackId, OwnedItem[]> BuildOwnedItemsByTrackId(IReadOnlyList<OwnedItem> ownedItems)
     {
         return ownedItems
             .Where(item => item.Target is TrackOwnedItemTarget)
