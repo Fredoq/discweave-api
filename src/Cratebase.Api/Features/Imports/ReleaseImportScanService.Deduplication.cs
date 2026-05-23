@@ -8,6 +8,7 @@ namespace Cratebase.Api.Features.Imports;
 public static partial class ReleaseImportScanService
 {
     private const string DuplicateFileIssueCode = "release_import.duplicate_file";
+    private const string TargetTrackIdShadowName = "_targetTrackId";
 
     private static async Task ApplyDuplicateTrackMatchesAsync(
         CratebaseDbContext context,
@@ -111,10 +112,10 @@ public static partial class ReleaseImportScanService
                 item.CollectionId == collectionId &&
                 EF.Property<string?>(item, "_importIdentityContentHash") != null &&
                 contentHashes.Contains(EF.Property<string>(item, "_importIdentityContentHash")) &&
-                EF.Property<TrackId?>(item, "_targetTrackId") != null)
+                EF.Property<TrackId?>(item, TargetTrackIdShadowName) != null)
             .Select(item => new DuplicateHashMatch(
                 EF.Property<string>(item, "_importIdentityContentHash"),
-                EF.Property<TrackId?>(item, "_targetTrackId")))
+                EF.Property<TrackId?>(item, TargetTrackIdShadowName)))
             .ToArrayAsync(cancellationToken);
         var matches = new Dictionary<string, TrackId>(StringComparer.Ordinal);
         foreach (DuplicateHashMatch row in rows)
@@ -145,12 +146,12 @@ public static partial class ReleaseImportScanService
                 item.CollectionId == collectionId &&
                 EF.Property<string?>(item, "_importIdentityPath") != null &&
                 paths.Contains(EF.Property<string>(item, "_importIdentityPath")) &&
-                EF.Property<TrackId?>(item, "_targetTrackId") != null)
+                EF.Property<TrackId?>(item, TargetTrackIdShadowName) != null)
             .Select(item => new DuplicateFingerprintMatch(
                 EF.Property<string?>(item, "_importIdentityPath"),
                 EF.Property<long?>(item, "_importIdentitySizeBytes"),
                 EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
-                EF.Property<TrackId?>(item, "_targetTrackId")))
+                EF.Property<TrackId?>(item, TargetTrackIdShadowName)))
             .ToArrayAsync(cancellationToken);
         var matches = new Dictionary<ImportFingerprint, TrackId>();
         foreach (DuplicateFingerprintMatch row in rows)

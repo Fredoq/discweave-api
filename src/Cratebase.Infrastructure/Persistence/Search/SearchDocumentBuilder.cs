@@ -13,6 +13,9 @@ namespace Cratebase.Infrastructure.Persistence.Search;
 
 internal static partial class SearchDocumentBuilder
 {
+    private const string MediumMatchedField = "medium";
+    private const string OwnershipStatusMatchedField = "ownershipStatus";
+
     public static async Task<IReadOnlyList<SearchDocument>> BuildAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -110,7 +113,7 @@ internal static partial class SearchDocumentBuilder
             {
                 Subtitle = labelNames.FirstOrDefault() ?? "release",
                 Summary = string.Join(", ", tags),
-                MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", "medium", "ownershipStatus"],
+                MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", MediumMatchedField, OwnershipStatusMatchedField],
                 SearchParts = [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
@@ -136,7 +139,7 @@ internal static partial class SearchDocumentBuilder
             {
                 Subtitle = releases.FirstOrDefault()?.Summary.Title,
                 Summary = string.Join(", ", tags),
-                MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", "medium", "ownershipStatus"],
+                MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", MediumMatchedField, OwnershipStatusMatchedField],
                 SearchParts = [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
@@ -161,7 +164,7 @@ internal static partial class SearchDocumentBuilder
             new SearchDocumentContent(item.CollectionId, "ownedItem", item.Id.Value, title)
             {
                 Subtitle = $"{status} on {medium}",
-                MatchedFields = ["ownershipStatus", "medium", "title"],
+                MatchedFields = [OwnershipStatusMatchedField, MediumMatchedField, "title"],
                 SearchParts = [title, .. OwnedItemSearchParts(item, data)],
                 Media = [medium],
                 Statuses = [status],
@@ -192,7 +195,7 @@ internal static partial class SearchDocumentBuilder
             {
                 Subtitle = playlist.Type == PlaylistType.Manual ? "manual playlist" : "smart playlist",
                 Summary = description.Length == 0 ? null : description,
-                MatchedFields = ["name", "playlist", "track", "release", "tag", "genre", "medium", "ownershipStatus"],
+                MatchedFields = ["name", "playlist", "track", "release", "tag", "genre", MediumMatchedField, OwnershipStatusMatchedField],
                 SearchParts = [playlist.Name, description, playlist.Type.ToString(), .. referencedTitles, .. ruleParts],
                 Media = [.. rules.Media],
                 Statuses = [.. rules.OwnershipStatuses],

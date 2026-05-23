@@ -11,7 +11,14 @@ namespace Cratebase.Api.Features.CatalogLinks;
 
 public static class CatalogLinksEndpointRouteBuilderExtensions
 {
-    private static readonly string[] DefaultKinds = ["artist", "release", "track", "ownedItem", "label", "playlist"];
+    private const string ArtistKind = "artist";
+    private const string LabelKind = "label";
+    private const string OwnedItemKind = "ownedItem";
+    private const string PlaylistKind = "playlist";
+    private const string ReleaseKind = "release";
+    private const string TrackKind = "track";
+
+    private static readonly string[] DefaultKinds = [ArtistKind, ReleaseKind, TrackKind, OwnedItemKind, LabelKind, PlaylistKind];
 
     public static IEndpointRouteBuilder MapCatalogLinksEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -41,68 +48,15 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
         string[] requestedKinds = ParseKinds(kinds);
         string? normalizedQuery = string.IsNullOrWhiteSpace(query) ? null : query.Trim();
         string? pattern = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%";
-        List<CatalogLinkResponse> items = [];
-
-        if (requestedKinds.Contains("artist", StringComparer.OrdinalIgnoreCase))
-        {
-            items.AddRange(await context.Artists.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
-                .OrderBy(item => item.Name)
-                .Take(normalizedLimit)
-                .Select(item => new CatalogLinkResponse("artist", item.Id.Value, item.Name, "artist"))
-                .ToArrayAsync(cancellationToken));
-        }
-
-        if (requestedKinds.Contains("label", StringComparer.OrdinalIgnoreCase))
-        {
-            items.AddRange(await context.Labels.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
-                .OrderBy(item => item.Name)
-                .Take(normalizedLimit)
-                .Select(item => new CatalogLinkResponse("label", item.Id.Value, item.Name, "label"))
-                .ToArrayAsync(cancellationToken));
-        }
-
-        if (requestedKinds.Contains("release", StringComparer.OrdinalIgnoreCase))
-        {
-            items.AddRange(await context.Releases.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId && (pattern == null || EF.Functions.ILike(item.Summary.Title, pattern)))
-                .OrderBy(item => item.Summary.Title)
-                .Take(normalizedLimit)
-                .Select(item => new CatalogLinkResponse("release", item.Id.Value, item.Summary.Title, item.Summary.Metadata.Type))
-                .ToArrayAsync(cancellationToken));
-        }
-
-        if (requestedKinds.Contains("track", StringComparer.OrdinalIgnoreCase))
-        {
-            items.AddRange(await context.Tracks.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId && (pattern == null || EF.Functions.ILike(item.Title, pattern)))
-                .OrderBy(item => item.Title)
-                .Take(normalizedLimit)
-                .Select(item => new CatalogLinkResponse("track", item.Id.Value, item.Title, "track"))
-                .ToArrayAsync(cancellationToken));
-        }
-
-        if (requestedKinds.Contains("ownedItem", StringComparer.OrdinalIgnoreCase))
-        {
-            OwnedItem[] ownedItems = await context.OwnedItems.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId)
-                .OrderBy(item => item.Id)
-                .Take(pattern == null ? normalizedLimit : Math.Min(normalizedLimit * 5, 250))
-                .ToArrayAsync(cancellationToken);
-
-            items.AddRange(await OwnedItemLinksAsync(context, currentCollection.CollectionId, ownedItems, normalizedQuery, cancellationToken));
-        }
-
-        if (requestedKinds.Contains("playlist", StringComparer.OrdinalIgnoreCase))
-        {
-            items.AddRange(await context.Playlists.AsNoTracking()
-                .Where(item => item.CollectionId == currentCollection.CollectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
-                .OrderBy(item => item.Name)
-                .Take(normalizedLimit)
-                .Select(item => new CatalogLinkResponse("playlist", item.Id.Value, item.Name, "playlist"))
-                .ToArrayAsync(cancellationToken));
-        }
+        List<CatalogLinkResponse> items =
+        [
+            .. await ArtistLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken),
+            .. await LabelLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken),
+            .. await ReleaseLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken),
+            .. await TrackLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken),
+            .. await OwnedItemLinksAsync(context, currentCollection.CollectionId, requestedKinds, normalizedQuery, pattern, normalizedLimit, cancellationToken),
+            .. await PlaylistLinksAsync(context, currentCollection.CollectionId, requestedKinds, pattern, normalizedLimit, cancellationToken)
+        ];
 
         CatalogLinkResponse[] page = [.. items.OrderBy(item => item.Title).ThenBy(item => item.Kind).ThenBy(item => item.Id).Take(normalizedLimit)];
         return Results.Ok(new CatalogLinksResponse(page));
@@ -115,13 +69,97 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
             : [.. kinds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
     }
 
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> ArtistLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] requestedKinds,
+        string? pattern,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return KindRequested(requestedKinds, ArtistKind)
+            ? await context.Artists.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
+                .OrderBy(item => item.Name)
+                .Take(limit)
+                .Select(item => new CatalogLinkResponse(ArtistKind, item.Id.Value, item.Name, ArtistKind))
+                .ToArrayAsync(cancellationToken)
+            : [];
+    }
+
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> LabelLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] requestedKinds,
+        string? pattern,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return KindRequested(requestedKinds, LabelKind)
+            ? await context.Labels.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
+                .OrderBy(item => item.Name)
+                .Take(limit)
+                .Select(item => new CatalogLinkResponse(LabelKind, item.Id.Value, item.Name, LabelKind))
+                .ToArrayAsync(cancellationToken)
+            : [];
+    }
+
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> ReleaseLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] requestedKinds,
+        string? pattern,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return KindRequested(requestedKinds, ReleaseKind)
+            ? await context.Releases.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.ILike(item.Summary.Title, pattern)))
+                .OrderBy(item => item.Summary.Title)
+                .Take(limit)
+                .Select(item => new CatalogLinkResponse(ReleaseKind, item.Id.Value, item.Summary.Title, item.Summary.Metadata.Type))
+                .ToArrayAsync(cancellationToken)
+            : [];
+    }
+
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> TrackLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] requestedKinds,
+        string? pattern,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return KindRequested(requestedKinds, TrackKind)
+            ? await context.Tracks.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.ILike(item.Title, pattern)))
+                .OrderBy(item => item.Title)
+                .Take(limit)
+                .Select(item => new CatalogLinkResponse(TrackKind, item.Id.Value, item.Title, TrackKind))
+                .ToArrayAsync(cancellationToken)
+            : [];
+    }
+
     private static async Task<IReadOnlyList<CatalogLinkResponse>> OwnedItemLinksAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
-        IReadOnlyList<OwnedItem> ownedItems,
+        string[] requestedKinds,
         string? query,
+        string? pattern,
+        int limit,
         CancellationToken cancellationToken)
     {
+        if (!KindRequested(requestedKinds, OwnedItemKind))
+        {
+            return [];
+        }
+
+        OwnedItem[] ownedItems = await context.OwnedItems.AsNoTracking()
+            .Where(item => item.CollectionId == collectionId)
+            .OrderBy(item => item.Id)
+            .Take(pattern == null ? limit : Math.Min(limit * 5, 250))
+            .ToArrayAsync(cancellationToken);
         ReleaseId[] releaseIds = [.. ownedItems.Select(item => item.Target).OfType<ReleaseOwnedItemTarget>().Select(target => target.ReleaseId).Distinct()];
         TrackId[] trackIds = [.. ownedItems.Select(item => item.Target).OfType<TrackOwnedItemTarget>().Select(target => target.TrackId).Distinct()];
         Dictionary<ReleaseId, Release> releases = releaseIds.Length == 0
@@ -147,6 +185,29 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
         return links;
     }
 
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> PlaylistLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] requestedKinds,
+        string? pattern,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        return KindRequested(requestedKinds, PlaylistKind)
+            ? await context.Playlists.AsNoTracking()
+                .Where(item => item.CollectionId == collectionId && (pattern == null || EF.Functions.ILike(item.Name, pattern)))
+                .OrderBy(item => item.Name)
+                .Take(limit)
+                .Select(item => new CatalogLinkResponse(PlaylistKind, item.Id.Value, item.Name, PlaylistKind))
+                .ToArrayAsync(cancellationToken)
+            : [];
+    }
+
+    private static bool KindRequested(string[] requestedKinds, string kind)
+    {
+        return requestedKinds.Contains(kind, StringComparer.OrdinalIgnoreCase);
+    }
+
     private static CatalogLinkResponse OwnedItemLink(
         OwnedItem item,
         Dictionary<ReleaseId, Release> releases,
@@ -162,7 +223,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
         };
 
         string subtitle = $"{item.Holding.Medium.Code} / {OwnershipStatusCode(item.Holding.Status)}";
-        return new CatalogLinkResponse("ownedItem", item.Id.Value, title, subtitle);
+        return new CatalogLinkResponse(OwnedItemKind, item.Id.Value, title, subtitle);
     }
 
     private static string OwnershipStatusCode(OwnershipStatus status)
