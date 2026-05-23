@@ -33,7 +33,9 @@ public sealed class SearchCollectorViewEndpointTests : IClassFixture<PostgresFix
         using HttpResponseMessage response = await client.GetAsync($"/api/search?savedView={savedView}&limit=20&offset=0");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
-        Assert.Contains(document.RootElement.GetProperty("items").EnumerateArray(), item => item.GetProperty("type").GetString() == expectedType);
+        JsonElement[] items = [.. document.RootElement.GetProperty("items").EnumerateArray()];
+        Assert.NotEmpty(items);
+        Assert.All(items, item => Assert.Equal(expectedType, item.GetProperty("type").GetString()));
     }
 
     private static async Task<Guid> CreateArtistAsync(HttpClient client, string name)

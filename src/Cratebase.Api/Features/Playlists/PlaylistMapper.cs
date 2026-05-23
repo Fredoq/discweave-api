@@ -1,4 +1,3 @@
-using Cratebase.Domain.Collection;
 using Cratebase.Domain.Playlists;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -10,6 +9,8 @@ namespace Cratebase.Api.Features.Playlists;
 
 internal static partial class PlaylistMapper
 {
+    private const int SmartPlaylistResultLimit = 200;
+
     public static PlaylistType ParseType(string? type)
     {
         return (type ?? string.Empty).Trim() switch
@@ -49,11 +50,37 @@ internal static partial class PlaylistMapper
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
+        ReleaseId[] releaseIds =
+        [
+            .. requests
+                .Where(request => NormalizeEntryKind(request.Kind) == PlaylistEntry.ReleaseKind)
+                .Select(request => new ReleaseId(request.Id))
+                .Distinct()
+        ];
+        TrackId[] trackIds =
+        [
+            .. requests
+                .Where(request => NormalizeEntryKind(request.Kind) == PlaylistEntry.TrackKind)
+                .Select(request => new TrackId(request.Id))
+                .Distinct()
+        ];
+        HashSet<ReleaseId> existingReleaseIds = releaseIds.Length == 0
+            ? []
+            : [.. await context.Releases.AsNoTracking()
+                .Where(release => release.CollectionId == collectionId && releaseIds.Contains(release.Id))
+                .Select(release => release.Id)
+                .ToArrayAsync(cancellationToken)];
+        HashSet<TrackId> existingTrackIds = trackIds.Length == 0
+            ? []
+            : [.. await context.Tracks.AsNoTracking()
+                .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
+                .Select(track => track.Id)
+                .ToArrayAsync(cancellationToken)];
         var entries = new List<PlaylistEntry>(requests.Count);
         for (int index = 0; index < requests.Count; index++)
         {
             PlaylistEntryRequest request = requests[index];
-            entries.Add(await ToEntryAsync(index, request, context, collectionId, cancellationToken));
+            entries.Add(ToEntry(index, request, existingReleaseIds, existingTrackIds));
         }
 
         return [.. entries];
@@ -86,43 +113,41 @@ internal static partial class PlaylistMapper
             results);
     }
 
-    private static async Task<PlaylistEntry> ToEntryAsync(
+    private static PlaylistEntry ToEntry(
         int index,
         PlaylistEntryRequest request,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
+        IReadOnlySet<ReleaseId> existingReleaseIds,
+        IReadOnlySet<TrackId> existingTrackIds)
     {
-        return request.Kind.Trim() switch
+        string kind = NormalizeEntryKind(request.Kind);
+        return kind switch
         {
-            PlaylistEntry.ReleaseKind => await RequireReleaseEntryAsync(index, request.Id, context, collectionId, cancellationToken),
-            PlaylistEntry.TrackKind => await RequireTrackEntryAsync(index, request.Id, context, collectionId, cancellationToken),
+            PlaylistEntry.ReleaseKind => RequireReleaseEntry(index, request.Id, existingReleaseIds),
+            PlaylistEntry.TrackKind => RequireTrackEntry(index, request.Id, existingTrackIds),
             _ => throw new DomainException("playlist.entry_kind_invalid", "Playlist entry kind is invalid")
         };
     }
 
-    private static async Task<PlaylistEntry> RequireReleaseEntryAsync(
+    private static PlaylistEntry RequireReleaseEntry(
         int index,
         Guid id,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
+        IReadOnlySet<ReleaseId> existingReleaseIds)
     {
         var releaseId = new ReleaseId(id);
-        bool exists = await context.Releases.AnyAsync(release => release.CollectionId == collectionId && release.Id == releaseId, cancellationToken);
-        return exists ? PlaylistEntry.ForRelease(index, releaseId) : throw new DomainException("playlist.release_not_found", "Playlist release was not found");
+        return existingReleaseIds.Contains(releaseId)
+            ? PlaylistEntry.ForRelease(index, releaseId)
+            : throw new DomainException("playlist.release_not_found", "Playlist release was not found");
     }
 
-    private static async Task<PlaylistEntry> RequireTrackEntryAsync(
+    private static PlaylistEntry RequireTrackEntry(
         int index,
         Guid id,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
+        IReadOnlySet<TrackId> existingTrackIds)
     {
         var trackId = new TrackId(id);
-        bool exists = await context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == trackId, cancellationToken);
-        return exists ? PlaylistEntry.ForTrack(index, trackId) : throw new DomainException("playlist.track_not_found", "Playlist track was not found");
+        return existingTrackIds.Contains(trackId)
+            ? PlaylistEntry.ForTrack(index, trackId)
+            : throw new DomainException("playlist.track_not_found", "Playlist track was not found");
     }
 
     private static async Task<PlaylistItemResponse[]> ResolveEntriesAsync(
@@ -130,10 +155,23 @@ internal static partial class PlaylistMapper
         CratebaseDbContext context,
         CancellationToken cancellationToken)
     {
+        PlaylistEntry[] orderedEntries = [.. playlist.Entries.OrderBy(entry => entry.Position)];
+        ReleaseId[] releaseIds = ReleaseIds(orderedEntries);
+        TrackId[] trackIds = TrackIds(orderedEntries);
+        Dictionary<ReleaseId, Domain.Catalog.Release> releases = releaseIds.Length == 0
+            ? []
+            : await context.Releases.AsNoTracking()
+                .Where(release => release.CollectionId == playlist.CollectionId && releaseIds.Contains(release.Id))
+                .ToDictionaryAsync(release => release.Id, cancellationToken);
+        Dictionary<TrackId, Domain.Catalog.Track> tracks = trackIds.Length == 0
+            ? []
+            : await context.Tracks.AsNoTracking()
+                .Where(track => track.CollectionId == playlist.CollectionId && trackIds.Contains(track.Id))
+                .ToDictionaryAsync(track => track.Id, cancellationToken);
         var items = new List<PlaylistItemResponse>();
-        foreach (PlaylistEntry entry in playlist.Entries.OrderBy(entry => entry.Position))
+        foreach (PlaylistEntry entry in orderedEntries)
         {
-            PlaylistItemResponse? item = await ResolveEntryAsync(entry, context, playlist.CollectionId, cancellationToken);
+            PlaylistItemResponse? item = ResolveEntry(entry, releases, tracks);
             if (item is not null)
             {
                 items.Add(item);
@@ -143,120 +181,22 @@ internal static partial class PlaylistMapper
         return [.. items];
     }
 
-    private static async Task<PlaylistItemResponse?> ResolveEntryAsync(
+    private static PlaylistItemResponse? ResolveEntry(
         PlaylistEntry entry,
-        CratebaseDbContext context,
-        CollectionId collectionId,
-        CancellationToken cancellationToken)
+        Dictionary<ReleaseId, Domain.Catalog.Release> releases,
+        Dictionary<TrackId, Domain.Catalog.Track> tracks)
     {
-        if (entry.Kind == PlaylistEntry.ReleaseKind && entry.ReleaseId is PresentOptionalValue<ReleaseId> release)
+        return entry.Kind switch
         {
-            Domain.Catalog.Release? releaseEntity = await context.Releases.AsNoTracking().SingleOrDefaultAsync(
-                item => item.CollectionId == collectionId && item.Id == release.Value,
-                cancellationToken);
-
-            return releaseEntity is null
-                ? null
-                : new PlaylistItemResponse(PlaylistEntry.ReleaseKind, releaseEntity.Id.Value, releaseEntity.Summary.Title, ReleaseYear(releaseEntity));
-        }
-
-        if (entry.Kind == PlaylistEntry.TrackKind && entry.TrackId is PresentOptionalValue<TrackId> trackId)
-        {
-            Domain.Catalog.Track? trackEntity = await context.Tracks.AsNoTracking().SingleOrDefaultAsync(
-                item => item.CollectionId == collectionId && item.Id == trackId.Value,
-                cancellationToken);
-
-            return trackEntity is null
-                ? null
-                : new PlaylistItemResponse(PlaylistEntry.TrackKind, trackEntity.Id.Value, trackEntity.Title, null);
-        }
-
-        return null;
+            PlaylistEntry.ReleaseKind when
+                entry.ReleaseId is PresentOptionalValue<ReleaseId> release &&
+                releases.TryGetValue(release.Value, out Domain.Catalog.Release? releaseEntity) =>
+                new PlaylistItemResponse(PlaylistEntry.ReleaseKind, releaseEntity.Id.Value, releaseEntity.Summary.Title, ReleaseYear(releaseEntity)),
+            PlaylistEntry.TrackKind when
+                entry.TrackId is PresentOptionalValue<TrackId> trackId &&
+                tracks.TryGetValue(trackId.Value, out Domain.Catalog.Track? trackEntity) =>
+                new PlaylistItemResponse(PlaylistEntry.TrackKind, trackEntity.Id.Value, trackEntity.Title, null),
+            _ => null
+        };
     }
-
-    private static async Task<PlaylistItemResponse[]> ResolveSmartResultsAsync(
-        Playlist playlist,
-        CratebaseDbContext context,
-        CancellationToken cancellationToken)
-    {
-        SmartPlaylistRules rules = playlist.Rules;
-        Domain.Catalog.Release[] releases = await context.Releases
-            .AsNoTracking()
-            .Include("_genres")
-            .Include("_tags")
-            .Where(release => release.CollectionId == playlist.CollectionId)
-            .ToArrayAsync(cancellationToken);
-        Domain.Catalog.Track[] tracks = await context.Tracks
-            .AsNoTracking()
-            .Include("_genres")
-            .Include("_tags")
-            .Where(track => track.CollectionId == playlist.CollectionId)
-            .ToArrayAsync(cancellationToken);
-        OwnedItem[] ownedItems = await context.OwnedItems
-            .AsNoTracking()
-            .Where(item => item.CollectionId == playlist.CollectionId)
-            .ToArrayAsync(cancellationToken);
-
-        PlaylistItemResponse[] releaseResults =
-        [
-            .. releases
-                .Where(release => MatchesRelease(release, ownedItems, rules))
-                .OrderBy(release => release.Summary.Title)
-                .ThenBy(release => release.Id.Value)
-                .Select(release => new PlaylistItemResponse(PlaylistEntry.ReleaseKind, release.Id.Value, release.Summary.Title, ReleaseYear(release)))
-        ];
-        PlaylistItemResponse[] trackResults =
-        [
-            .. tracks
-                .Where(track => MatchesTrack(track, releases, ownedItems, rules))
-                .OrderBy(track => track.Title)
-                .ThenBy(track => track.Id.Value)
-                .Select(track => new PlaylistItemResponse(PlaylistEntry.TrackKind, track.Id.Value, track.Title, null))
-        ];
-
-        return [.. releaseResults, .. trackResults];
-    }
-
-    private static bool MatchesRelease(
-        Domain.Catalog.Release release,
-        IReadOnlyList<OwnedItem> ownedItems,
-        SmartPlaylistRules rules)
-    {
-        OwnedItem[] releaseItems = [.. ownedItems.Where(item => item.Target is ReleaseOwnedItemTarget target && target.ReleaseId == release.Id)];
-        return MatchesValues(rules.Tags, release.Cataloging.Tags.Select(tag => tag.Name)) &&
-            MatchesValues(rules.Genres, release.Cataloging.Genres.Select(genre => genre.Name)) &&
-            MatchesValues(rules.Media, releaseItems.Select(item => item.Holding.Medium.Code)) &&
-            MatchesValues(rules.OwnershipStatuses, releaseItems.Select(item => StatusCode(item.Holding.Status))) &&
-            MatchesYear(ReleaseYearValue(release), rules);
-    }
-
-    private static bool MatchesTrack(
-        Domain.Catalog.Track track,
-        IReadOnlyList<Domain.Catalog.Release> releases,
-        IReadOnlyList<OwnedItem> ownedItems,
-        SmartPlaylistRules rules)
-    {
-        OwnedItem[] trackItems = [.. ownedItems.Where(item => item.Target is TrackOwnedItemTarget target && target.TrackId == track.Id)];
-        int? year = releases
-            .Where(release => release.Tracklist.Any(item => item.TrackId == track.Id))
-            .Select(ReleaseYearValue)
-            .FirstOrDefault(value => value.HasValue);
-        return MatchesValues(rules.Tags, track.Cataloging.Tags.Select(tag => tag.Name)) &&
-            MatchesValues(rules.Genres, track.Cataloging.Genres.Select(genre => genre.Name)) &&
-            MatchesValues(rules.Media, trackItems.Select(item => item.Holding.Medium.Code)) &&
-            MatchesValues(rules.OwnershipStatuses, trackItems.Select(item => StatusCode(item.Holding.Status))) &&
-            MatchesYear(year, rules);
-    }
-
-    private static bool MatchesValues(IReadOnlyList<string> required, IEnumerable<string> values)
-    {
-        return required.Count == 0 || values.Any(value => required.Contains(value, StringComparer.OrdinalIgnoreCase));
-    }
-
-    private static bool MatchesYear(int? year, SmartPlaylistRules rules)
-    {
-        return (rules.YearFrom is not PresentOptionalValue<int> from || (year.HasValue && year.Value >= from.Value)) &&
-            (rules.YearTo is not PresentOptionalValue<int> to || (year.HasValue && year.Value <= to.Value));
-    }
-
 }

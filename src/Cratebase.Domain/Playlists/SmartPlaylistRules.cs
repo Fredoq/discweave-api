@@ -2,17 +2,9 @@ using Cratebase.Domain.SharedKernel.Optional;
 
 namespace Cratebase.Domain.Playlists;
 
-public sealed record SmartPlaylistRules(
-    IReadOnlyList<string> Tags,
-    IReadOnlyList<string> Genres,
-    IReadOnlyList<string> Media,
-    IReadOnlyList<string> OwnershipStatuses,
-    IOptionalValue<int> YearFrom,
-    IOptionalValue<int> YearTo)
+public sealed record SmartPlaylistRules
 {
-    public static SmartPlaylistRules Empty { get; } = Create([], [], [], [], Optional.Missing<int>(), Optional.Missing<int>());
-
-    public static SmartPlaylistRules Create(
+    public SmartPlaylistRules(
         IReadOnlyList<string> tags,
         IReadOnlyList<string> genres,
         IReadOnlyList<string> media,
@@ -23,11 +15,41 @@ public sealed record SmartPlaylistRules(
         ArgumentNullException.ThrowIfNull(yearFrom);
         ArgumentNullException.ThrowIfNull(yearTo);
 
+        Tags = Normalize(tags);
+        Genres = Normalize(genres);
+        Media = Normalize(media);
+        OwnershipStatuses = Normalize(ownershipStatuses);
+        YearFrom = yearFrom;
+        YearTo = yearTo;
+    }
+
+    public IReadOnlyList<string> Tags { get; }
+
+    public IReadOnlyList<string> Genres { get; }
+
+    public IReadOnlyList<string> Media { get; }
+
+    public IReadOnlyList<string> OwnershipStatuses { get; }
+
+    public IOptionalValue<int> YearFrom { get; }
+
+    public IOptionalValue<int> YearTo { get; }
+
+    public static SmartPlaylistRules Empty { get; } = Create([], [], [], [], Optional.Missing<int>(), Optional.Missing<int>());
+
+    public static SmartPlaylistRules Create(
+        IReadOnlyList<string> tags,
+        IReadOnlyList<string> genres,
+        IReadOnlyList<string> media,
+        IReadOnlyList<string> ownershipStatuses,
+        IOptionalValue<int> yearFrom,
+        IOptionalValue<int> yearTo)
+    {
         return new SmartPlaylistRules(
-            Normalize(tags),
-            Normalize(genres),
-            Normalize(media),
-            Normalize(ownershipStatuses),
+            tags,
+            genres,
+            media,
+            ownershipStatuses,
             yearFrom,
             yearTo);
     }

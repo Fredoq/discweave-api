@@ -118,7 +118,7 @@ public sealed class ImportNameParserTests
                 AudioFileFormat.Flac,
                 1,
                 DateTimeOffset.UtcNow,
-                null));
+                Optional.Missing<string>()));
         _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
             -1,
             "Track",

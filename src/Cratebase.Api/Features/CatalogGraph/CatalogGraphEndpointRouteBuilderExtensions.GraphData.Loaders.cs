@@ -93,6 +93,11 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             TrackId[] trackIds,
             CancellationToken cancellationToken)
         {
+            if (releaseIds.Length == 0 && trackIds.Length == 0)
+            {
+                return [];
+            }
+
             Playlist[] playlists = await context.Playlists.AsNoTracking()
                 .Include(playlist => playlist.Entries)
                 .Where(playlist => playlist.CollectionId == collectionId)

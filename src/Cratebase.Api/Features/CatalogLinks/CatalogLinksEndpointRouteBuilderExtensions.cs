@@ -1,6 +1,9 @@
 using Cratebase.Api.Auth;
 using Cratebase.Api.Http;
 using Cratebase.Application.Security;
+using Cratebase.Domain.Catalog;
+using Cratebase.Domain.Collection;
+using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +39,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
         }
 
         string[] requestedKinds = ParseKinds(kinds);
+        string? normalizedQuery = string.IsNullOrWhiteSpace(query) ? null : query.Trim();
         string? pattern = string.IsNullOrWhiteSpace(query) ? null : $"%{query.Trim()}%";
         List<CatalogLinkResponse> items = [];
 
@@ -79,6 +83,17 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
                 .ToArrayAsync(cancellationToken));
         }
 
+        if (requestedKinds.Contains("ownedItem", StringComparer.OrdinalIgnoreCase))
+        {
+            OwnedItem[] ownedItems = await context.OwnedItems.AsNoTracking()
+                .Where(item => item.CollectionId == currentCollection.CollectionId)
+                .OrderBy(item => item.Id)
+                .Take(pattern == null ? normalizedLimit : Math.Min(normalizedLimit * 5, 250))
+                .ToArrayAsync(cancellationToken);
+
+            items.AddRange(await OwnedItemLinksAsync(context, currentCollection.CollectionId, ownedItems, normalizedQuery, cancellationToken));
+        }
+
         if (requestedKinds.Contains("playlist", StringComparer.OrdinalIgnoreCase))
         {
             items.AddRange(await context.Playlists.AsNoTracking()
@@ -98,6 +113,68 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
         return string.IsNullOrWhiteSpace(kinds)
             ? DefaultKinds
             : [.. kinds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+    }
+
+    private static async Task<IReadOnlyList<CatalogLinkResponse>> OwnedItemLinksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<OwnedItem> ownedItems,
+        string? query,
+        CancellationToken cancellationToken)
+    {
+        ReleaseId[] releaseIds = [.. ownedItems.Select(item => item.Target).OfType<ReleaseOwnedItemTarget>().Select(target => target.ReleaseId).Distinct()];
+        TrackId[] trackIds = [.. ownedItems.Select(item => item.Target).OfType<TrackOwnedItemTarget>().Select(target => target.TrackId).Distinct()];
+        Dictionary<ReleaseId, Release> releases = releaseIds.Length == 0
+            ? []
+            : await context.Releases.AsNoTracking()
+                .Where(release => release.CollectionId == collectionId && releaseIds.Contains(release.Id))
+                .ToDictionaryAsync(release => release.Id, cancellationToken);
+        Dictionary<TrackId, Track> tracks = trackIds.Length == 0
+            ? []
+            : await context.Tracks.AsNoTracking()
+                .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
+                .ToDictionaryAsync(track => track.Id, cancellationToken);
+
+        CatalogLinkResponse[] links =
+        [
+            .. ownedItems
+                .Select(item => OwnedItemLink(item, releases, tracks))
+                .Where(item => query is null ||
+                    item.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (item.Subtitle is not null && item.Subtitle.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        ];
+
+        return links;
+    }
+
+    private static CatalogLinkResponse OwnedItemLink(
+        OwnedItem item,
+        Dictionary<ReleaseId, Release> releases,
+        Dictionary<TrackId, Track> tracks)
+    {
+        string title = item.Target switch
+        {
+            ReleaseOwnedItemTarget target when releases.TryGetValue(target.ReleaseId, out Release? release) => release.Summary.Title,
+            TrackOwnedItemTarget target when tracks.TryGetValue(target.TrackId, out Track? track) => track.Title,
+            ReleaseOwnedItemTarget => "Unknown release",
+            TrackOwnedItemTarget => "Unknown track",
+            _ => "Unknown item"
+        };
+
+        string subtitle = $"{item.Holding.Medium.Code} / {OwnershipStatusCode(item.Holding.Status)}";
+        return new CatalogLinkResponse("ownedItem", item.Id.Value, title, subtitle);
+    }
+
+    private static string OwnershipStatusCode(OwnershipStatus status)
+    {
+        return status switch
+        {
+            OwnershipStatus.Owned => "owned",
+            OwnershipStatus.Wanted => "wanted",
+            OwnershipStatus.Sold => "sold",
+            OwnershipStatus.NeedsDigitization => "needsDigitization",
+            _ => throw new InvalidOperationException("Ownership status is not supported")
+        };
     }
 
     private sealed record CatalogLinksResponse(IReadOnlyList<CatalogLinkResponse> Items);

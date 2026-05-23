@@ -38,12 +38,18 @@ public sealed class PlaylistEntry
 
     public static PlaylistEntry ForRelease(int position, ReleaseId releaseId)
     {
-        return new PlaylistEntry(position, ReleaseKind, releaseId, null);
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+        return releaseId == default
+            ? throw new ArgumentException("Release id is required", nameof(releaseId))
+            : new PlaylistEntry(position, ReleaseKind, releaseId, null);
     }
 
     public static PlaylistEntry ForTrack(int position, TrackId trackId)
     {
-        return new PlaylistEntry(position, TrackKind, null, trackId);
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
+        return trackId == default
+            ? throw new ArgumentException("Track id is required", nameof(trackId))
+            : new PlaylistEntry(position, TrackKind, null, trackId);
     }
 
     private void SetReleaseId(ReleaseId? releaseId)

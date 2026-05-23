@@ -25,11 +25,12 @@ public static partial class ReleaseImportScanService
         ReleaseImportDraftTrack[] tracks = await context.ReleaseImportDraftTracks
             .Where(track => track.CollectionId == collectionId && draftIds.Contains(track.DraftId))
             .ToArrayAsync(cancellationToken);
+        IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId> duplicateTrackIds =
+            await FindDuplicateTrackIdsAsync(context, collectionId, tracks, cancellationToken);
 
         foreach (ReleaseImportDraftTrack track in tracks)
         {
-            TrackId? duplicateTrackId = await FindDuplicateTrackIdAsync(context, collectionId, track, cancellationToken);
-            if (duplicateTrackId is null)
+            if (!duplicateTrackIds.TryGetValue(track.Id, out TrackId duplicateTrackId))
             {
                 continue;
             }
@@ -52,33 +53,122 @@ public static partial class ReleaseImportScanService
         }
     }
 
-    private static async Task<TrackId?> FindDuplicateTrackIdAsync(
+    private static async Task<IReadOnlyDictionary<ReleaseImportDraftTrackId, TrackId>> FindDuplicateTrackIdsAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
-        ReleaseImportDraftTrack track,
+        IReadOnlyList<ReleaseImportDraftTrack> tracks,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(track.ContentHash))
+        var matches = new Dictionary<ReleaseImportDraftTrackId, TrackId>();
+        string[] contentHashes =
+        [
+            .. tracks
+                .Select(track => NormalizeContentHash(track.ContentHash))
+                .OfType<string>()
+                .Distinct(StringComparer.Ordinal)
+        ];
+        Dictionary<string, TrackId> hashMatches = await LoadHashDuplicateMatchesAsync(context, collectionId, contentHashes, cancellationToken);
+        foreach (ReleaseImportDraftTrack track in tracks)
         {
-            TrackId? hashMatch = await context.OwnedItems
-                .Where(item =>
-                    item.CollectionId == collectionId &&
-                    EF.Property<string?>(item, "_importIdentityContentHash") == track.ContentHash)
-                .Select(item => EF.Property<TrackId?>(item, "_targetTrackId"))
-                .FirstOrDefaultAsync(cancellationToken);
-            if (hashMatch is not null)
+            string? normalizedHash = NormalizeContentHash(track.ContentHash);
+            if (normalizedHash is not null && hashMatches.TryGetValue(normalizedHash, out TrackId duplicateTrackId))
             {
-                return hashMatch;
+                matches[track.Id] = duplicateTrackId;
             }
         }
 
-        return await context.OwnedItems
+        ReleaseImportDraftTrack[] remainingTracks = [.. tracks.Where(track => !matches.ContainsKey(track.Id))];
+        Dictionary<ImportFingerprint, TrackId> fingerprintMatches = await LoadFingerprintDuplicateMatchesAsync(
+            context,
+            collectionId,
+            remainingTracks,
+            cancellationToken);
+        foreach (ReleaseImportDraftTrack track in remainingTracks)
+        {
+            var fingerprint = new ImportFingerprint(track.FilePath, track.SizeBytes, track.LastModifiedAt);
+            if (fingerprintMatches.TryGetValue(fingerprint, out TrackId duplicateTrackId))
+            {
+                matches[track.Id] = duplicateTrackId;
+            }
+        }
+
+        return matches;
+    }
+
+    private static async Task<Dictionary<string, TrackId>> LoadHashDuplicateMatchesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        string[] contentHashes,
+        CancellationToken cancellationToken)
+    {
+        if (contentHashes.Length == 0)
+        {
+            return [];
+        }
+
+        DuplicateHashMatch[] rows = await context.OwnedItems
             .Where(item =>
                 item.CollectionId == collectionId &&
-                EF.Property<string?>(item, "_importIdentityPath") == track.FilePath &&
-                EF.Property<long?>(item, "_importIdentitySizeBytes") == track.SizeBytes &&
-                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt") == track.LastModifiedAt)
-            .Select(item => EF.Property<TrackId?>(item, "_targetTrackId"))
-            .FirstOrDefaultAsync(cancellationToken);
+                EF.Property<string?>(item, "_importIdentityContentHash") != null &&
+                contentHashes.Contains(EF.Property<string>(item, "_importIdentityContentHash")) &&
+                EF.Property<TrackId?>(item, "_targetTrackId") != null)
+            .Select(item => new DuplicateHashMatch(
+                EF.Property<string>(item, "_importIdentityContentHash"),
+                EF.Property<TrackId?>(item, "_targetTrackId")))
+            .ToArrayAsync(cancellationToken);
+        var matches = new Dictionary<string, TrackId>(StringComparer.Ordinal);
+        foreach (DuplicateHashMatch row in rows)
+        {
+            if (row.TrackId is { } trackId)
+            {
+                _ = matches.TryAdd(row.ContentHash, trackId);
+            }
+        }
+
+        return matches;
     }
+
+    private static async Task<Dictionary<ImportFingerprint, TrackId>> LoadFingerprintDuplicateMatchesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IReadOnlyList<ReleaseImportDraftTrack> tracks,
+        CancellationToken cancellationToken)
+    {
+        string[] paths = [.. tracks.Select(track => track.FilePath).Distinct(StringComparer.Ordinal)];
+        if (paths.Length == 0)
+        {
+            return [];
+        }
+
+        DuplicateFingerprintMatch[] rows = await context.OwnedItems
+            .Where(item =>
+                item.CollectionId == collectionId &&
+                EF.Property<string?>(item, "_importIdentityPath") != null &&
+                paths.Contains(EF.Property<string>(item, "_importIdentityPath")) &&
+                EF.Property<TrackId?>(item, "_targetTrackId") != null)
+            .Select(item => new DuplicateFingerprintMatch(
+                EF.Property<string?>(item, "_importIdentityPath"),
+                EF.Property<long?>(item, "_importIdentitySizeBytes"),
+                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
+                EF.Property<TrackId?>(item, "_targetTrackId")))
+            .ToArrayAsync(cancellationToken);
+        var matches = new Dictionary<ImportFingerprint, TrackId>();
+        foreach (DuplicateFingerprintMatch row in rows)
+        {
+            if (row.Path is null || row.SizeBytes is null || row.LastModifiedAt is null || row.TrackId is null)
+            {
+                continue;
+            }
+
+            _ = matches.TryAdd(new ImportFingerprint(row.Path, row.SizeBytes.Value, row.LastModifiedAt.Value), row.TrackId.Value);
+        }
+
+        return matches;
+    }
+
+    private readonly record struct ImportFingerprint(string Path, long SizeBytes, DateTimeOffset LastModifiedAt);
+
+    private sealed record DuplicateHashMatch(string ContentHash, TrackId? TrackId);
+
+    private sealed record DuplicateFingerprintMatch(string? Path, long? SizeBytes, DateTimeOffset? LastModifiedAt, TrackId? TrackId);
 }

@@ -2,6 +2,7 @@ using Cratebase.Domain.Collection;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Interfaces;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Domain.SharedKernel.Validation;
 
 namespace Cratebase.Domain.Imports;
@@ -31,7 +32,9 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Format = file.Format;
         SizeBytes = file.SizeBytes;
         LastModifiedAt = file.LastModifiedAt;
-        ContentHash = string.IsNullOrWhiteSpace(file.ContentHash) ? null : file.ContentHash.Trim().ToLowerInvariant();
+        ContentHash = file.ContentHash is PresentOptionalValue<string> presentContentHash
+            ? TrimOrNull(presentContentHash.Value)?.ToLowerInvariant()
+            : null;
     }
 
     public CollectionId CollectionId { get; private set; }
