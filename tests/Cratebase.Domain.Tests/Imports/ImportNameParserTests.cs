@@ -112,7 +112,13 @@ public sealed class ImportNameParserTests
             collectionId,
             ReleaseImportDraftId.New(),
             ReleaseImportDraftTrackId.New(),
-            new DraftTrackFileInfo("/music/01.flac", "01.flac", AudioFileFormat.Flac, 1, DateTimeOffset.UtcNow));
+            new DraftTrackFileInfo(
+                "/music/01.flac",
+                "01.flac",
+                AudioFileFormat.Flac,
+                1,
+                DateTimeOffset.UtcNow,
+                null));
         _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
             -1,
             "Track",

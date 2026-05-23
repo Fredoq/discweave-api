@@ -1,6 +1,7 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -91,6 +92,7 @@ internal static partial class SearchDocumentBuilder
         Dictionary<ReleaseId, Release> Releases,
         Dictionary<TrackId, Track> Tracks,
         IReadOnlyList<OwnedItem> OwnedItems,
+        IReadOnlyList<Playlist> Playlists,
         Dictionary<ReleaseId, OwnedItem[]> OwnedItemsByReleaseId,
         Dictionary<TrackId, OwnedItem[]> OwnedItemsByTrackId,
         IReadOnlyList<Credit> Credits,

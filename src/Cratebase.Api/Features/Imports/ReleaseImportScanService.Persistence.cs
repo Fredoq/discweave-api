@@ -66,7 +66,8 @@ public static partial class ReleaseImportScanService
                 scannedTrack.RelativePath,
                 scannedTrack.Format,
                 scannedTrack.SizeBytes,
-                scannedTrack.LastModifiedAt));
+                scannedTrack.LastModifiedAt,
+                scannedTrack.ContentHash));
 
         track.UpdateEditableFields(new DraftTrackEditableFields(
             scannedTrack.Position,

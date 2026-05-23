@@ -279,6 +279,11 @@ public static partial class ReleaseImportScanService
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    private static string? NormalizeContentHash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+    }
+
     private sealed record DesktopScanFile(
         DesktopFolderScanFileRequest Request,
         string RelativePath,

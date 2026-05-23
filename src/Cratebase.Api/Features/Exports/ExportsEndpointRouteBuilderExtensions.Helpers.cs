@@ -1,5 +1,6 @@
 using Cratebase.Api.Features.ArtistRelations;
 using Cratebase.Api.Features.OwnedItems;
+using Cratebase.Api.Features.Playlists;
 using Cratebase.Api.Features.Ratings;
 using Cratebase.Api.Features.Releases;
 using Cratebase.Api.Features.Settings;
@@ -30,6 +31,25 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 .OrderBy(item => item.Id.Value)
                 .Select(OwnedItemMapper.ToResponse)
         ];
+    }
+
+    private static async Task<IReadOnlyList<PlaylistResponse>> LoadPlaylistsAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        Domain.Playlists.Playlist[] playlists = await context.Playlists.AsNoTracking()
+            .Include(playlist => playlist.Entries)
+            .Where(playlist => playlist.CollectionId == collectionId)
+            .OrderBy(playlist => playlist.Name)
+            .ToArrayAsync(cancellationToken);
+        List<PlaylistResponse> responses = new(playlists.Length);
+        foreach (Domain.Playlists.Playlist playlist in playlists)
+        {
+            responses.Add(await PlaylistMapper.ToResponseAsync(playlist, context, cancellationToken));
+        }
+
+        return responses;
     }
 
     private static async Task<IReadOnlyList<ArtistRelationResponse>> LoadArtistRelationsAsync(

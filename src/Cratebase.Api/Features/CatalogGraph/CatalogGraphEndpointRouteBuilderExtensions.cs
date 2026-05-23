@@ -20,6 +20,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
     private const string OwnedItemRouteType = "owneditem";
     private const string OwnedItemHyphenRouteType = "owned-item";
     private const string LabelEntityType = "label";
+    private const string PlaylistEntityType = "playlist";
     private const string RelationEntityType = "relation";
     private const string CreditRelation = "credit";
     private const string MediaRelation = "media";
@@ -132,6 +133,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 Releases = [.. releases.Select(release => Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "label release"))],
                 OwnedCopies = [.. ownedItems.Select(item => OwnedItemLink(item, data, "owned copy"))],
                 Media = [.. ownedItems.Select(item => Link(item.Id.Value, OwnedItemEntityType, item.Holding.Medium.Code, StatusCode(item.Holding.Status), MediaRelation))],
+                Playlists = PlaylistLinksForReleases(releases.Select(release => release.Id), data),
                 CollectorSignals = Signals(ownedItems)
             });
     }
@@ -166,6 +168,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 Tracks = [.. release.Tracklist.Select(track => data.Tracks.GetValueOrDefault(track.TrackId)).WhereNotNull().Select(track => Link(track.Id.Value, TrackEntityType, track.Title, null, "tracklist"))],
                 OwnedCopies = [.. ownedItems.Select(item => OwnedItemLink(item, data, "owned copy"))],
                 Labels = [.. labels.Select(label => Link(label.Id.Value, LabelEntityType, label.Name, null, LabelRelation))],
+                Playlists = PlaylistLinksForRelease(release.Id, data),
                 Credits = [.. credits.Select(credit => Link(credit.Contributor.ArtistId.Value, ArtistEntityType, credit.Contributor.Name, credit.Role, CreditRelation))],
                 Media = [.. ownedItems.Select(item => Link(item.Id.Value, OwnedItemEntityType, item.Holding.Medium.Code, StatusCode(item.Holding.Status), MediaRelation))],
                 CollectorSignals = Signals(ownedItems)
@@ -188,6 +191,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 OwnedCopies = [.. ownedItems.Select(item => OwnedItemLink(item, data, "owned copy"))],
                 Credits = [.. credits.Select(credit => Link(credit.Contributor.ArtistId.Value, ArtistEntityType, credit.Contributor.Name, credit.Role, CreditRelation))],
                 Relations = [.. relations.Select(relation => Link(relation.Id.Value, RelationEntityType, TrackRelationTitle(relation, data), relation.RelationType, "track relation"))],
+                Playlists = PlaylistLinksForTrack(track.Id, data),
                 Media = [.. ownedItems.Select(item => Link(item.Id.Value, OwnedItemEntityType, item.Holding.Medium.Code, StatusCode(item.Holding.Status), MediaRelation))],
                 CollectorSignals = Signals(ownedItems)
             });
@@ -208,6 +212,12 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             {
                 Releases = targetLink.Type == ReleaseEntityType ? [targetLink] : [],
                 Tracks = targetLink.Type == TrackEntityType ? [targetLink] : [],
+                Playlists = item.Target switch
+                {
+                    ReleaseOwnedItemTarget releaseTarget => PlaylistLinksForRelease(releaseTarget.ReleaseId, data),
+                    TrackOwnedItemTarget trackTarget => PlaylistLinksForTrack(trackTarget.TrackId, data),
+                    _ => []
+                },
                 Media = [Link(item.Id.Value, OwnedItemEntityType, item.Holding.Medium.Code, StatusCode(item.Holding.Status), MediaRelation)],
                 CollectorSignals = Signals([item])
             });
@@ -225,6 +235,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 sections.Tracks,
                 sections.OwnedCopies,
                 sections.Labels,
+                sections.Playlists,
                 sections.Credits,
                 sections.Relations,
                 sections.Media),

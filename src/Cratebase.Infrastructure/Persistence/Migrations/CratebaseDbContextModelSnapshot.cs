@@ -706,6 +706,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("collection_id");
 
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("content_hash");
+
                     b.Property<Guid>("DraftId")
                         .HasColumnType("uuid")
                         .HasColumnName("release_import_draft_id");
@@ -862,6 +867,85 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.HasIndex("CollectionId", "CreatedAt");
 
                     b.ToTable("release_import_sessions", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Playlists.Playlist", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("playlist_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("playlist_type");
+
+                    b.Property<string>("_ruleGenres")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("rule_genres");
+
+                    b.Property<string>("_ruleMedia")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("rule_media");
+
+                    b.Property<string>("_ruleOwnershipStatuses")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("rule_ownership_statuses");
+
+                    b.Property<string>("_ruleTags")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("rule_tags");
+
+                    b.Property<int?>("_ruleYearFrom")
+                        .HasColumnType("integer")
+                        .HasColumnName("rule_year_from");
+
+                    b.Property<int?>("_ruleYearTo")
+                        .HasColumnType("integer")
+                        .HasColumnName("rule_year_to");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("Id")
+                        .HasName("playlist_id");
+
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_playlists_collection_playlist_id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.ToTable("playlists", (string)null);
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>
@@ -1881,6 +1965,88 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Playlists.Playlist", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsMany("Cratebase.Domain.Playlists.PlaylistEntry", "Entries", b1 =>
+                        {
+                            b1.Property<long>("id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("bigint")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<long>("id"));
+
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("kind");
+
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
+
+                            b1.Property<Guid?>("ReleaseId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("release_id");
+
+                            b1.Property<Guid?>("TrackId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("track_id");
+
+                            b1.Property<Guid>("playlist_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("playlist_id");
+
+                            b1.HasKey("id");
+
+                            b1.HasIndex("ReleaseId");
+
+                            b1.HasIndex("TrackId");
+
+                            b1.HasIndex("CollectionId", "ReleaseId");
+
+                            b1.HasIndex("CollectionId", "TrackId");
+
+                            b1.HasIndex("CollectionId", "playlist_id", "Position")
+                                .IsUnique();
+
+                            b1.ToTable("playlist_entries", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_playlist_entries_target_consistency", "(kind = 'release' AND release_id IS NOT NULL AND track_id IS NULL) OR (kind = 'track' AND track_id IS NOT NULL AND release_id IS NULL)");
+                                });
+
+                            b1.HasOne("Cratebase.Domain.Catalog.Release", null)
+                                .WithMany()
+                                .HasForeignKey("CollectionId", "ReleaseId")
+                                .HasPrincipalKey("CollectionId", "Id")
+                                .OnDelete(DeleteBehavior.Restrict);
+
+                            b1.HasOne("Cratebase.Domain.Catalog.Track", null)
+                                .WithMany()
+                                .HasForeignKey("CollectionId", "TrackId")
+                                .HasPrincipalKey("CollectionId", "Id")
+                                .OnDelete(DeleteBehavior.Restrict);
+
+                            b1.WithOwner()
+                                .HasForeignKey("CollectionId", "playlist_id")
+                                .HasPrincipalKey("CollectionId", "Id");
+                        });
+
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Ratings.RatingCriterion", b =>

@@ -6,5 +6,6 @@ public sealed record DesktopFolderScanFileRequest(
     string? Format,
     long SizeBytes,
     DateTimeOffset LastModifiedAt,
+    string? ContentHash,
     DesktopAudioMetadataRequest? AudioMetadata,
     DesktopCoverArtifactRequest? CoverArtifact);

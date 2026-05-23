@@ -9,6 +9,7 @@ public sealed record ReleaseFolderScanTrack(
     AudioFileFormat Format,
     long SizeBytes,
     DateTimeOffset LastModifiedAt,
+    string? ContentHash,
     TimeSpan? Duration,
     int? Position,
     string Title,

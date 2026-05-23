@@ -31,6 +31,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Format = file.Format;
         SizeBytes = file.SizeBytes;
         LastModifiedAt = file.LastModifiedAt;
+        ContentHash = string.IsNullOrWhiteSpace(file.ContentHash) ? null : file.ContentHash.Trim().ToLowerInvariant();
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -41,6 +42,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public AudioFileFormat Format { get; private set; }
     public long SizeBytes { get; private set; }
     public DateTimeOffset LastModifiedAt { get; private set; }
+    public string? ContentHash { get; private set; }
     public TimeSpan? Duration { get; private set; }
     public int? Position { get; private set; }
     public string Title { get; private set; }

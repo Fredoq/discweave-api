@@ -59,6 +59,17 @@ public sealed partial class ReleaseImportConfirmationService
             throw new DomainException("release_import.tracks_required", "Release import draft has no tracks to confirm");
         }
 
+        Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
+        if (existingRelease is not null)
+        {
+            draft.Confirm(existingRelease.Id);
+            await UpdateSessionStatusAsync(context, session, cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return session;
+        }
+
         Release release = await CreateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
         draft.Confirm(release.Id);
         await UpdateSessionStatusAsync(context, session, cancellationToken);
@@ -66,6 +77,32 @@ public sealed partial class ReleaseImportConfirmationService
         await transaction.CommitAsync(cancellationToken);
 
         return session;
+    }
+
+    private static async Task<Release?> FindExistingReleaseForSelectedTracksAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        ReleaseImportDraftTrack[] tracks,
+        CancellationToken cancellationToken)
+    {
+        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).Where(id => id.HasValue).Select(id => id!.Value)];
+        if (selectedTrackIds.Length != tracks.Length)
+        {
+            return null;
+        }
+
+        Release[] candidates = await context.Releases
+            .Include(release => release.Tracklist)
+            .Where(release => release.CollectionId == collectionId && release.Summary.Title == draft.Title)
+            .ToArrayAsync(cancellationToken);
+
+        return candidates.FirstOrDefault(release =>
+            release.Tracklist.Count == selectedTrackIds.Length &&
+            release.Tracklist
+                .OrderBy(track => track.Position.Number)
+                .Select(track => track.TrackId)
+                .SequenceEqual(selectedTrackIds));
     }
 
     private static async Task<ReleaseImportDraft?> FindDraftForUpdateAsync(

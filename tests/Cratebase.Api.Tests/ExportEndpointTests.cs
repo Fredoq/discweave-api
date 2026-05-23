@@ -99,6 +99,8 @@ public sealed class ExportEndpointTests : IClassFixture<PostgresFixture>
                 "import_patterns.csv",
                 "labels.csv",
                 "owned_items.csv",
+                "playlist_entries.csv",
+                "playlists.csv",
                 "rating_criteria.csv",
                 "ratings.csv",
                 "release_labels.csv",

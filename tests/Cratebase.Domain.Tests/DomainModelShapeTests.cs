@@ -2,6 +2,7 @@ using System.Reflection;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.Ratings;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
@@ -13,10 +14,7 @@ public sealed class DomainModelShapeTests
     [Fact]
     public void Domain_types_keep_a_small_public_api()
     {
-        Type[] domainTypes =
-        [
-            .. GetPublicDomainTypes()
-        ];
+        Type[] domainTypes = [.. GetPublicDomainTypes()];
 
         string[] violations =
         [
@@ -39,10 +37,7 @@ public sealed class DomainModelShapeTests
     [Fact]
     public void Domain_public_api_does_not_use_nullable_contracts()
     {
-        Type[] domainTypes =
-        [
-            .. GetPublicDomainTypes()
-        ];
+        Type[] domainTypes = [.. GetPublicDomainTypes()];
 
         string[] violations =
         [
@@ -98,6 +93,8 @@ public sealed class DomainModelShapeTests
             typeof(ArtistRelation).FullName!,
             typeof(Credit).FullName!,
             typeof(OwnedItem).FullName!,
+            typeof(Playlist).FullName!,
+            typeof(PlaylistEntry).FullName!,
             typeof(Release).FullName!,
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseSummary).FullName!,
@@ -135,6 +132,8 @@ public sealed class DomainModelShapeTests
             typeof(Label).FullName!,
             typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
+            typeof(Playlist).FullName!,
+            typeof(PlaylistEntry).FullName!,
             typeof(Release).FullName!,
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
@@ -202,8 +201,11 @@ public sealed class DomainModelShapeTests
             ? 9
             : type == typeof(Release)
             ? 9
+            : type == typeof(Playlist)
+            ? 7
             : type == typeof(Track) ||
-            type == typeof(ArtistRelation)
+            type == typeof(ArtistRelation) ||
+            type == typeof(SmartPlaylistRules)
             ? 6
             : 5;
     }

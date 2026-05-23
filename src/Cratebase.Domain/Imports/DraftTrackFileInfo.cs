@@ -7,4 +7,5 @@ public sealed record DraftTrackFileInfo(
     string RelativePath,
     AudioFileFormat Format,
     long SizeBytes,
-    DateTimeOffset LastModifiedAt);
+    DateTimeOffset LastModifiedAt,
+    string? ContentHash);
