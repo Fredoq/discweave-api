@@ -11,6 +11,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
     private string _artistCreditsJson = "[]";
     private string _artistNamesJson = "[]";
+    private string? _contentHash;
     private string _issuesJson = "[]";
     private string _selectedArtistIdsJson = "[]";
 
@@ -32,9 +33,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         Format = file.Format;
         SizeBytes = file.SizeBytes;
         LastModifiedAt = file.LastModifiedAt;
-        ContentHash = file.ContentHash is PresentOptionalValue<string> presentContentHash
-            ? TrimOrNull(presentContentHash.Value)?.ToLowerInvariant()
-            : null;
+        SetContentHash(file.ContentHash);
     }
 
     public CollectionId CollectionId { get; private set; }
@@ -45,7 +44,7 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public AudioFileFormat Format { get; private set; }
     public long SizeBytes { get; private set; }
     public DateTimeOffset LastModifiedAt { get; private set; }
-    public string? ContentHash { get; private set; }
+    public IOptionalValue<string> ContentHash => _contentHash is null ? Optional.Missing<string>() : Optional.From(_contentHash);
     public TimeSpan? Duration { get; private set; }
     public int? Position { get; private set; }
     public string Title { get; private set; }
@@ -111,6 +110,13 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         }
 
         return credits;
+    }
+
+    private void SetContentHash(IOptionalValue<string> contentHash)
+    {
+        _contentHash = contentHash is PresentOptionalValue<string> presentContentHash
+            ? TrimOrNull(presentContentHash.Value)?.ToLowerInvariant()
+            : null;
     }
 
     private static string? TrimOrNull(string? value)

@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Cratebase.Api.Tests;
 
-public sealed class PlaylistEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class PlaylistEndpointTests : IClassFixture<PostgresFixture>
 {
     private static readonly string[] EmptyStrings = [];
     private static readonly string[] CrateTags = ["crate"];

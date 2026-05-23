@@ -21,7 +21,7 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Property(track => track.Format).HasColumnName("audio_file_format").HasConversion<string>().HasMaxLength(64).IsRequired();
         _ = builder.Property(track => track.SizeBytes).HasColumnName("size_bytes");
         _ = builder.Property(track => track.LastModifiedAt).HasColumnName("last_modified_at");
-        _ = builder.Property(track => track.ContentHash).HasColumnName("content_hash").HasMaxLength(256);
+        _ = builder.Property<string>("_contentHash").HasColumnName("content_hash").HasMaxLength(256);
         _ = builder.Property(track => track.Duration).HasColumnName("duration");
         _ = builder.Property(track => track.Position).HasColumnName("position_number");
         _ = builder.Property(track => track.Title).HasColumnName("title").HasMaxLength(1024).IsRequired();
@@ -34,6 +34,7 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
 
         _ = builder.Ignore(track => track.ArtistCredits);
         _ = builder.Ignore(track => track.ArtistNames);
+        _ = builder.Ignore(track => track.ContentHash);
         _ = builder.Ignore(track => track.SelectedArtistIds);
         _ = builder.Ignore(track => track.Issues);
 

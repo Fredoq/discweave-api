@@ -31,6 +31,27 @@ public sealed class CatalogLinksEndpointTests : IClassFixture<PostgresFixture>
         Assert.DoesNotContain(items, item => item.GetProperty("kind").GetString() == "artist");
     }
 
+    [Fact(DisplayName = "Owned item catalog links filter by target title before limiting")]
+    public async Task Owned_item_catalog_links_filter_by_target_title_before_limiting()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        for (int index = 0; index < 6; index++)
+        {
+            Guid releaseId = await CreateReleaseAsync(client, $"Shelf filler {index:D2}");
+            _ = await CreateOwnedItemAsync(client, releaseId);
+        }
+
+        Guid matchingReleaseId = await CreateReleaseAsync(client, "Needle outside the first page");
+        Guid matchingOwnedItemId = await CreateOwnedItemAsync(client, matchingReleaseId);
+
+        using HttpResponseMessage response = await client.GetAsync("/api/catalog-links?query=Needle&kinds=ownedItem&limit=1");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        JsonElement item = Assert.Single(document.RootElement.GetProperty("items").EnumerateArray());
+        Assert.True(IsLink(item, "ownedItem", matchingOwnedItemId, "Needle outside the first page"), item.ToString());
+    }
+
     private static bool IsLink(JsonElement item, string kind, Guid id, string title)
     {
         return item.GetProperty("kind").GetString() == kind &&
@@ -61,6 +82,34 @@ public sealed class CatalogLinksEndpointTests : IClassFixture<PostgresFixture>
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/playlists",
             new { name, type = "manual", entries = Array.Empty<object>() });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateReleaseAsync(HttpClient client, string title)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/releases",
+            new { title, type = "standalone", isVariousArtists = true });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, Guid releaseId)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/owned-items",
+            new
+            {
+                targetType = "release",
+                targetId = releaseId,
+                status = "owned",
+                medium = new { type = "vinyl", description = "LP" }
+            });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
 

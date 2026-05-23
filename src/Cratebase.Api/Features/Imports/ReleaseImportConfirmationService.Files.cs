@@ -3,6 +3,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Importing;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -65,7 +66,7 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack draftTrack,
         CancellationToken cancellationToken)
     {
-        string? contentHash = string.IsNullOrWhiteSpace(draftTrack.ContentHash) ? null : draftTrack.ContentHash.Trim().ToLowerInvariant();
+        string? contentHash = ContentHashOrNull(draftTrack.ContentHash);
         bool exists = await context.OwnedItems.AnyAsync(
             item =>
                 item.CollectionId == collectionId &&
@@ -101,5 +102,10 @@ public sealed partial class ReleaseImportConfirmationService
             ".webp" => "image/webp",
             _ => "application/octet-stream"
         };
+    }
+
+    private static string? ContentHashOrNull(IOptionalValue<string> value)
+    {
+        return value is PresentOptionalValue<string> present ? present.Value : null;
     }
 }

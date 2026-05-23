@@ -17,6 +17,10 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     private const string PlaylistKind = "playlist";
     private const string ReleaseKind = "release";
     private const string TrackKind = "track";
+    private const string MediumTypeShadowName = "_mediumType";
+    private const string StatusShadowName = "_status";
+    private const string TargetReleaseIdShadowName = "_targetReleaseId";
+    private const string TargetTrackIdShadowName = "_targetTrackId";
 
     private static readonly string[] DefaultKinds = [ArtistKind, ReleaseKind, TrackKind, OwnedItemKind, LabelKind, PlaylistKind];
 
@@ -155,10 +159,16 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
             return [];
         }
 
-        OwnedItem[] ownedItems = await context.OwnedItems.AsNoTracking()
-            .Where(item => item.CollectionId == collectionId)
+        IQueryable<OwnedItem> ownedItemQuery = context.OwnedItems.AsNoTracking()
+            .Where(item => item.CollectionId == collectionId);
+        if (query is not null && pattern is not null)
+        {
+            ownedItemQuery = ApplyOwnedItemQueryFilter(context, collectionId, ownedItemQuery, query, pattern);
+        }
+
+        OwnedItem[] ownedItems = await ownedItemQuery
             .OrderBy(item => item.Id)
-            .Take(pattern == null ? limit : Math.Min(limit * 5, 250))
+            .Take(limit)
             .ToArrayAsync(cancellationToken);
         ReleaseId[] releaseIds = [.. ownedItems.Select(item => item.Target).OfType<ReleaseOwnedItemTarget>().Select(target => target.ReleaseId).Distinct()];
         TrackId[] trackIds = [.. ownedItems.Select(item => item.Target).OfType<TrackOwnedItemTarget>().Select(target => target.TrackId).Distinct()];
@@ -173,16 +183,7 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
                 .Where(track => track.CollectionId == collectionId && trackIds.Contains(track.Id))
                 .ToDictionaryAsync(track => track.Id, cancellationToken);
 
-        CatalogLinkResponse[] links =
-        [
-            .. ownedItems
-                .Select(item => OwnedItemLink(item, releases, tracks))
-                .Where(item => query is null ||
-                    item.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    (item.Subtitle is not null && item.Subtitle.Contains(query, StringComparison.OrdinalIgnoreCase)))
-        ];
-
-        return links;
+        return [.. ownedItems.Select(item => OwnedItemLink(item, releases, tracks))];
     }
 
     private static async Task<IReadOnlyList<CatalogLinkResponse>> PlaylistLinksAsync(
@@ -206,6 +207,40 @@ public static class CatalogLinksEndpointRouteBuilderExtensions
     private static bool KindRequested(string[] requestedKinds, string kind)
     {
         return requestedKinds.Contains(kind, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IQueryable<OwnedItem> ApplyOwnedItemQueryFilter(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        IQueryable<OwnedItem> query,
+        string text,
+        string pattern)
+    {
+        OwnershipStatus[] matchingStatuses = MatchingOwnershipStatuses(text);
+        IQueryable<Release> matchingReleases = context.Releases.AsNoTracking()
+            .Where(release => release.CollectionId == collectionId && EF.Functions.ILike(release.Summary.Title, pattern));
+        IQueryable<Track> matchingTracks = context.Tracks.AsNoTracking()
+            .Where(track => track.CollectionId == collectionId && EF.Functions.ILike(track.Title, pattern));
+
+        return matchingStatuses.Length == 0
+            ? query.Where(item =>
+                matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
+                matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
+                EF.Functions.ILike(EF.Property<string>(item, MediumTypeShadowName), pattern))
+            : query.Where(item =>
+                matchingReleases.Any(release => EF.Property<ReleaseId?>(item, TargetReleaseIdShadowName) == release.Id) ||
+                matchingTracks.Any(track => EF.Property<TrackId?>(item, TargetTrackIdShadowName) == track.Id) ||
+                EF.Functions.ILike(EF.Property<string>(item, MediumTypeShadowName), pattern) ||
+                matchingStatuses.Contains(EF.Property<OwnershipStatus>(item, StatusShadowName)));
+    }
+
+    private static OwnershipStatus[] MatchingOwnershipStatuses(string query)
+    {
+        return
+        [
+            .. new[] { OwnershipStatus.Owned, OwnershipStatus.Wanted, OwnershipStatus.Sold, OwnershipStatus.NeedsDigitization }
+                .Where(status => OwnershipStatusCode(status).Contains(query, StringComparison.OrdinalIgnoreCase))
+        ];
     }
 
     private static CatalogLinkResponse OwnedItemLink(

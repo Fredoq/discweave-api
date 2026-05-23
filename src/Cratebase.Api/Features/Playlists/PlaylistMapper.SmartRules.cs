@@ -45,6 +45,7 @@ internal static partial class PlaylistMapper
                 .Where(release => release.CollectionId == playlist.CollectionId)
                 .ToArrayAsync(cancellationToken)
             : releases;
+        Dictionary<TrackId, int[]> trackYears = TrackYearLookup(trackYearReleases);
 
         PlaylistItemResponse[] releaseResults =
         [
@@ -59,7 +60,7 @@ internal static partial class PlaylistMapper
         PlaylistItemResponse[] trackResults =
         [
             .. tracks
-                .Where(track => MatchesTrack(track, trackYearReleases, TrackItems(trackItems, track.Id), rules))
+                .Where(track => MatchesTrack(track, TrackYears(trackYears, track.Id), TrackItems(trackItems, track.Id), rules))
                 .OrderBy(track => track.Title)
                 .ThenBy(track => track.Id.Value)
                 .Take(remainingTrackLimit)
@@ -142,19 +143,15 @@ internal static partial class PlaylistMapper
 
     private static bool MatchesTrack(
         Domain.Catalog.Track track,
-        IReadOnlyList<Domain.Catalog.Release> releases,
+        IReadOnlyList<int> releaseYears,
         IReadOnlyList<OwnedItem> ownedItems,
         SmartPlaylistRules rules)
     {
-        int? year = releases
-            .Where(release => release.Tracklist.Any(item => item.TrackId == track.Id))
-            .Select(ReleaseYearValue)
-            .FirstOrDefault(value => value.HasValue);
         return MatchesValues(rules.Tags, track.Cataloging.Tags.Select(tag => tag.Name)) &&
             MatchesValues(rules.Genres, track.Cataloging.Genres.Select(genre => genre.Name)) &&
             MatchesValues(rules.Media, ownedItems.Select(item => item.Holding.Medium.Code)) &&
             MatchesValues(rules.OwnershipStatuses, ownedItems.Select(item => StatusCode(item.Holding.Status))) &&
-            MatchesYear(year, rules);
+            MatchesTrackYears(releaseYears, rules);
     }
 
     private static bool UsesOwnedItemRules(SmartPlaylistRules rules)
@@ -177,6 +174,20 @@ internal static partial class PlaylistMapper
         return lookup.TryGetValue(trackId, out OwnedItem[]? items) ? items : [];
     }
 
+    private static Dictionary<TrackId, int[]> TrackYearLookup(IReadOnlyList<Domain.Catalog.Release> releases)
+    {
+        return releases
+            .SelectMany(release => release.Tracklist.Select(item => new TrackYear(item.TrackId, ReleaseYearValue(release))))
+            .Where(item => item.Year.HasValue)
+            .GroupBy(item => item.TrackId)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.Year.GetValueOrDefault()).Distinct().ToArray());
+    }
+
+    private static int[] TrackYears(Dictionary<TrackId, int[]> lookup, TrackId trackId)
+    {
+        return lookup.TryGetValue(trackId, out int[]? years) ? years : [];
+    }
+
     private static bool MatchesValues(IReadOnlyList<string> required, IEnumerable<string> values)
     {
         return required.Count == 0 || values.Any(value => required.Contains(value, StringComparer.OrdinalIgnoreCase));
@@ -186,6 +197,11 @@ internal static partial class PlaylistMapper
     {
         return (rules.YearFrom is not PresentOptionalValue<int> from || (year.HasValue && year.Value >= from.Value)) &&
             (rules.YearTo is not PresentOptionalValue<int> to || (year.HasValue && year.Value <= to.Value));
+    }
+
+    private static bool MatchesTrackYears(IReadOnlyList<int> releaseYears, SmartPlaylistRules rules)
+    {
+        return !UsesYearRules(rules) || releaseYears.Any(year => MatchesYear(year, rules));
     }
 
     private static OwnershipStatus? StatusFromCode(string status)
@@ -199,4 +215,6 @@ internal static partial class PlaylistMapper
             _ => null
         };
     }
+
+    private readonly record struct TrackYear(TrackId TrackId, int? Year);
 }
