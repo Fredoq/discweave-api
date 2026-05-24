@@ -28,9 +28,13 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             metadata = metadata.WithReleaseYear(year);
         }
 
-        if (!string.IsNullOrWhiteSpace(release.ReleaseDate) &&
-            DateOnly.TryParse(release.ReleaseDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
+        if (!string.IsNullOrWhiteSpace(release.ReleaseDate))
         {
+            if (!DateOnly.TryParseExact(release.ReleaseDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
+            {
+                throw new DomainException("release.release_date_invalid", "Release date is invalid");
+            }
+
             metadata = metadata.WithReleaseDate(releaseDate);
         }
 
