@@ -6,6 +6,12 @@ namespace Cratebase.Api.Features.Playlists;
 
 internal static partial class PlaylistMapper
 {
+    private const string GenreRuleAlias = "genre";
+    private const string ReleaseAlias = "release";
+    private const string ReleaseIdColumn = "release_id";
+    private const string TrackAlias = "track";
+    private const string TrackIdColumn = "track_id";
+
     private static string BuildSmartReleaseResultsSql(SmartPlaylistRules rules)
     {
         var sql = new StringBuilder(
@@ -38,17 +44,17 @@ internal static partial class PlaylistMapper
 
     private static void AppendReleaseRuleFilters(StringBuilder sql, SmartPlaylistRules rules)
     {
-        AppendCatalogingRuleFilter(sql, rules.Tags, "release_tags", "release", "release_id", "tag", "tag");
-        AppendCatalogingRuleFilter(sql, rules.Genres, "release_genres", "release", "release_id", "genre", "genre");
-        AppendOwnedItemRuleFilters(sql, rules, "release", "target_release_id", "release_id");
-        AppendReleaseYearFilters(sql, rules, "release");
+        AppendCatalogingRuleFilter(sql, rules.Tags, "release_tags", ReleaseAlias, ReleaseIdColumn, "tag", "tag");
+        AppendCatalogingRuleFilter(sql, rules.Genres, "release_genres", ReleaseAlias, ReleaseIdColumn, GenreRuleAlias, GenreRuleAlias);
+        AppendOwnedItemRuleFilters(sql, rules, ReleaseAlias, "target_release_id", ReleaseIdColumn);
+        AppendReleaseYearFilters(sql, rules, ReleaseAlias);
     }
 
     private static void AppendTrackRuleFilters(StringBuilder sql, SmartPlaylistRules rules)
     {
-        AppendCatalogingRuleFilter(sql, rules.Tags, "track_tags", "track", "track_id", "tag", "tag");
-        AppendCatalogingRuleFilter(sql, rules.Genres, "track_genres", "track", "track_id", "genre", "genre");
-        AppendOwnedItemRuleFilters(sql, rules, "track", "target_track_id", "track_id");
+        AppendCatalogingRuleFilter(sql, rules.Tags, "track_tags", TrackAlias, TrackIdColumn, "tag", "tag");
+        AppendCatalogingRuleFilter(sql, rules.Genres, "track_genres", TrackAlias, TrackIdColumn, GenreRuleAlias, GenreRuleAlias);
+        AppendOwnedItemRuleFilters(sql, rules, TrackAlias, "target_track_id", TrackIdColumn);
         AppendTrackYearFilter(sql, rules);
     }
 
