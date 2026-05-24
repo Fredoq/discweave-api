@@ -1,9 +1,11 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.Settings;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence.Queries;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,9 @@ namespace Cratebase.Infrastructure.Persistence.Search;
 
 internal static partial class SearchDocumentBuilder
 {
+    private const string MediumMatchedField = "medium";
+    private const string OwnershipStatusMatchedField = "ownershipStatus";
+
     public static async Task<IReadOnlyList<SearchDocument>> BuildAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -21,6 +26,7 @@ internal static partial class SearchDocumentBuilder
         Release[] releases = await context.Releases.AsNoTracking().Include("_genres").Include("_tags").Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         Track[] tracks = await context.Tracks.AsNoTracking().Include("_genres").Include("_tags").Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         OwnedItem[] ownedItems = await context.OwnedItems.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
+        Playlist[] playlists = await context.Playlists.AsNoTracking().Include(item => item.Entries).Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         Credit[] credits = await context.Credits.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         ArtistRelation[] artistRelations = await context.ArtistRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
         TrackRelation[] trackRelations = await context.TrackRelations.AsNoTracking().Where(item => item.CollectionId == collectionId).ToArrayAsync(cancellationToken);
@@ -34,6 +40,7 @@ internal static partial class SearchDocumentBuilder
             releases.ToDictionary(item => item.Id),
             tracks.ToDictionary(item => item.Id),
             ownedItems,
+            playlists,
             ownedItemsByReleaseId,
             ownedItemsByTrackId,
             credits,
@@ -47,7 +54,8 @@ internal static partial class SearchDocumentBuilder
             .. labels.Select(item => LabelDocument(item, data)),
             .. releases.Select(item => ReleaseDocument(item, data)),
             .. tracks.Select(item => TrackDocument(item, data)),
-            .. ownedItems.Select(item => OwnedItemDocument(item, data))
+            .. ownedItems.Select(item => OwnedItemDocument(item, data)),
+            .. playlists.Select(item => PlaylistDocument(item, data))
         ];
     }
 
@@ -105,7 +113,7 @@ internal static partial class SearchDocumentBuilder
             {
                 Subtitle = labelNames.FirstOrDefault() ?? "release",
                 Summary = string.Join(", ", tags),
-                MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", "medium", "ownershipStatus"],
+                MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", MediumMatchedField, OwnershipStatusMatchedField],
                 SearchParts = [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
@@ -131,7 +139,7 @@ internal static partial class SearchDocumentBuilder
             {
                 Subtitle = releases.FirstOrDefault()?.Summary.Title,
                 Summary = string.Join(", ", tags),
-                MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", "medium", "ownershipStatus"],
+                MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", MediumMatchedField, OwnershipStatusMatchedField],
                 SearchParts = [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
@@ -156,12 +164,65 @@ internal static partial class SearchDocumentBuilder
             new SearchDocumentContent(item.CollectionId, "ownedItem", item.Id.Value, title)
             {
                 Subtitle = $"{status} on {medium}",
-                MatchedFields = ["ownershipStatus", "medium", "title"],
+                MatchedFields = [OwnershipStatusMatchedField, MediumMatchedField, "title"],
                 SearchParts = [title, .. OwnedItemSearchParts(item, data)],
                 Media = [medium],
                 Statuses = [status],
                 Signals = CollectorSignals(TargetOwnedItems(item, data))
             });
+    }
+
+    private static SearchDocument PlaylistDocument(Playlist playlist, Data data)
+    {
+        SmartPlaylistRules rules = playlist.Rules;
+        string[] referencedTitles =
+        [
+            .. playlist.Entries.Select(entry => PlaylistEntryTitle(entry, data)).Where(value => value.Length > 0)
+        ];
+        string[] ruleParts =
+        [
+            .. rules.Tags,
+            .. rules.Genres,
+            .. rules.Media,
+            .. rules.OwnershipStatuses,
+            OptionalIntText(rules.YearFrom),
+            OptionalIntText(rules.YearTo)
+        ];
+        string description = OptionalStringText(playlist.Description);
+
+        return ToDocument(
+            new SearchDocumentContent(playlist.CollectionId, "playlist", playlist.Id.Value, playlist.Name)
+            {
+                Subtitle = playlist.Type == PlaylistType.Manual ? "manual playlist" : "smart playlist",
+                Summary = description.Length == 0 ? null : description,
+                MatchedFields = ["name", "playlist", "track", "release", "tag", "genre", MediumMatchedField, OwnershipStatusMatchedField],
+                SearchParts = [playlist.Name, description, playlist.Type.ToString(), .. referencedTitles, .. ruleParts],
+                Media = [.. rules.Media],
+                Statuses = [.. rules.OwnershipStatuses],
+                Tags = [.. rules.Tags.Concat(rules.Genres)]
+            });
+    }
+
+    private static string OptionalStringText(IOptionalValue<string> value)
+    {
+        return value is PresentOptionalValue<string> present ? present.Value : string.Empty;
+    }
+
+    private static string OptionalIntText(IOptionalValue<int> value)
+    {
+        return value is PresentOptionalValue<int> present
+            ? present.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    private static string PlaylistEntryTitle(PlaylistEntry entry, Data data)
+    {
+        return entry switch
+        {
+            { Kind: PlaylistEntry.ReleaseKind, ReleaseId: PresentOptionalValue<ReleaseId> releaseId } when data.Releases.TryGetValue(releaseId.Value, out Release? release) => release.Summary.Title,
+            { Kind: PlaylistEntry.TrackKind, TrackId: PresentOptionalValue<TrackId> trackId } when data.Tracks.TryGetValue(trackId.Value, out Track? track) => track.Title,
+            _ => string.Empty
+        };
     }
 
     private static OwnedItem[] TargetOwnedItems(OwnedItem item, Data data)

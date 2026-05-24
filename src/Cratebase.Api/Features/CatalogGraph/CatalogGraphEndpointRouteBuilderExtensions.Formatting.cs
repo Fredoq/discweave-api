@@ -82,6 +82,8 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 
         public IReadOnlyList<CatalogGraphContextResponse.LinkResponse> Labels { get; init; } = [];
 
+        public IReadOnlyList<CatalogGraphContextResponse.LinkResponse> Playlists { get; init; } = [];
+
         public IReadOnlyList<CatalogGraphContextResponse.LinkResponse> Credits { get; init; } = [];
 
         public IReadOnlyList<CatalogGraphContextResponse.LinkResponse> Relations { get; init; } = [];

@@ -15,6 +15,7 @@ public sealed record CatalogGraphContextResponse(
         IReadOnlyList<LinkResponse> Tracks,
         IReadOnlyList<LinkResponse> OwnedCopies,
         IReadOnlyList<LinkResponse> Labels,
+        IReadOnlyList<LinkResponse> Playlists,
         IReadOnlyList<LinkResponse> Credits,
         IReadOnlyList<LinkResponse> Relations,
         IReadOnlyList<LinkResponse> Media);

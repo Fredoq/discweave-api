@@ -1,6 +1,7 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -16,6 +17,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         Dictionary<ReleaseId, Release> Releases,
         Dictionary<TrackId, Track> Tracks,
         Dictionary<OwnedItemId, OwnedItem> OwnedItems,
+        Dictionary<PlaylistId, Playlist> Playlists,
         IReadOnlyList<Credit> Credits,
         IReadOnlyList<ArtistRelation> ArtistRelations,
         IReadOnlyList<TrackRelation> TrackRelations)
@@ -53,12 +55,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             Artist[] artists = await LoadArtistsAsync(context, collectionId, artistIds, cancellationToken);
             Release[] releases = await LoadReleasesAsync(context, collectionId, releaseIds, cancellationToken);
             Track[] tracks = await LoadTracksAsync(context, collectionId, trackIds, cancellationToken);
+            Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, releaseIds, trackIds, cancellationToken);
 
             return Create(new GraphDataContent
             {
                 Artists = artists,
                 Releases = releases,
                 Tracks = tracks,
+                Playlists = playlists,
                 Credits = credits,
                 ArtistRelations = artistRelations
             });
@@ -83,6 +87,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             Label[] labels = await LoadLabelsAsync(context, collectionId, labelIds, cancellationToken);
             OwnedItem[] ownedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, [releaseId], cancellationToken);
             Credit[] credits = await LoadCreditsForReleasesAsync(context, collectionId, [releaseId], cancellationToken);
+            Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, [releaseId], trackIds, cancellationToken);
 
             return Create(new GraphDataContent
             {
@@ -90,6 +95,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 Releases = [release],
                 Tracks = tracks,
                 OwnedItems = ownedItems,
+                Playlists = playlists,
                 Credits = credits
             });
         }
@@ -121,12 +127,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 .. trackRelations.SelectMany(item => new[] { item.SourceTrackId, item.TargetTrackId }).Distinct()
             ];
             Track[] tracks = await LoadTracksAsync(context, collectionId, relatedTrackIds, cancellationToken);
+            Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, [.. releases.Select(release => release.Id)], [trackId], cancellationToken);
 
             return Create(new GraphDataContent
             {
                 Releases = releases,
                 Tracks = tracks,
                 OwnedItems = ownedItems,
+                Playlists = playlists,
                 Credits = credits,
                 TrackRelations = trackRelations
             });
@@ -151,12 +159,19 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             Track[] tracks = ownedItem.Target is TrackOwnedItemTarget trackTarget
                 ? await LoadTracksAsync(context, collectionId, [trackTarget.TrackId], cancellationToken)
                 : [];
+            Playlist[] playlists = ownedItem.Target switch
+            {
+                ReleaseOwnedItemTarget playlistReleaseTarget => await LoadPlaylistsAsync(context, collectionId, [playlistReleaseTarget.ReleaseId], [], cancellationToken),
+                TrackOwnedItemTarget playlistTrackTarget => await LoadPlaylistsAsync(context, collectionId, [], [playlistTrackTarget.TrackId], cancellationToken),
+                _ => []
+            };
 
             return Create(new GraphDataContent
             {
                 Releases = releases,
                 Tracks = tracks,
-                OwnedItems = [ownedItem]
+                OwnedItems = [ownedItem],
+                Playlists = playlists
             });
         }
 
@@ -178,12 +193,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 .ToArrayAsync(cancellationToken);
             ReleaseId[] releaseIds = [.. releases.Select(item => item.Id)];
             OwnedItem[] ownedItems = await LoadOwnedItemsForReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, releaseIds, [], cancellationToken);
 
             return Create(new GraphDataContent
             {
                 Labels = [label],
                 Releases = releases,
-                OwnedItems = ownedItems
+                OwnedItems = ownedItems,
+                Playlists = playlists
             });
         }
 
@@ -195,6 +212,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 content.Releases.ToDictionary(item => item.Id),
                 content.Tracks.ToDictionary(item => item.Id),
                 content.OwnedItems.ToDictionary(item => item.Id),
+                content.Playlists.ToDictionary(item => item.Id),
                 content.Credits,
                 content.ArtistRelations,
                 content.TrackRelations);
@@ -211,6 +229,8 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             public IReadOnlyList<Track> Tracks { get; init; } = [];
 
             public IReadOnlyList<OwnedItem> OwnedItems { get; init; } = [];
+
+            public IReadOnlyList<Playlist> Playlists { get; init; } = [];
 
             public IReadOnlyList<Credit> Credits { get; init; } = [];
 

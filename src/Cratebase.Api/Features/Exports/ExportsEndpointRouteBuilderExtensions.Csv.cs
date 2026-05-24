@@ -68,6 +68,20 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 item.Condition ?? string.Empty,
                 item.StorageLocation ?? string.Empty
             }));
+            AddCsvEntry(archive, "playlists.csv", PlaylistHeader(), snapshot.Playlists.Select(playlist => new[]
+            {
+                playlist.Id.ToString(),
+                playlist.Name,
+                playlist.Type,
+                playlist.Description ?? string.Empty,
+                JoinValues(playlist.Rules.Tags),
+                JoinValues(playlist.Rules.Genres),
+                JoinValues(playlist.Rules.Media),
+                JoinValues(playlist.Rules.OwnershipStatuses),
+                Invariant(playlist.Rules.YearFrom),
+                Invariant(playlist.Rules.YearTo)
+            }));
+            AddCsvEntry(archive, "playlist_entries.csv", PlaylistEntryHeader(), PlaylistEntryRows(snapshot));
             AddCsvEntry(archive, "credits.csv", CreditHeader(), snapshot.Credits.Select(credit => new[]
             {
                 credit.Id.ToString(),

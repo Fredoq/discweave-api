@@ -69,6 +69,7 @@ public static partial class ReleaseImportScanService
             file.AudioFormat ?? throw new InvalidOperationException("Track file requires an audio format"),
             file.Request.SizeBytes,
             file.Request.LastModifiedAt,
+            NormalizeContentHash(file.Request.ContentHash),
             tags?.DurationSeconds is null ? null : TimeSpan.FromSeconds(tags.DurationSeconds.Value),
             tags?.TrackNumber ?? parsed.Position,
             TrimOrNull(tags?.Title) ?? parsed.Title ?? Path.GetFileNameWithoutExtension(file.RelativePath),

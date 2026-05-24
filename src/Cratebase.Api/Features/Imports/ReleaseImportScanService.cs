@@ -39,6 +39,8 @@ public static partial class ReleaseImportScanService
         ReleaseFolderScanPayload scan = BuildScan(request, releaseTemplates, trackTemplates);
         ReleaseImportSession session = CreateSession(context, collectionId, scan);
         _ = await context.SaveChangesAsync(cancellationToken);
+        await ApplyDuplicateTrackMatchesAsync(context, collectionId, session.Id, cancellationToken);
+        _ = await context.SaveChangesAsync(cancellationToken);
 
         return new ReleaseImportScanResult(session, collectionId);
     }

@@ -3,6 +3,7 @@ using Cratebase.Api.Features.Artists;
 using Cratebase.Api.Features.Credits;
 using Cratebase.Api.Features.Labels;
 using Cratebase.Api.Features.OwnedItems;
+using Cratebase.Api.Features.Playlists;
 using Cratebase.Api.Features.Ratings;
 using Cratebase.Api.Features.Releases;
 using Cratebase.Api.Features.Settings;
@@ -18,6 +19,7 @@ public sealed record ExportSnapshotResponse(
     IReadOnlyList<ReleaseResponse> Releases,
     IReadOnlyList<TrackResponse> Tracks,
     IReadOnlyList<OwnedItemResponse> OwnedItems,
+    IReadOnlyList<PlaylistResponse> Playlists,
     IReadOnlyList<CreditResponse> Credits,
     IReadOnlyList<ArtistRelationResponse> ArtistRelations,
     IReadOnlyList<TrackRelationResponse> TrackRelations,

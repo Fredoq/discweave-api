@@ -146,6 +146,9 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
                 @saved_view = '' OR
                 @saved_view = 'all' OR
                 (@saved_view = 'credits' AND document.role_facet <> '') OR
+                (@saved_view = 'remixes' AND document.entity_type = 'track' AND document.role_facet LIKE '%|remixer|%') OR
+                (@saved_view = 'productions' AND document.entity_type = 'release' AND document.role_facet LIKE '%|producer|%') OR
+                (@saved_view = 'labels' AND document.entity_type = 'label') OR
                 (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
                 (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
                 (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR
@@ -181,6 +184,9 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
                 @saved_view = '' OR
                 @saved_view = 'all' OR
                 (@saved_view = 'credits' AND document.role_facet <> '') OR
+                (@saved_view = 'remixes' AND document.entity_type = 'track' AND document.role_facet LIKE '%|remixer|%') OR
+                (@saved_view = 'productions' AND document.entity_type = 'release' AND document.role_facet LIKE '%|producer|%') OR
+                (@saved_view = 'labels' AND document.entity_type = 'label') OR
                 (@saved_view = 'needsdigitization' AND document.status_facet LIKE '%|needsdigitization|%') OR
                 (@saved_view = 'physicalwithoutdigital' AND document.collector_signal_facet LIKE '%|physicalwithoutdigital|%') OR
                 (@saved_view = 'lossywithoutlossless' AND document.collector_signal_facet LIKE '%|lossywithoutlossless|%') OR

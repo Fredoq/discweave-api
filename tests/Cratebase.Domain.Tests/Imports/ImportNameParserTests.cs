@@ -112,7 +112,13 @@ public sealed class ImportNameParserTests
             collectionId,
             ReleaseImportDraftId.New(),
             ReleaseImportDraftTrackId.New(),
-            new DraftTrackFileInfo("/music/01.flac", "01.flac", AudioFileFormat.Flac, 1, DateTimeOffset.UtcNow));
+            new DraftTrackFileInfo(
+                "/music/01.flac",
+                "01.flac",
+                AudioFileFormat.Flac,
+                1,
+                DateTimeOffset.UtcNow,
+                Optional.Missing<string>()));
         _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
             -1,
             "Track",
@@ -123,6 +129,24 @@ public sealed class ImportNameParserTests
             null,
             false,
             [])));
+    }
+
+    [Fact(DisplayName = "Release import draft track keeps content hash as an optional value")]
+    public void Release_import_draft_track_keeps_content_hash_as_an_optional_value()
+    {
+        var track = ReleaseImportDraftTrack.Create(
+            CollectionId.New(),
+            ReleaseImportDraftId.New(),
+            ReleaseImportDraftTrackId.New(),
+            new DraftTrackFileInfo(
+                "/music/01.flac",
+                "01.flac",
+                AudioFileFormat.Flac,
+                1,
+                DateTimeOffset.UtcNow,
+                Optional.From(" ABCDEF ")));
+
+        Assert.Equal("abcdef", Assert.IsType<PresentOptionalValue<string>>(track.ContentHash).Value);
     }
 
     [Fact(DisplayName = "Release import cover artifacts are copied")]

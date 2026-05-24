@@ -709,6 +709,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("collection_id");
 
+                    b.Property<string>("_contentHash")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("content_hash");
+
                     b.Property<Guid>("DraftId")
                         .HasColumnType("uuid")
                         .HasColumnName("release_import_draft_id");

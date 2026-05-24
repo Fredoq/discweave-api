@@ -3,6 +3,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Importing;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -65,9 +66,11 @@ public sealed partial class ReleaseImportConfirmationService
         ReleaseImportDraftTrack draftTrack,
         CancellationToken cancellationToken)
     {
+        string? contentHash = ContentHashOrNull(draftTrack.ContentHash);
         bool exists = await context.OwnedItems.AnyAsync(
-            item => item.CollectionId == collectionId &&
-                (EF.Property<string?>(item, "_digitalFilePath") == draftTrack.FilePath ||
+            item =>
+                item.CollectionId == collectionId &&
+                ((contentHash != null && EF.Property<string?>(item, "_importIdentityContentHash") == contentHash) ||
                     (EF.Property<string?>(item, "_importIdentityPath") == draftTrack.FilePath &&
                         EF.Property<long?>(item, "_importIdentitySizeBytes") == draftTrack.SizeBytes &&
                         EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt") == draftTrack.LastModifiedAt)),
@@ -78,7 +81,9 @@ public sealed partial class ReleaseImportConfirmationService
         }
 
         var path = FilePath.FromAbsolutePath(draftTrack.FilePath);
-        var identity = FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt);
+        FileImportIdentity identity = contentHash is null
+            ? FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt)
+            : FileImportIdentity.Create(path, draftTrack.SizeBytes, draftTrack.LastModifiedAt, contentHash);
         var item = OwnedItem.Create(
             collectionId,
             OwnedItemId.New(),
@@ -97,5 +102,10 @@ public sealed partial class ReleaseImportConfirmationService
             ".webp" => "image/webp",
             _ => "application/octet-stream"
         };
+    }
+
+    private static string? ContentHashOrNull(IOptionalValue<string> value)
+    {
+        return value is PresentOptionalValue<string> present ? present.Value : null;
     }
 }

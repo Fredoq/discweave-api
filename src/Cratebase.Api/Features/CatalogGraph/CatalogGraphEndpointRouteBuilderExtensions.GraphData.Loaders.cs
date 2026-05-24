@@ -1,7 +1,9 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Optional;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -82,6 +84,33 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                     """)
                     .AsNoTracking()
                     .ToArrayAsync(cancellationToken);
+        }
+
+        private static async Task<Playlist[]> LoadPlaylistsAsync(
+            CratebaseDbContext context,
+            CollectionId collectionId,
+            ReleaseId[] releaseIds,
+            TrackId[] trackIds,
+            CancellationToken cancellationToken)
+        {
+            if (releaseIds.Length == 0 && trackIds.Length == 0)
+            {
+                return [];
+            }
+
+            Playlist[] playlists = await context.Playlists.AsNoTracking()
+                .Include(playlist => playlist.Entries)
+                .Where(playlist => playlist.CollectionId == collectionId)
+                .ToArrayAsync(cancellationToken);
+            HashSet<ReleaseId> releaseSet = [.. releaseIds];
+            HashSet<TrackId> trackSet = [.. trackIds];
+
+            return
+            [
+                .. playlists.Where(playlist => playlist.Entries.Any(entry =>
+                    (entry.ReleaseId is PresentOptionalValue<ReleaseId> releaseId && releaseSet.Contains(releaseId.Value)) ||
+                    (entry.TrackId is PresentOptionalValue<TrackId> trackId && trackSet.Contains(trackId.Value))))
+            ];
         }
 
         private static async Task<OwnedItem[]> LoadOwnedItemsForTracksAsync(

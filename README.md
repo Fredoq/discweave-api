@@ -1,55 +1,62 @@
 # cratebase-api
 
-Backend API for Cratebase, a personal music archive for cataloging releases, tracks, media, owned items, credits, artist relations, imports, search, and exports.
+Backend API for Cratebase, a personal music archive for cataloging releases,
+tracks, media, owned items, credits, artist relations, imports, playlists,
+search, graph navigation, and exports.
 
-Cratebase is an archive, not a music player. The API is shaped around the collection domain and the question: what is in the collection, and how is it connected?
+Cratebase is an archive, not a music player. The API is shaped around the
+collection domain and the question: what is in the collection, and how is it
+connected?
+
+## Project Status
+
+The backend is an alpha product slice. It has authenticated local accounts,
+one default private collection per user, collection-scoped catalog APIs, core
+manual CRUD, credits, labels, artist and track relations, rating criteria,
+release cover uploads, local folder import review, content-hash import
+deduplication, persistent manual and smart playlists, search saved views,
+catalog graph context, compact catalog links, and JSON/CSV exports.
+
+The schema is still early and not promised as a stable production migration
+history. Data should be treated as valuable during testing, but the project is
+not yet ready for long-lived private archives without backups.
 
 ## Requirements
 
 - .NET SDK 10.0.100 or newer 10.0 feature band
+- PostgreSQL for local API runs
+- Docker-compatible runtime for integration tests that use Testcontainers
 
 The repository pins the SDK in `global.json`.
 
 ## Solution Layout
 
-- `src/Cratebase.Domain` - reserved for domain entities, value objects, enums, and invariants after the domain model is designed.
-- `src/Cratebase.Application` - application services and use-case orchestration.
-- `src/Cratebase.Infrastructure` - persistence, imports, exports, and external infrastructure adapters.
+- `src/Cratebase.Domain` - domain entities, value objects, enums, and invariants.
+- `src/Cratebase.Application` - application services and use-case contracts.
+- `src/Cratebase.Infrastructure` - EF Core persistence, identity, search, files, and queries.
+- `src/Cratebase.Importing` - folder scan parsing and import grouping primitives.
 - `src/Cratebase.Api` - ASP.NET Core composition root and HTTP endpoints.
 - `tests/Cratebase.Domain.Tests` - domain behavior tests.
-- `tests/Cratebase.Api.Tests` - API smoke and contract tests.
+- `tests/Cratebase.Infrastructure.Tests` - persistence and collection-boundary tests.
+- `tests/Cratebase.Api.Tests` - API contract and workflow tests.
 
-## Local Development
+## Local API Setup
 
-Restore dependencies:
+Restore and build:
 
 ```bash
 dotnet restore Cratebase.slnx
-```
-
-Build the solution:
-
-```bash
 dotnet build Cratebase.slnx
 ```
 
-Run tests:
+Run the API against a local PostgreSQL database:
 
 ```bash
-dotnet test Cratebase.slnx
+ConnectionStrings__Cratebase="Host=localhost;Port=5432;Database=cratebase;Username=<postgres-user>;Password=<postgres-password>" \
+  dotnet run --project src/Cratebase.Api/Cratebase.Api.csproj --launch-profile http
 ```
 
-Verify formatting and analyzer style:
-
-```bash
-dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
-```
-
-Run the API:
-
-```bash
-dotnet run --project src/Cratebase.Api/Cratebase.Api.csproj
-```
+The HTTP launch profile listens on `http://localhost:5094`.
 
 Health check:
 
@@ -66,11 +73,49 @@ Expected response:
 }
 ```
 
+Use the web app first-user bootstrap form when the database has no users. After
+bootstrap, catalog, search, import, export, playlist, rating, and settings
+routes require the authenticated cookie and resolve the active collection from
+the user's default collection.
+
+## Verification
+
+```bash
+dotnet test Cratebase.slnx
+dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+```
+
+## Implemented Alpha Workflows
+
+- Bootstrap the first admin user and default music collection.
+- Create and edit artists, labels, releases, tracks, owned items, credits, and relations.
+- Search across entities, roles, tags, labels, media, ownership status, and collector saved views.
+- Review local folder import sessions produced by the desktop scanner.
+- Deduplicate imports by same-collection SHA-256 content hash, then by path, size, and mtime fallback.
+- Persist manual playlists with ordered release and track references.
+- Persist smart playlists with dynamic tag, genre, media, ownership status, and year rules.
+- Navigate graph context with credits, relations, media coverage, collector signals, and playlist backlinks.
+- Export portable JSON and CSV data, including playlists.
+
+## Known Limits
+
+- Smart playlists are dynamic rule queries; they are not materialized snapshots.
+- Local audio scanning belongs to the desktop client. The API stores metadata and file identity, not audio files.
+- Import metadata extraction is intentionally conservative and still needs broader real-library coverage.
+- Catalog links are compact lookup results for selectors, not a full replacement for search.
+- There are no external Discogs, MusicBrainz, streaming, social, marketplace, or recommendation integrations.
+- SQLite backup and stable production migration policy are future work.
+
+See [docs/alpha-checklist.md](docs/alpha-checklist.md) for the shared
+acceptance path.
+
 ## Build Configuration
 
-Shared build settings live in `Directory.Build.props`. Package versions are centralized in `Directory.Packages.props`.
+Shared build settings live in `Directory.Build.props`. Package versions are
+centralized in `Directory.Packages.props`.
 
-Style rules live in `.editorconfig` and are enforced by the `Check` GitHub Actions workflow through `dotnet format`.
+Style rules live in `.editorconfig` and are enforced by the `Check` GitHub
+Actions workflow through `dotnet format`.
 
 ## CI Workflows
 
