@@ -95,6 +95,37 @@ dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 - Export portable JSON and CSV data, including playlists.
 - Restore a JSON export into an empty active collection.
 
+## Large Collection Seed
+
+Use `Cratebase.Seeding` to create a synthetic collection for search, graph,
+export, and UI load testing. The command creates a separate local account and
+default collection, applies migrations, and refuses to add duplicate seed data
+when that seed collection already contains catalog records.
+
+Default scale: 1,200 artists, 120 labels, 1,500 releases, 12,000 tracks, owned
+items, credits, relations, playlists, and rebuilt search documents.
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres"
+```
+
+Sign in with:
+
+- email: `seed@cratebase.local`
+- password: `SeedPassword1!`
+
+Custom scale:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+  --artists 3000 \
+  --labels 250 \
+  --releases 5000 \
+  --tracks-per-release 10
+```
+
 ## Product Boundaries
 
 - Smart playlists are dynamic rule queries; they are not materialized snapshots.

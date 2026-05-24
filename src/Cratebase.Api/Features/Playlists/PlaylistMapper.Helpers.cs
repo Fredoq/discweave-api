@@ -1,4 +1,3 @@
-using Cratebase.Domain.Collection;
 using Cratebase.Domain.Playlists;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
@@ -69,24 +68,5 @@ internal static partial class PlaylistMapper
         return release.Summary.Metadata.Year.HasValue
             ? release.Summary.Metadata.Year.Match(value => value.ToString(System.Globalization.CultureInfo.InvariantCulture), () => string.Empty)
             : null;
-    }
-
-    private static int? ReleaseYearValue(Domain.Catalog.Release release)
-    {
-        return release.Summary.Metadata.Year.HasValue
-            ? release.Summary.Metadata.Year.Match(value => value, () => 0)
-            : null;
-    }
-
-    private static string StatusCode(OwnershipStatus status)
-    {
-        return status switch
-        {
-            OwnershipStatus.Owned => "owned",
-            OwnershipStatus.Wanted => "wanted",
-            OwnershipStatus.Sold => "sold",
-            OwnershipStatus.NeedsDigitization => "needsDigitization",
-            _ => throw new InvalidOperationException("Ownership status is not supported")
-        };
     }
 }

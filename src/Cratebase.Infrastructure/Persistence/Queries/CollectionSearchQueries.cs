@@ -130,7 +130,7 @@ public sealed class CollectionSearchQueries : ICollectionSearchQueries
             document.collector_signal_facet,
             CASE WHEN @has_query THEN
                 (ts_rank(document.search_vector, search_input.query) * 10.0) +
-                similarity(document.search_text, @query) +
+                CASE WHEN document.search_vector @@ search_input.query THEN 0.0 ELSE similarity(document.search_text, @query) END +
                 CASE WHEN lower(document.title) = lower(@query) THEN 5.0 ELSE 0.0 END
             ELSE 1.0 END AS rank
         FROM search_documents document

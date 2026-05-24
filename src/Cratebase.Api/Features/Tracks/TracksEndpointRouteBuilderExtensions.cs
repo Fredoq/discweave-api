@@ -110,11 +110,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             .Take(normalizedLimit)
             .ToArrayAsync(cancellationToken);
 
-        var responses = new List<TrackResponse>(items.Length);
-        foreach (Track track in items)
-        {
-            responses.Add(await ToTrackResponseAsync(track, context, currentCollection.CollectionId, cancellationToken));
-        }
+        IReadOnlyList<TrackResponse> responses = await ToTrackResponsesAsync(items, context, currentCollection.CollectionId, cancellationToken);
 
         return Results.Ok(new ListResponse<TrackResponse>(responses, normalizedLimit, normalizedOffset, total));
     }
