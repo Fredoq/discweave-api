@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
 
           # Coverage exclusions are limited to application bootstrap and generated EF Core migrations.
-          coverageExclusions="**/Cratebase.Api/Program.cs,**/Persistence/Migrations/**"
+          coverageExclusions="**/Cratebase.Api/Program.cs,**/Cratebase.Seeding/Program.cs,**/Persistence/Migrations/**"
           duplicationExclusions="**/Persistence/Migrations/**"
 
           "$RUNNER_TEMP/scanner/dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="$coverageExclusions" /d:sonar.cpd.exclusions="$duplicationExclusions"

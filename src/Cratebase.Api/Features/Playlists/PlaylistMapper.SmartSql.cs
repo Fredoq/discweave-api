@@ -38,50 +38,57 @@ internal static partial class PlaylistMapper
 
     private static void AppendReleaseRuleFilters(StringBuilder sql, SmartPlaylistRules rules)
     {
-        string[] tags = NormalizeRuleValues(rules.Tags);
-        if (rules.Tags.Count > 0 && !AppendNoMatchesWhenEmpty(sql, tags))
-        {
-            _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM release_tags tag WHERE tag.collection_id = release.collection_id AND tag.release_id = release.release_id AND lower(tag.name) IN (" +
-                ParameterList("tag", tags.Length) +
-                "))");
-        }
-
-        string[] genres = NormalizeRuleValues(rules.Genres);
-        if (rules.Genres.Count > 0 && !AppendNoMatchesWhenEmpty(sql, genres))
-        {
-            _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM release_genres genre WHERE genre.collection_id = release.collection_id AND genre.release_id = release.release_id AND lower(genre.name) IN (" +
-                ParameterList("genre", genres.Length) +
-                "))");
-        }
-
+        AppendCatalogingRuleFilter(sql, rules.Tags, "release_tags", "release", "release_id", "tag", "tag");
+        AppendCatalogingRuleFilter(sql, rules.Genres, "release_genres", "release", "release_id", "genre", "genre");
         AppendOwnedItemRuleFilters(sql, rules, "release", "target_release_id", "release_id");
         AppendReleaseYearFilters(sql, rules, "release");
     }
 
     private static void AppendTrackRuleFilters(StringBuilder sql, SmartPlaylistRules rules)
     {
-        string[] tags = NormalizeRuleValues(rules.Tags);
-        if (rules.Tags.Count > 0 && !AppendNoMatchesWhenEmpty(sql, tags))
-        {
-            _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM track_tags tag WHERE tag.collection_id = track.collection_id AND tag.track_id = track.track_id AND lower(tag.name) IN (" +
-                ParameterList("tag", tags.Length) +
-                "))");
-        }
-
-        string[] genres = NormalizeRuleValues(rules.Genres);
-        if (rules.Genres.Count > 0 && !AppendNoMatchesWhenEmpty(sql, genres))
-        {
-            _ = sql.AppendLine(
-                "AND EXISTS (SELECT 1 FROM track_genres genre WHERE genre.collection_id = track.collection_id AND genre.track_id = track.track_id AND lower(genre.name) IN (" +
-                ParameterList("genre", genres.Length) +
-                "))");
-        }
-
+        AppendCatalogingRuleFilter(sql, rules.Tags, "track_tags", "track", "track_id", "tag", "tag");
+        AppendCatalogingRuleFilter(sql, rules.Genres, "track_genres", "track", "track_id", "genre", "genre");
         AppendOwnedItemRuleFilters(sql, rules, "track", "target_track_id", "track_id");
         AppendTrackYearFilter(sql, rules);
+    }
+
+    private static void AppendCatalogingRuleFilter(
+        StringBuilder sql,
+        IReadOnlyList<string> ruleValues,
+        string tableName,
+        string entityAlias,
+        string entityIdColumn,
+        string rowAlias,
+        string parameterPrefix)
+    {
+        string[] values = NormalizeRuleValues(ruleValues);
+        if (ruleValues.Count == 0 || AppendNoMatchesWhenEmpty(sql, values))
+        {
+            return;
+        }
+
+        _ = sql.AppendLine(
+            "AND EXISTS (SELECT 1 FROM " +
+            tableName +
+            " " +
+            rowAlias +
+            " WHERE " +
+            rowAlias +
+            ".collection_id = " +
+            entityAlias +
+            ".collection_id AND " +
+            rowAlias +
+            "." +
+            entityIdColumn +
+            " = " +
+            entityAlias +
+            "." +
+            entityIdColumn +
+            " AND lower(" +
+            rowAlias +
+            ".name) IN (" +
+            ParameterList(parameterPrefix, values.Length) +
+            "))");
     }
 
     private static void AppendOwnedItemRuleFilters(
