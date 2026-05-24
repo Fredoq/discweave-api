@@ -112,7 +112,8 @@ public sealed class CratebaseDbContextCollectionBoundaryTests : IClassFixture<Po
         _ = await context.SaveChangesAsync();
 
         _ = context.OwnedItems.Add(CreateDigitalOwnedItem(firstCollectionId, firstRelease.Id));
-        _ = await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        ResourceConflictException exception = await Assert.ThrowsAsync<ResourceConflictException>(() => context.SaveChangesAsync());
+        Assert.Equal(ResourceConflictException.IntegrityConstraint, exception.Conflict);
     }
 
     private async Task AssertForeignKeyViolationAsync(Func<CratebaseDbContext, Task> arrangeAsync)

@@ -159,6 +159,25 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
         Assert.Equal("export_restore.snapshot_invalid", document.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "JSON restore treats database constraint failures as invalid snapshots")]
+    public async Task Json_restore_treats_database_constraint_failures_as_invalid_snapshots()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
+        JsonObject snapshot = JsonNode.Parse(await CreateSnapshotAsync(adminClient))!.AsObject();
+        JsonArray dictionaries = snapshot["dictionaries"]!.AsArray();
+        JsonObject duplicateDictionary = JsonNode.Parse(dictionaries[0]!.ToJsonString())!.AsObject();
+        duplicateDictionary["id"] = Guid.CreateVersion7();
+        dictionaries.Add(duplicateDictionary);
+        HttpClient userClient = await CreateUserClientAsync(host, adminClient);
+
+        using HttpResponseMessage restoreResponse = await PostRestoreAsync(userClient, snapshot.ToJsonString());
+        using JsonDocument document = await ReadJsonAsync(restoreResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, restoreResponse.StatusCode);
+        Assert.Equal("export_restore.snapshot_invalid", document.RootElement.GetProperty("code").GetString());
+    }
+
     [Fact(DisplayName = "JSON restore stays scoped to the authenticated collection")]
     public async Task Json_restore_stays_scoped_to_the_authenticated_collection()
     {

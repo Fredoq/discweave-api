@@ -5,6 +5,7 @@ namespace Cratebase.Infrastructure.Persistence;
 
 internal static class PostgresPersistenceErrors
 {
+    private const string IntegrityConstraintSqlStateClass = "23";
     private const string RestrictViolationSqlState = "23001";
     private const string RatingValueTargetUniqueIndexPrefix = "IX_rating_values_collection_id_criterion_id_target_type_targe";
 
@@ -40,6 +41,13 @@ internal static class PostgresPersistenceErrors
         ArgumentNullException.ThrowIfNull(exception);
 
         return FindPostgresException(exception)?.SqlState == RestrictViolationSqlState;
+    }
+
+    public static bool IsIntegrityConstraintViolation(DbUpdateException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return FindPostgresException(exception)?.SqlState.StartsWith(IntegrityConstraintSqlStateClass, StringComparison.Ordinal) == true;
     }
 
     private static PostgresException? FindPostgresException(DbUpdateException exception)
