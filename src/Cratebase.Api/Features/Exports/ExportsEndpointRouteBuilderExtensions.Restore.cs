@@ -1,4 +1,5 @@
 using Cratebase.Application.Errors;
+using Cratebase.Application.Persistence;
 using Cratebase.Application.Security;
 using Cratebase.Api.Http;
 using Cratebase.Domain.SharedKernel.Errors;
@@ -17,6 +18,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ExportSnapshotResponse snapshot,
         HttpRequest request,
         CratebaseDbContext context,
+        IUnitOfWork unitOfWork,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
@@ -32,13 +34,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         }
 
         CollectionId collectionId = currentCollection.CollectionId;
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
+
         if (!await IsCollectionEmptyForRestoreAsync(context, collectionId, cancellationToken))
         {
+            await transaction.RollbackAsync(cancellationToken);
             return EndpointErrors.Conflict("export_restore.collection_not_empty", "JSON restore requires an empty collection");
         }
-
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
-            await context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
@@ -57,7 +60,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestorePlaylists(context, collectionId, snapshot.Playlists);
             RestoreRatings(context, collectionId, snapshot.Ratings);
 
-            _ = await context.SaveChangesAsync(cancellationToken);
+            _ = await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
             return Results.Ok(ToRestoreResponse(snapshot));
@@ -127,6 +130,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
 
     private static bool IsSnapshotInvalid(Exception exception)
     {
-        return exception is DomainException or ReferencedResourceMissingException or ResourceConflictException or InvalidOperationException;
+        return exception is DomainException or ReferencedResourceMissingException or ResourceConflictException;
     }
 }
