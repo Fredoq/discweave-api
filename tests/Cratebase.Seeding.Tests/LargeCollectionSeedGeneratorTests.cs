@@ -9,8 +9,9 @@ public sealed class LargeCollectionSeedGeneratorTests
     public void LargeCollectionSeedGeneratorCreatesConnectedCatalogGraphAtTheRequestedScale()
     {
         var options = new LargeCollectionSeedOptions(18, 4, 12, 5);
+        var collectionId = CollectionId.New();
 
-        LargeCollectionSeedData data = LargeCollectionSeedGenerator.Generate(CollectionId.New(), options);
+        LargeCollectionSeedData data = LargeCollectionSeedGenerator.Generate(collectionId, options);
 
         Assert.Equal(options.ArtistCount, data.Artists.Count);
         Assert.Equal(options.LabelCount, data.Labels.Count);
@@ -22,5 +23,14 @@ public sealed class LargeCollectionSeedGeneratorTests
         Assert.Contains(data.ArtistRelations, relation => relation.Type == "memberOf");
         Assert.Contains(data.TrackRelations, relation => relation.RelationType == "remixOf");
         Assert.Contains(data.Playlists, playlist => playlist.Type == Domain.Playlists.PlaylistType.Smart);
+        Assert.All(data.Artists, artist => Assert.Equal(collectionId, artist.CollectionId));
+        Assert.All(data.Labels, label => Assert.Equal(collectionId, label.CollectionId));
+        Assert.All(data.Releases, release => Assert.Equal(collectionId, release.CollectionId));
+        Assert.All(data.Tracks, track => Assert.Equal(collectionId, track.CollectionId));
+        Assert.All(data.OwnedItems, ownedItem => Assert.Equal(collectionId, ownedItem.CollectionId));
+        Assert.All(data.Credits, credit => Assert.Equal(collectionId, credit.CollectionId));
+        Assert.All(data.ArtistRelations, relation => Assert.Equal(collectionId, relation.CollectionId));
+        Assert.All(data.TrackRelations, relation => Assert.Equal(collectionId, relation.CollectionId));
+        Assert.All(data.Playlists, playlist => Assert.Equal(collectionId, playlist.CollectionId));
     }
 }

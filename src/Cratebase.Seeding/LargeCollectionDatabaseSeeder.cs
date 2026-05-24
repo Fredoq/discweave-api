@@ -6,6 +6,7 @@ using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Cratebase.Seeding;
 
@@ -59,26 +60,30 @@ public static class LargeCollectionDatabaseSeeder
         SeedCommand command,
         CancellationToken cancellationToken)
     {
-        CratebaseUser? existingUser = await userManager.FindByEmailAsync(command.Email);
+        string trimmedEmail = command.Email.Trim();
+        CratebaseUser? existingUser = await userManager.FindByEmailAsync(trimmedEmail);
         if (existingUser is not null)
         {
             if (existingUser.DefaultCollectionId is null)
             {
+                await using IDbContextTransaction transaction =
+                    await context.Database.BeginTransactionAsync(cancellationToken);
                 await CreateDefaultCollectionAsync(context, existingUser, userManager, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
 
             return existingUser;
         }
 
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+        await using IDbContextTransaction createUserTransaction =
             await context.Database.BeginTransactionAsync(cancellationToken);
         await EnsureRolesAsync(roleManager);
 
         var user = new CratebaseUser
         {
             Id = Guid.CreateVersion7(),
-            Email = command.Email.Trim(),
-            UserName = command.Email.Trim()
+            Email = trimmedEmail,
+            UserName = trimmedEmail
         };
         IdentityResult createResult = await userManager.CreateAsync(user, command.Password);
         EnsureIdentitySucceeded(createResult, "Seed user could not be created");
@@ -86,7 +91,7 @@ public static class LargeCollectionDatabaseSeeder
         EnsureIdentitySucceeded(roleResult, "Seed user roles could not be assigned");
 
         await CreateDefaultCollectionAsync(context, user, userManager, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await createUserTransaction.CommitAsync(cancellationToken);
 
         return user;
     }

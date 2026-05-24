@@ -8,43 +8,93 @@ namespace Cratebase.Seeding;
 
 public sealed class LargeCollectionSeedData
 {
-    public LargeCollectionSeedData(
-        IReadOnlyList<Artist> artists,
-        IReadOnlyList<Label> labels,
-        IReadOnlyList<Release> releases,
-        IReadOnlyList<Track> tracks,
-        IReadOnlyList<OwnedItem> ownedItems,
-        IReadOnlyList<Credit> credits,
-        IReadOnlyList<ArtistRelation> artistRelations,
-        IReadOnlyList<TrackRelation> trackRelations,
-        IReadOnlyList<Playlist> playlists)
+    public required IReadOnlyList<Artist> Artists
     {
-        Artists = artists;
-        Labels = labels;
-        Releases = releases;
-        Tracks = tracks;
-        OwnedItems = ownedItems;
-        Credits = credits;
-        ArtistRelations = artistRelations;
-        TrackRelations = trackRelations;
-        Playlists = playlists;
-    }
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<Artist> Artists { get; }
+    public required IReadOnlyList<Label> Labels
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<Label> Labels { get; }
+    public required IReadOnlyList<Release> Releases
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<Release> Releases { get; }
+    public required IReadOnlyList<Track> Tracks
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<Track> Tracks { get; }
+    public required IReadOnlyList<OwnedItem> OwnedItems
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<OwnedItem> OwnedItems { get; }
+    public required IReadOnlyList<Credit> Credits
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<Credit> Credits { get; }
+    public required IReadOnlyList<ArtistRelation> ArtistRelations
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<ArtistRelation> ArtistRelations { get; }
+    public required IReadOnlyList<TrackRelation> TrackRelations
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 
-    public IReadOnlyList<TrackRelation> TrackRelations { get; }
-
-    public IReadOnlyList<Playlist> Playlists { get; }
+    public required IReadOnlyList<Playlist> Playlists
+    {
+        get;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            field = value;
+        }
+    } = [];
 }

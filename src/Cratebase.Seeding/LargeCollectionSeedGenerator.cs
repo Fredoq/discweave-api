@@ -27,6 +27,7 @@ public static class LargeCollectionSeedGenerator
         var credits = new List<Credit>(options.ReleaseCount * (options.TracksPerRelease + 3));
         List<ArtistRelation> artistRelations = CreateArtistRelations(collectionId, artists);
         var trackRelations = new List<TrackRelation>();
+        var state = new SeedGenerationState(collectionId, artists, tracks, credits, ownedItems, trackRelations);
 
         for (int releaseIndex = 0; releaseIndex < options.ReleaseCount; releaseIndex++)
         {
@@ -35,15 +36,10 @@ public static class LargeCollectionSeedGenerator
             AddReleaseCredits(collectionId, credits, release, mainArtist, artists, releaseIndex);
 
             List<ReleaseTrack> releaseTracks = CreateTracksForRelease(
-                collectionId,
+                state,
                 options,
                 releaseIndex,
-                mainArtist,
-                artists,
-                tracks,
-                credits,
-                ownedItems,
-                trackRelations);
+                mainArtist);
 
             release.ReplaceTracklist(releaseTracks);
             releases.Add(release);
@@ -52,16 +48,18 @@ public static class LargeCollectionSeedGenerator
 
         List<Playlist> playlists = CreatePlaylists(collectionId, releases, tracks);
 
-        return new LargeCollectionSeedData(
-            artists,
-            labels,
-            releases,
-            tracks,
-            ownedItems,
-            credits,
-            artistRelations,
-            trackRelations,
-            playlists);
+        return new LargeCollectionSeedData
+        {
+            Artists = artists,
+            Labels = labels,
+            Releases = releases,
+            Tracks = tracks,
+            OwnedItems = ownedItems,
+            Credits = credits,
+            ArtistRelations = artistRelations,
+            TrackRelations = trackRelations,
+            Playlists = playlists
+        };
     }
 
     private static List<Artist> CreateArtists(CollectionId collectionId, int artistCount)
@@ -126,15 +124,10 @@ public static class LargeCollectionSeedGenerator
     }
 
     private static List<ReleaseTrack> CreateTracksForRelease(
-        CollectionId collectionId,
+        SeedGenerationState state,
         LargeCollectionSeedOptions options,
         int releaseIndex,
-        Artist mainArtist,
-        List<Artist> artists,
-        List<Track> tracks,
-        List<Credit> credits,
-        List<OwnedItem> ownedItems,
-        List<TrackRelation> trackRelations)
+        Artist mainArtist)
     {
         var releaseTracks = new List<ReleaseTrack>(options.TracksPerRelease);
         TrackId firstTrackId = default;
@@ -142,19 +135,19 @@ public static class LargeCollectionSeedGenerator
         for (int trackNumber = 1; trackNumber <= options.TracksPerRelease; trackNumber++)
         {
             int globalTrackIndex = (releaseIndex * options.TracksPerRelease) + trackNumber - 1;
-            Track track = CreateTrack(collectionId, releaseIndex, trackNumber, globalTrackIndex);
-            tracks.Add(track);
+            Track track = CreateTrack(state.CollectionId, releaseIndex, trackNumber, globalTrackIndex);
+            state.Tracks.Add(track);
             releaseTracks.Add(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(trackNumber)));
-            credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(mainArtist), CreditTarget.ForTrack(track.Id), CreditRole.MainArtist));
+            state.Credits.Add(Credit.Create(state.CollectionId, CreditId.New(), CreditContributor.FromArtist(mainArtist), CreditTarget.ForTrack(track.Id), CreditRole.MainArtist));
 
             if (globalTrackIndex % 7 == 0)
             {
-                credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(artists[(globalTrackIndex + 31) % artists.Count]), CreditTarget.ForTrack(track.Id), CreditRole.Remixer));
+                state.Credits.Add(Credit.Create(state.CollectionId, CreditId.New(), CreditContributor.FromArtist(state.Artists[(globalTrackIndex + 31) % state.Artists.Count]), CreditTarget.ForTrack(track.Id), CreditRole.Remixer));
             }
 
             if (releaseIndex % 7 != 0)
             {
-                ownedItems.Add(CreateDigitalTrackOwnedItem(collectionId, track.Id, globalTrackIndex));
+                state.OwnedItems.Add(CreateDigitalTrackOwnedItem(state.CollectionId, track.Id, globalTrackIndex));
             }
 
             if (trackNumber == 1)
@@ -163,7 +156,7 @@ public static class LargeCollectionSeedGenerator
             }
             else if (trackNumber == 2 && releaseIndex % 4 == 0)
             {
-                trackRelations.Add(TrackRelation.Create(TrackRelationId.New(), collectionId, track.Id, firstTrackId, TrackRelationType.RemixOf));
+                state.TrackRelations.Add(TrackRelation.Create(TrackRelationId.New(), state.CollectionId, track.Id, firstTrackId, TrackRelationType.RemixOf));
             }
         }
 
@@ -190,11 +183,7 @@ public static class LargeCollectionSeedGenerator
             2 => CassetteTape.Create("Chrome cassette"),
             _ => OtherMedium.Create("Promo CDR")
         };
-        OwnershipStatus status = releaseIndex % 11 == 0
-            ? OwnershipStatus.Wanted
-            : releaseIndex % 9 == 0
-                ? OwnershipStatus.NeedsDigitization
-                : OwnershipStatus.Owned;
+        OwnershipStatus status = ReleaseOwnershipStatus(releaseIndex);
 
         return OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForRelease(releaseId), status, medium)
             .WithCondition((ItemCondition)((releaseIndex % 7) + 1))
@@ -212,6 +201,16 @@ public static class LargeCollectionSeedGenerator
             globalTrackIndex.ToString("x64", CultureInfo.InvariantCulture));
 
         return OwnedItem.Create(collectionId, OwnedItemId.New(), OwnedItemTarget.ForTrack(trackId), OwnershipStatus.Owned, DigitalFile.Create(path, format, identity));
+    }
+
+    private static OwnershipStatus ReleaseOwnershipStatus(int releaseIndex)
+    {
+        return releaseIndex switch
+        {
+            int value when value % 11 == 0 => OwnershipStatus.Wanted,
+            int value when value % 9 == 0 => OwnershipStatus.NeedsDigitization,
+            _ => OwnershipStatus.Owned
+        };
     }
 
     private static List<ArtistRelation> CreateArtistRelations(CollectionId collectionId, List<Artist> artists)
@@ -248,4 +247,12 @@ public static class LargeCollectionSeedGenerator
 
         return [manual, smart];
     }
+
+    private sealed record SeedGenerationState(
+        CollectionId CollectionId,
+        List<Artist> Artists,
+        List<Track> Tracks,
+        List<Credit> Credits,
+        List<OwnedItem> OwnedItems,
+        List<TrackRelation> TrackRelations);
 }

@@ -27,15 +27,18 @@ internal static partial class PlaylistMapper
             cancellationToken);
         await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<PlaylistItemResponse>();
+        int releaseIdOrdinal = reader.GetOrdinal("release_id");
+        int titleOrdinal = reader.GetOrdinal("title");
+        int releaseYearOrdinal = reader.GetOrdinal("release_year");
         while (await reader.ReadAsync(cancellationToken))
         {
-            string? year = reader.IsDBNull(reader.GetOrdinal("release_year"))
+            string? year = await reader.IsDBNullAsync(releaseYearOrdinal, cancellationToken)
                 ? null
-                : reader.GetInt32(reader.GetOrdinal("release_year")).ToString(CultureInfo.InvariantCulture);
+                : reader.GetInt32(releaseYearOrdinal).ToString(CultureInfo.InvariantCulture);
             results.Add(new PlaylistItemResponse(
                 PlaylistEntry.ReleaseKind,
-                reader.GetGuid(reader.GetOrdinal("release_id")),
-                reader.GetString(reader.GetOrdinal("title")),
+                reader.GetGuid(releaseIdOrdinal),
+                reader.GetString(titleOrdinal),
                 year));
         }
 
@@ -88,9 +91,7 @@ internal static partial class PlaylistMapper
         command.Transaction = context.Database.CurrentTransaction?.GetDbTransaction();
         Add(command, "collection_id", collectionId.Value, DbType.Guid);
         AddRuleValueParameters(command, "tag", NormalizeRuleValues(rules.Tags));
-        Add(command, "tag_count", rules.Tags.Count);
         AddRuleValueParameters(command, "genre", NormalizeRuleValues(rules.Genres));
-        Add(command, "genre_count", rules.Genres.Count);
         AddRuleValueParameters(command, "medium", NormalizeRuleValues(rules.Media));
         AddRuleValueParameters(command, "status", StatusRuleValues(rules));
         Add(command, "year_from", OptionalIntOrDbNull(rules.YearFrom), DbType.Int32);
