@@ -108,35 +108,35 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 table: "track_tags",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: Guid.Empty);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "collection_id",
                 table: "track_genres",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: Guid.Empty);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "collection_id",
                 table: "release_tags",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: Guid.Empty);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "collection_id",
                 table: "release_genres",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: Guid.Empty);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "collection_id",
                 table: "rating_criterion_targets",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: Guid.Empty);
 
             migrationBuilder.Sql(
                 """

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Cratebase.Api.Features.OwnedItems;
 using Cratebase.Api.Features.Playlists;
 using Cratebase.Api.Features.Releases;
@@ -27,7 +28,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             metadata = metadata.WithReleaseYear(year);
         }
 
-        if (!string.IsNullOrWhiteSpace(release.ReleaseDate) && DateOnly.TryParse(release.ReleaseDate, out DateOnly releaseDate))
+        if (!string.IsNullOrWhiteSpace(release.ReleaseDate) &&
+            DateOnly.TryParse(release.ReleaseDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly releaseDate))
         {
             metadata = metadata.WithReleaseDate(releaseDate);
         }

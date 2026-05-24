@@ -10,6 +10,7 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
 {
     private const string CollectionIdProperty = nameof(Release.CollectionId);
+    private const string CollectionIdColumn = "collection_id";
     private const string ReleaseIdColumn = "release_id";
     public void Configure(EntityTypeBuilder<Release> builder)
     {
@@ -27,7 +28,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             .ValueGeneratedNever();
 
         _ = builder.Property(release => release.CollectionId)
-            .HasColumnName("collection_id")
+            .HasColumnName(CollectionIdColumn)
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
@@ -121,7 +122,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = track.Property<CollectionId>(CollectionIdProperty)
-                .HasColumnName("collection_id")
+                .HasColumnName(CollectionIdColumn)
                 .HasConversion(PersistenceValueConverters.CollectionId);
 
             _ = track.WithOwner()
@@ -202,7 +203,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = label.Property<CollectionId>(CollectionIdProperty)
-                .HasColumnName("collection_id")
+                .HasColumnName(CollectionIdColumn)
                 .HasConversion(PersistenceValueConverters.CollectionId);
 
             _ = label.WithOwner()
@@ -250,7 +251,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = genre.Property<CollectionId>(CollectionIdProperty)
-                .HasColumnName("collection_id")
+                .HasColumnName(CollectionIdColumn)
                 .HasConversion(PersistenceValueConverters.CollectionId);
 
             _ = genre.WithOwner()
@@ -277,7 +278,7 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
             _ = tag.Property<CollectionId>(CollectionIdProperty)
-                .HasColumnName("collection_id")
+                .HasColumnName(CollectionIdColumn)
                 .HasConversion(PersistenceValueConverters.CollectionId);
 
             _ = tag.WithOwner()
