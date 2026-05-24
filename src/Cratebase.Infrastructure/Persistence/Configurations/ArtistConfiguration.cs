@@ -27,9 +27,6 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(artist => artist.Id)
-            .HasName("artist_id");
-
         _ = builder.HasAlternateKey(artist => new { artist.CollectionId, artist.Id })
             .HasName("ak_artists_collection_artist_id");
 

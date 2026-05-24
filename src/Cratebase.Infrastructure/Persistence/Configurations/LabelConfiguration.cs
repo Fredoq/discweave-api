@@ -27,9 +27,6 @@ internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(label => label.Id)
-            .HasName("label_id");
-
         _ = builder.HasAlternateKey(label => new { label.CollectionId, label.Id })
             .HasName("ak_labels_collection_label_id");
 

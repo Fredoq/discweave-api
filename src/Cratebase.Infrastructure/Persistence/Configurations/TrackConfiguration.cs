@@ -9,6 +9,7 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
 {
+    private const string CollectionIdProperty = nameof(Track.CollectionId);
     private const string TrackIdColumn = "track_id";
 
     public void Configure(EntityTypeBuilder<Track> builder)
@@ -30,9 +31,6 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
             .HasColumnName("collection_id")
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
-
-        _ = builder.HasAlternateKey(track => track.Id)
-            .HasName(TrackIdColumn);
 
         _ = builder.HasAlternateKey(track => new { track.CollectionId, track.Id })
             .HasName("ak_tracks_collection_track_id");
@@ -80,16 +78,20 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .HasColumnName(TrackIdColumn)
                 .HasConversion(PersistenceValueConverters.TrackId);
 
+            _ = genre.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = genre.WithOwner()
-                .HasForeignKey(TrackIdColumn)
-                .HasPrincipalKey(track => track.Id);
+                .HasForeignKey(CollectionIdProperty, TrackIdColumn)
+                .HasPrincipalKey(track => new { track.CollectionId, track.Id });
 
             _ = genre.Property(value => value.Name)
                 .HasColumnName("name")
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = genre.HasKey(TrackIdColumn, nameof(Genre.Name));
+            _ = genre.HasKey(CollectionIdProperty, TrackIdColumn, nameof(Genre.Name));
         });
 
         _ = builder.Navigation("_genres")
@@ -103,16 +105,20 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
                 .HasColumnName(TrackIdColumn)
                 .HasConversion(PersistenceValueConverters.TrackId);
 
+            _ = tag.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = tag.WithOwner()
-                .HasForeignKey(TrackIdColumn)
-                .HasPrincipalKey(track => track.Id);
+                .HasForeignKey(CollectionIdProperty, TrackIdColumn)
+                .HasPrincipalKey(track => new { track.CollectionId, track.Id });
 
             _ = tag.Property(value => value.Name)
                 .HasColumnName("name")
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = tag.HasKey(TrackIdColumn, nameof(Tag.Name));
+            _ = tag.HasKey(CollectionIdProperty, TrackIdColumn, nameof(Tag.Name));
         });
 
         _ = builder.Navigation("_tags")

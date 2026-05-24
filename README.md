@@ -8,18 +8,15 @@ Cratebase is an archive, not a music player. The API is shaped around the
 collection domain and the question: what is in the collection, and how is it
 connected?
 
-## Project Status
+## Product Status
 
-The backend is an alpha product slice. It has authenticated local accounts,
-one default private collection per user, collection-scoped catalog APIs, core
-manual CRUD, credits, labels, artist and track relations, rating criteria,
-release cover uploads, local folder import review, content-hash import
+The backend is a product API for authenticated personal music archives. It has
+local accounts, one default private collection per user, collection-scoped
+catalog APIs, manual CRUD, credits, labels, artist and track relations, rating
+criteria, release cover uploads, local folder import review, content-hash import
 deduplication, persistent manual and smart playlists, search saved views,
-catalog graph context, compact catalog links, and JSON/CSV exports.
-
-The schema is still early and not promised as a stable production migration
-history. Data should be treated as valuable during testing, but the project is
-not yet ready for long-lived private archives without backups.
+catalog graph context, compact catalog links, JSON/CSV exports, and JSON
+restore into empty collections.
 
 ## Requirements
 
@@ -85,7 +82,7 @@ dotnet test Cratebase.slnx
 dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 ```
 
-## Implemented Alpha Workflows
+## Product Workflows
 
 - Bootstrap the first admin user and default music collection.
 - Create and edit artists, labels, releases, tracks, owned items, credits, and relations.
@@ -96,17 +93,16 @@ dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 - Persist smart playlists with dynamic tag, genre, media, ownership status, and year rules.
 - Navigate graph context with credits, relations, media coverage, collector signals, and playlist backlinks.
 - Export portable JSON and CSV data, including playlists.
+- Restore a JSON export into an empty active collection.
 
-## Known Limits
+## Product Boundaries
 
 - Smart playlists are dynamic rule queries; they are not materialized snapshots.
 - Local audio scanning belongs to the desktop client. The API stores metadata and file identity, not audio files.
-- Import metadata extraction is intentionally conservative and still needs broader real-library coverage.
 - Catalog links are compact lookup results for selectors, not a full replacement for search.
 - There are no external Discogs, MusicBrainz, streaming, social, marketplace, or recommendation integrations.
-- SQLite backup and stable production migration policy are future work.
 
-See [docs/alpha-checklist.md](docs/alpha-checklist.md) for the shared
+See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared
 acceptance path.
 
 ## Build Configuration

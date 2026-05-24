@@ -169,8 +169,9 @@ Implementation rules:
 - Do not introduce a generic specification pipeline. Reusable queries should be methods with descriptive names.
 - Prefer specific query/application services over broad generic query abstractions.
 - Keep migrations readable.
-- Do not add incremental migrations before the initial schema is stable; update the baseline migration during early schema design.
-- During early schema design, update the baseline migration and model snapshot together. Do not add a migration-on-migration chain for unfinished schema changes.
+- Use append-only EF Core migrations by default.
+- Rewrite the baseline migration only with explicit project-owner approval for a deliberate schema reset.
+- Back up collection data before schema upgrades that affect persisted catalog, ownership, import, search, export, or settings data.
 - Model constraints in the database when they represent real invariants.
 - Add collection-aware composite alternate keys and foreign keys where needed so release-track, credit, relation, and owned-item rows cannot cross collection boundaries.
 - The `AspNetUsers.DefaultCollectionId -> collections.collection_id` relationship is modeled in EF and should clear the default collection with `SetNull` if needed.

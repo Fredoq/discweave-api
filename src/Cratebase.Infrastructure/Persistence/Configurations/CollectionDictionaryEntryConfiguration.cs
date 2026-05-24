@@ -62,8 +62,8 @@ internal sealed class CollectionDictionaryEntryConfiguration : IEntityTypeConfig
         _ = builder.Ignore(entry => entry.IsProtected);
         _ = builder.Ignore(entry => entry.MediaProfile);
 
-        _ = builder.HasAlternateKey(entry => entry.Id)
-            .HasName("dictionary_entry_id");
+        _ = builder.HasAlternateKey(entry => new { entry.CollectionId, entry.Id })
+            .HasName("ak_collection_dictionary_entries_collection_entry_id");
 
         _ = builder.HasIndex(entry => new { entry.CollectionId, entry.Kind, entry.Code })
             .IsUnique()

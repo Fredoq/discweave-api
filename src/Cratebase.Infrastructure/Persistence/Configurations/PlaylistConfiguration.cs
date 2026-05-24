@@ -31,7 +31,6 @@ internal sealed class PlaylistConfiguration : IEntityTypeConfiguration<Playlist>
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(playlist => playlist.Id).HasName(PlaylistIdColumn);
         _ = builder.HasAlternateKey(playlist => new { playlist.CollectionId, playlist.Id }).HasName("ak_playlists_collection_playlist_id");
 
         _ = builder.Property(playlist => playlist.Name).HasColumnName("name").HasMaxLength(512).IsRequired();

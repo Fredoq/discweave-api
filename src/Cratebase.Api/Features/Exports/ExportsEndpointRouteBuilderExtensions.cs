@@ -26,6 +26,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             .RequireAuthorization(CratebaseAuthorizationPolicies.CollectionMember);
 
         _ = group.MapGet("/json", ExportJsonAsync).WithName("ExportCollectionJson");
+        _ = group.MapPost("/json/restore", RestoreJsonAsync).WithName("RestoreCollectionJson");
         _ = group.MapGet("/csv", ExportCsvAsync).WithName("ExportCollectionCsv");
 
         return endpoints;

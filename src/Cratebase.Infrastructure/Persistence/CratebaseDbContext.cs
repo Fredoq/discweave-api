@@ -124,6 +124,10 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         {
             throw new ResourceConflictException(ResourceConflictException.RatingValueTarget, exception);
         }
+        catch (DbUpdateException exception) when (PostgresPersistenceErrors.IsIntegrityConstraintViolation(exception))
+        {
+            throw new ResourceConflictException(ResourceConflictException.IntegrityConstraint, exception);
+        }
         catch (InvalidOperationException exception) when (EfCorePersistenceErrors.IsRequiredRelationshipConflict(exception))
         {
             throw new ResourceHasDependentsException(exception);
