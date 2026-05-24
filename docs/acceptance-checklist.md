@@ -1,7 +1,7 @@
-# Cratebase Alpha Acceptance Checklist
+# Cratebase Acceptance Checklist
 
-This checklist describes the shared alpha path for `cratebase-api` and
-`cratebase-web`.
+This checklist describes the shared product acceptance path for `cratebase-api`
+and `cratebase-web`.
 
 ## Local Setup
 
@@ -27,6 +27,7 @@ This checklist describes the shared alpha path for `cratebase-api` and
 12. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
 13. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
 14. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
+15. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
 
 ## Verification Commands
 
@@ -47,10 +48,9 @@ npm test
 npm run build
 ```
 
-## Known Alpha Limits
+## Product Boundaries
 
-- The schema is early and migration history can still be rewritten before a stable release.
 - Smart playlists are dynamic rules, not materialized snapshots.
 - Browser import review is supported, but local folder scanning is desktop-only.
 - Audio files are not uploaded to the API.
-- SQLite backup, external catalog integrations and richer automated metadata cleanup are future work.
+- External catalog integrations, streaming, marketplace, social, and recommendation features are outside the product boundary.

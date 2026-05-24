@@ -28,8 +28,8 @@ internal sealed class ArtistRelationConfiguration : IEntityTypeConfiguration<Art
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(relation => relation.Id)
-            .HasName("artist_relation_id");
+        _ = builder.HasAlternateKey(relation => new { relation.CollectionId, relation.Id })
+            .HasName("ak_artist_relations_collection_relation_id");
 
         _ = builder.Property(relation => relation.SourceArtistId)
             .HasColumnName("source_artist_id")

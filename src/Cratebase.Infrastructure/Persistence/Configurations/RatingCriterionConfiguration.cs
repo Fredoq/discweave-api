@@ -8,6 +8,7 @@ namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class RatingCriterionConfiguration : IEntityTypeConfiguration<RatingCriterion>
 {
+    private const string CollectionIdProperty = nameof(RatingCriterion.CollectionId);
     private const string RatingCriterionIdColumn = "rating_criterion_id";
 
     public void Configure(EntityTypeBuilder<RatingCriterion> builder)
@@ -29,9 +30,6 @@ internal sealed class RatingCriterionConfiguration : IEntityTypeConfiguration<Ra
             .HasColumnName("collection_id")
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
-
-        _ = builder.HasAlternateKey(criterion => criterion.Id)
-            .HasName(RatingCriterionIdColumn);
 
         _ = builder.HasAlternateKey(criterion => new { criterion.CollectionId, criterion.Id })
             .HasName("ak_rating_criteria_collection_criterion_id");
@@ -72,9 +70,13 @@ internal sealed class RatingCriterionConfiguration : IEntityTypeConfiguration<Ra
                 .HasColumnName(RatingCriterionIdColumn)
                 .HasConversion(PersistenceValueConverters.RatingCriterionId);
 
+            _ = target.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = target.WithOwner()
-                .HasForeignKey(RatingCriterionIdColumn)
-                .HasPrincipalKey(criterion => criterion.Id);
+                .HasForeignKey(CollectionIdProperty, RatingCriterionIdColumn)
+                .HasPrincipalKey(criterion => new { criterion.CollectionId, criterion.Id });
 
             _ = target.Property(value => value.TargetType)
                 .HasColumnName("target_type")
@@ -84,7 +86,7 @@ internal sealed class RatingCriterionConfiguration : IEntityTypeConfiguration<Ra
                 .HasMaxLength(32)
                 .IsRequired();
 
-            _ = target.HasKey(RatingCriterionIdColumn, nameof(RatingCriterionTarget.TargetType));
+            _ = target.HasKey(CollectionIdProperty, RatingCriterionIdColumn, nameof(RatingCriterionTarget.TargetType));
         });
 
         _ = builder.Navigation("_targets")

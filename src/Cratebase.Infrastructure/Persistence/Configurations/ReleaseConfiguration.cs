@@ -31,9 +31,6 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(release => release.Id)
-            .HasName(ReleaseIdColumn);
-
         _ = builder.HasAlternateKey(release => new { release.CollectionId, release.Id })
             .HasName("ak_releases_collection_release_id");
 
@@ -252,16 +249,20 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
+            _ = genre.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = genre.WithOwner()
-                .HasForeignKey(ReleaseIdColumn)
-                .HasPrincipalKey(release => release.Id);
+                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
+                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
 
             _ = genre.Property(value => value.Name)
                 .HasColumnName("name")
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = genre.HasKey(ReleaseIdColumn, nameof(Genre.Name));
+            _ = genre.HasKey(CollectionIdProperty, ReleaseIdColumn, nameof(Genre.Name));
         });
 
         _ = builder.Navigation("_genres")
@@ -275,16 +276,20 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
                 .HasColumnName(ReleaseIdColumn)
                 .HasConversion(PersistenceValueConverters.ReleaseId);
 
+            _ = tag.Property<CollectionId>(CollectionIdProperty)
+                .HasColumnName("collection_id")
+                .HasConversion(PersistenceValueConverters.CollectionId);
+
             _ = tag.WithOwner()
-                .HasForeignKey(ReleaseIdColumn)
-                .HasPrincipalKey(release => release.Id);
+                .HasForeignKey(CollectionIdProperty, ReleaseIdColumn)
+                .HasPrincipalKey(release => new { release.CollectionId, release.Id });
 
             _ = tag.Property(value => value.Name)
                 .HasColumnName("name")
                 .HasMaxLength(256)
                 .IsRequired();
 
-            _ = tag.HasKey(ReleaseIdColumn, nameof(Tag.Name));
+            _ = tag.HasKey(CollectionIdProperty, ReleaseIdColumn, nameof(Tag.Name));
         });
 
         _ = builder.Navigation("_tags")

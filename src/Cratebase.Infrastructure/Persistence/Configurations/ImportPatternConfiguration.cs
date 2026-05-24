@@ -39,7 +39,7 @@ internal sealed class ImportPatternConfiguration : IEntityTypeConfiguration<Impo
         _ = builder.Property(pattern => pattern.IsActive).HasColumnName("is_active");
         _ = builder.Property(pattern => pattern.IsBuiltin).HasColumnName("is_builtin");
 
-        _ = builder.HasAlternateKey(pattern => pattern.Id).HasName("import_pattern_id");
+        _ = builder.HasAlternateKey(pattern => new { pattern.CollectionId, pattern.Id }).HasName("ak_import_patterns_collection_pattern_id");
         _ = builder.HasIndex(pattern => new { pattern.CollectionId, pattern.Kind, pattern.SortOrder });
         _ = builder.HasIndex(pattern => new { pattern.CollectionId, pattern.Kind, pattern.Template, pattern.IsBuiltin })
             .IsUnique()

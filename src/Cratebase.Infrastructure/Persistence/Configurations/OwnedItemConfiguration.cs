@@ -33,8 +33,8 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(item => item.Id)
-            .HasName("owned_item_id");
+        _ = builder.HasAlternateKey(item => new { item.CollectionId, item.Id })
+            .HasName("ak_owned_items_collection_owned_item_id");
 
         _ = builder.Ignore(item => item.Target);
         _ = builder.Ignore(item => item.Holding);

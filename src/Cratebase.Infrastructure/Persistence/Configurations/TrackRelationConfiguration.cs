@@ -28,8 +28,8 @@ internal sealed class TrackRelationConfiguration : IEntityTypeConfiguration<Trac
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(relation => relation.Id)
-            .HasName("track_relation_id");
+        _ = builder.HasAlternateKey(relation => new { relation.CollectionId, relation.Id })
+            .HasName("ak_track_relations_collection_relation_id");
 
         _ = builder.Property(relation => relation.SourceTrackId)
             .HasColumnName("source_track_id")

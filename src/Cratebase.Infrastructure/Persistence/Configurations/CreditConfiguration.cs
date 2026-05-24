@@ -34,8 +34,8 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
             .HasConversion(PersistenceValueConverters.CollectionId)
             .ValueGeneratedNever();
 
-        _ = builder.HasAlternateKey(credit => credit.Id)
-            .HasName("credit_id");
+        _ = builder.HasAlternateKey(credit => new { credit.CollectionId, credit.Id })
+            .HasName("ak_credits_collection_credit_id");
 
         _ = builder.Ignore(credit => credit.Target);
 
