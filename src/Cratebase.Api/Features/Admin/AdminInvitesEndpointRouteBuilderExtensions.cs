@@ -39,13 +39,19 @@ public static class AdminInvitesEndpointRouteBuilderExtensions
         }
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (request.ExpiresAt is { } explicitExpiresAt && explicitExpiresAt <= now)
+        {
+            return EndpointErrors.BadRequest("invite.expires_at_invalid", "Invite expiration must be in the future");
+        }
+
+        DateTimeOffset expiresAt = request.ExpiresAt ?? now.AddDays(30);
         string code = InviteCodes.Generate();
         var invite = Invite.Create(
             Guid.CreateVersion7(),
             InviteCodes.Hash(code),
             currentUser.UserId.Value,
             request.Note,
-            request.ExpiresAt ?? now.AddDays(30),
+            expiresAt,
             now);
 
         _ = context.Invites.Add(invite);

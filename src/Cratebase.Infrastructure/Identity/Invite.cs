@@ -28,15 +28,21 @@ public sealed class Invite
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeHash);
 
-        return new Invite
-        {
-            Id = id,
-            CodeHash = codeHash,
-            CreatedAt = now,
-            CreatedByUserId = createdByUserId,
-            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
-            ExpiresAt = expiresAt
-        };
+        return id == Guid.Empty
+            ? throw new ArgumentException("Invite ID cannot be empty.", nameof(id))
+            : createdByUserId == Guid.Empty
+            ? throw new ArgumentException("Creator user ID cannot be empty.", nameof(createdByUserId))
+            : expiresAt <= now
+            ? throw new ArgumentException("Invite expiration must be in the future.", nameof(expiresAt))
+            : new Invite
+            {
+                Id = id,
+                CodeHash = codeHash,
+                CreatedAt = now,
+                CreatedByUserId = createdByUserId,
+                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+                ExpiresAt = expiresAt
+            };
     }
 
     public bool IsAvailable(DateTimeOffset now)
@@ -68,6 +74,8 @@ public sealed class Invite
 
     public void Redeem(Guid userId, string email, DateTimeOffset now)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
         RedeemedAt = now;
         RedeemedUserId = userId;
         RedeemedEmail = email.Trim();

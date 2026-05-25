@@ -49,8 +49,13 @@ internal static class InviteCodes
             });
     }
 
-    public static string Hash(string code)
+    public static string Hash(string? code)
     {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return string.Empty;
+        }
+
         string normalized = Normalize(code);
         if (string.IsNullOrWhiteSpace(normalized))
         {

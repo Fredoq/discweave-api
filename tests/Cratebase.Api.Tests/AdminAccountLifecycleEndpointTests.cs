@@ -146,6 +146,7 @@ public sealed class AdminAccountLifecycleEndpointTests : IClassFixture<PostgresF
     private static async Task<Guid> FindUserIdAsync(HttpClient adminClient, string email)
     {
         using HttpResponseMessage response = await adminClient.GetAsync("/api/admin/users");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         JsonElement user = document.RootElement.EnumerateArray().Single(item => item.GetProperty("email").GetString() == email);
 

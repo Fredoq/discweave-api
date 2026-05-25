@@ -52,6 +52,20 @@ public sealed class InviteSchemaTests : IClassFixture<PostgresFixture>
         Assert.Equal(ResourceConflictException.IntegrityConstraint, exception.Conflict);
     }
 
+    [Fact(DisplayName = "Invite validates creation and redemption inputs")]
+    public void Invite_validates_creation_and_redemption_inputs()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset expiresAt = now.AddDays(1);
+
+        _ = Assert.Throws<ArgumentException>(() => Invite.Create(Guid.Empty, "hash", Guid.CreateVersion7(), null, expiresAt, now));
+        _ = Assert.Throws<ArgumentException>(() => Invite.Create(Guid.CreateVersion7(), "hash", Guid.Empty, null, expiresAt, now));
+        _ = Assert.Throws<ArgumentException>(() => Invite.Create(Guid.CreateVersion7(), "hash", Guid.CreateVersion7(), null, now, now));
+
+        var invite = Invite.Create(Guid.CreateVersion7(), "hash", Guid.CreateVersion7(), null, expiresAt, now);
+        _ = Assert.Throws<ArgumentException>(() => invite.Redeem(Guid.CreateVersion7(), string.Empty, now));
+    }
+
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(CratebaseDbContext context, string tableName)
     {
         FormattableString sql = $"""

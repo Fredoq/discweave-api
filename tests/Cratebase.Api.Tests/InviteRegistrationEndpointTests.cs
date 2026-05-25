@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Cratebase.Domain.SharedKernel.Ids;
 
@@ -94,31 +96,32 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
         using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
             "/api/auth/register",
             new RegisterRequest("owner@example.com", "Password1!", null));
-        string usedCode = await CreateInviteCodeAsync(adminClient);
+        CreateInviteResult usedInvite = await CreateInviteAsync(adminClient);
         using HttpResponseMessage firstRegisterResponse = await firstClient.PostAsJsonAsync(
             "/api/auth/register",
-            new RegisterRequest("first@example.com", "Password1!", usedCode));
+            new RegisterRequest("first@example.com", "Password1!", usedInvite.Code));
         using HttpResponseMessage reuseResponse = await secondClient.PostAsJsonAsync(
             "/api/auth/register",
-            new RegisterRequest("second@example.com", "Password1!", usedCode));
+            new RegisterRequest("second@example.com", "Password1!", usedInvite.Code));
         using JsonDocument reuseDocument = await ReadJsonAsync(reuseResponse);
 
-        using HttpResponseMessage expiredInviteResponse = await adminClient.PostAsJsonAsync(
-            "/api/admin/invites",
-            new CreateInviteRequest(DateTimeOffset.UtcNow.AddDays(-1), null));
-        using JsonDocument expiredInviteDocument = await ReadJsonAsync(expiredInviteResponse);
-        string expiredCode = expiredInviteDocument.RootElement.GetProperty("code").GetString() ?? string.Empty;
+        const string expiredCode = "CRATE-ABCD-EFGH-JKLM-MNPQ";
+        DateTimeOffset createdAt = DateTimeOffset.UtcNow.AddDays(-2);
+        await host.SeedInviteForUserAsync(
+            "owner@example.com",
+            HashInviteCode(expiredCode),
+            createdAt,
+            createdAt.AddDays(1));
         using HttpResponseMessage expiredResponse = await thirdClient.PostAsJsonAsync(
             "/api/auth/register",
             new RegisterRequest("third@example.com", "Password1!", expiredCode));
         using JsonDocument expiredDocument = await ReadJsonAsync(expiredResponse);
 
-        string revokedCode = await CreateInviteCodeAsync(adminClient);
-        Guid revokedInviteId = await FindInviteIdByCodeAsync(adminClient, revokedCode);
-        using HttpResponseMessage revokeResponse = await adminClient.PostAsync($"/api/admin/invites/{revokedInviteId}/revoke", null);
+        CreateInviteResult revokedInvite = await CreateInviteAsync(adminClient);
+        using HttpResponseMessage revokeResponse = await adminClient.PostAsync($"/api/admin/invites/{revokedInvite.Id}/revoke", null);
         using HttpResponseMessage revokedResponse = await fourthClient.PostAsJsonAsync(
             "/api/auth/register",
-            new RegisterRequest("fourth@example.com", "Password1!", revokedCode));
+            new RegisterRequest("fourth@example.com", "Password1!", revokedInvite.Code));
         using JsonDocument revokedDocument = await ReadJsonAsync(revokedResponse);
 
         Assert.Equal(HttpStatusCode.Created, bootstrapResponse.StatusCode);
@@ -151,23 +154,43 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
         Assert.Equal("invite.note_too_long", createInviteDocument.RootElement.GetProperty("code").GetString());
     }
 
-    private static async Task<string> CreateInviteCodeAsync(HttpClient adminClient)
+    [Fact(DisplayName = "Invite expiration must be in the future")]
+    public async Task Invite_expiration_must_be_in_the_future()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = host.CreateClient();
+
+        using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterRequest("owner@example.com", "Password1!", null));
+        using HttpResponseMessage createInviteResponse = await adminClient.PostAsJsonAsync(
+            "/api/admin/invites",
+            new CreateInviteRequest(DateTimeOffset.UtcNow.AddMinutes(-1), null));
+        using JsonDocument createInviteDocument = await ReadJsonAsync(createInviteResponse);
+
+        Assert.Equal(HttpStatusCode.Created, bootstrapResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, createInviteResponse.StatusCode);
+        Assert.Equal("invite.expires_at_invalid", createInviteDocument.RootElement.GetProperty("code").GetString());
+    }
+
+    private static async Task<CreateInviteResult> CreateInviteAsync(HttpClient adminClient)
     {
         using HttpResponseMessage response = await adminClient.PostAsJsonAsync("/api/admin/invites", new CreateInviteRequest(null, null));
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        return document.RootElement.GetProperty("code").GetString() ?? throw new InvalidOperationException("Invite code was missing");
+        Guid inviteId = document.RootElement.GetProperty("id").GetGuid();
+        string code = document.RootElement.GetProperty("code").GetString() ?? throw new InvalidOperationException("Invite code was missing");
+
+        return new CreateInviteResult(inviteId, code);
     }
 
-    private static async Task<Guid> FindInviteIdByCodeAsync(HttpClient adminClient, string code)
+    private static string HashInviteCode(string code)
     {
-        using HttpResponseMessage response = await adminClient.GetAsync("/api/admin/invites");
-        using JsonDocument document = await ReadJsonAsync(response);
-        JsonElement invite = document.RootElement.EnumerateArray().Single(item => item.GetProperty("status").GetString() == "available");
+        string normalized = new([.. code.Where(character => character is not '-' && !char.IsWhiteSpace(character)).Select(char.ToUpperInvariant)]);
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
 
-        _ = code;
-        return invite.GetProperty("id").GetGuid();
+        return Convert.ToHexString(hash);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
@@ -178,4 +201,6 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
     private sealed record RegisterRequest(string Email, string Password, string? InviteCode);
 
     private sealed record CreateInviteRequest(DateTimeOffset? ExpiresAt, string? Note);
+
+    private sealed record CreateInviteResult(Guid Id, string Code);
 }
