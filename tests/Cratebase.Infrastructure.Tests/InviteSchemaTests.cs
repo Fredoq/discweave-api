@@ -38,6 +38,23 @@ public sealed class InviteSchemaTests : IClassFixture<PostgresFixture>
         Assert.Contains("ix_invites_code_hash", indexes);
     }
 
+    [Fact(DisplayName = "Collection owners are enforced with cascade delete")]
+    public async Task Collection_owners_are_enforced_with_cascade_delete()
+    {
+        await using CratebaseDbContext context = await CreateMigratedContextAsync();
+
+        string? deleteRule = await context.Database
+            .SqlQuery<string>($"""
+                SELECT delete_rule AS "Value"
+                FROM information_schema.referential_constraints
+                WHERE constraint_schema = 'public'
+                  AND constraint_name = 'FK_collections_AspNetUsers_owner_user_id'
+                """)
+            .SingleOrDefaultAsync();
+
+        Assert.Equal("CASCADE", deleteRule);
+    }
+
     [Fact(DisplayName = "Invite code hashes are unique")]
     public async Task Invite_code_hashes_are_unique()
     {
@@ -63,7 +80,18 @@ public sealed class InviteSchemaTests : IClassFixture<PostgresFixture>
         _ = Assert.Throws<ArgumentException>(() => Invite.Create(Guid.CreateVersion7(), "hash", Guid.CreateVersion7(), null, now, now));
 
         var invite = Invite.Create(Guid.CreateVersion7(), "hash", Guid.CreateVersion7(), null, expiresAt, now);
+        _ = Assert.Throws<ArgumentException>(() => invite.Redeem(Guid.Empty, "new-user@example.test", now));
         _ = Assert.Throws<ArgumentException>(() => invite.Redeem(Guid.CreateVersion7(), string.Empty, now));
+
+        invite.Redeem(Guid.CreateVersion7(), "new-user@example.test", now);
+        _ = Assert.Throws<InvalidOperationException>(() => invite.Redeem(Guid.CreateVersion7(), "other-user@example.test", now));
+
+        var revokedInvite = Invite.Create(Guid.CreateVersion7(), "revoked-hash", Guid.CreateVersion7(), null, expiresAt, now);
+        Assert.True(revokedInvite.TryRevoke(Guid.CreateVersion7(), now));
+        _ = Assert.Throws<InvalidOperationException>(() => revokedInvite.Redeem(Guid.CreateVersion7(), "revoked@example.test", now));
+
+        var expiredInvite = Invite.Create(Guid.CreateVersion7(), "expired-hash", Guid.CreateVersion7(), null, expiresAt, now);
+        _ = Assert.Throws<InvalidOperationException>(() => expiredInvite.Redeem(Guid.CreateVersion7(), "expired@example.test", expiresAt));
     }
 
     private static async Task<IReadOnlyList<string>> ReadColumnNamesAsync(CratebaseDbContext context, string tableName)

@@ -74,7 +74,17 @@ public sealed class Invite
 
     public void Redeem(Guid userId, string email, DateTimeOffset now)
     {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("Redeemed user ID cannot be empty.", nameof(userId));
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        if (!IsAvailable(now))
+        {
+            throw new InvalidOperationException("Invite is not available for redemption.");
+        }
 
         RedeemedAt = now;
         RedeemedUserId = userId;

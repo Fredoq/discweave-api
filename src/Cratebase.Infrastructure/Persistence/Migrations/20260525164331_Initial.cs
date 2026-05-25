@@ -143,6 +143,14 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
+            migrationBuilder.AddForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections",
+                column: "owner_user_id",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
             migrationBuilder.CreateTable(
                 name: "collection_dictionary_entries",
                 columns: table => new
@@ -1448,6 +1456,10 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections");
+
             migrationBuilder.DropTable(
                 name: "artist_relations");
 
