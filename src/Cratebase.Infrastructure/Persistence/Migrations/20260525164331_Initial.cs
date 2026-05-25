@@ -46,38 +46,24 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "search_documents",
+                name: "invites",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    entity_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    entity_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    title = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    subtitle = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
-                    summary = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
-                    search_text = table.Column<string>(type: "text", nullable: false),
-                    search_vector = table.Column<string>(type: "tsvector", nullable: false, computedColumnSql: "to_tsvector('simple', coalesce(search_text, ''))", stored: true),
-                    matched_fields = table.Column<string>(type: "text", nullable: false),
-                    snippets = table.Column<string>(type: "text", nullable: false),
-                    role_facet = table.Column<string>(type: "text", nullable: false),
-                    media_facet = table.Column<string>(type: "text", nullable: false),
-                    status_facet = table.Column<string>(type: "text", nullable: false),
-                    tag_facet = table.Column<string>(type: "text", nullable: false),
-                    label_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    label_id_facet = table.Column<string>(type: "text", nullable: false),
-                    collector_signal_facet = table.Column<string>(type: "text", nullable: false)
+                    invite_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    code_hash = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    note = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    revoked_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    revoked_by_user_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    redeemed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    redeemed_user_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    redeemed_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_search_documents", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_search_documents_collections_collection_id",
-                        column: x => x.collection_id,
-                        principalTable: "collections",
-                        principalColumn: "collection_id",
-                        onDelete: ReferentialAction.Cascade);
+                    table.PrimaryKey("PK_invites", x => x.invite_id);
                 });
 
             migrationBuilder.CreateTable(
@@ -116,7 +102,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_artists", x => x.id);
                     table.UniqueConstraint("ak_artists_collection_artist_id", x => new { x.collection_id, x.artist_id });
-                    table.UniqueConstraint("artist_id", x => x.artist_id);
                     table.ForeignKey(
                         name: "FK_artists_collections_collection_id",
                         column: x => x.collection_id,
@@ -177,7 +162,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_collection_dictionary_entries", x => x.id);
-                    table.UniqueConstraint("dictionary_entry_id", x => x.dictionary_entry_id);
+                    table.UniqueConstraint("ak_collection_dictionary_entries_collection_entry_id", x => new { x.collection_id, x.dictionary_entry_id });
                     table.ForeignKey(
                         name: "FK_collection_dictionary_entries_collections_collection_id",
                         column: x => x.collection_id,
@@ -203,7 +188,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_import_patterns", x => x.id);
-                    table.UniqueConstraint("import_pattern_id", x => x.import_pattern_id);
+                    table.UniqueConstraint("ak_import_patterns_collection_pattern_id", x => new { x.collection_id, x.import_pattern_id });
                     table.ForeignKey(
                         name: "FK_import_patterns_collections_collection_id",
                         column: x => x.collection_id,
@@ -226,9 +211,38 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_labels", x => x.id);
                     table.UniqueConstraint("ak_labels_collection_label_id", x => new { x.collection_id, x.label_id });
-                    table.UniqueConstraint("label_id", x => x.label_id);
                     table.ForeignKey(
                         name: "FK_labels_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "playlists",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    playlist_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    playlist_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    description = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: true),
+                    rule_genres = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    rule_media = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    rule_ownership_statuses = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    rule_tags = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
+                    rule_year_from = table.Column<int>(type: "integer", nullable: true),
+                    rule_year_to = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_playlists", x => x.id);
+                    table.UniqueConstraint("ak_playlists_collection_playlist_id", x => new { x.collection_id, x.playlist_id });
+                    table.ForeignKey(
+                        name: "FK_playlists_collections_collection_id",
                         column: x => x.collection_id,
                         principalTable: "collections",
                         principalColumn: "collection_id",
@@ -254,7 +268,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_rating_criteria", x => x.id);
                     table.UniqueConstraint("ak_rating_criteria_collection_criterion_id", x => new { x.collection_id, x.rating_criterion_id });
-                    table.UniqueConstraint("rating_criterion_id", x => x.rating_criterion_id);
                     table.ForeignKey(
                         name: "FK_rating_criteria_collections_collection_id",
                         column: x => x.collection_id,
@@ -313,9 +326,43 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_releases", x => x.id);
                     table.UniqueConstraint("ak_releases_collection_release_id", x => new { x.collection_id, x.release_id });
-                    table.UniqueConstraint("release_id", x => x.release_id);
                     table.ForeignKey(
                         name: "FK_releases_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "search_documents",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    entity_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    entity_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    subtitle = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    summary = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
+                    search_text = table.Column<string>(type: "text", nullable: false),
+                    search_vector = table.Column<string>(type: "tsvector", nullable: false, computedColumnSql: "to_tsvector('simple', coalesce(search_text, ''))", stored: true),
+                    matched_fields = table.Column<string>(type: "text", nullable: false),
+                    snippets = table.Column<string>(type: "text", nullable: false),
+                    role_facet = table.Column<string>(type: "text", nullable: false),
+                    media_facet = table.Column<string>(type: "text", nullable: false),
+                    status_facet = table.Column<string>(type: "text", nullable: false),
+                    tag_facet = table.Column<string>(type: "text", nullable: false),
+                    label_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    label_id_facet = table.Column<string>(type: "text", nullable: false),
+                    collector_signal_facet = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_search_documents", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_search_documents_collections_collection_id",
                         column: x => x.collection_id,
                         principalTable: "collections",
                         principalColumn: "collection_id",
@@ -337,7 +384,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_tracks", x => x.id);
                     table.UniqueConstraint("ak_tracks_collection_track_id", x => new { x.collection_id, x.track_id });
-                    table.UniqueConstraint("track_id", x => x.track_id);
                     table.ForeignKey(
                         name: "FK_tracks_collections_collection_id",
                         column: x => x.collection_id,
@@ -363,7 +409,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_artist_relations", x => x.id);
-                    table.UniqueConstraint("artist_relation_id", x => x.artist_relation_id);
+                    table.UniqueConstraint("ak_artist_relations_collection_relation_id", x => new { x.collection_id, x.artist_relation_id });
                     table.ForeignKey(
                         name: "FK_artist_relations_artists_collection_id_source_artist_id",
                         columns: x => new { x.collection_id, x.source_artist_id },
@@ -474,16 +520,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     target_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     rating_criterion_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_rating_criterion_targets", x => new { x.rating_criterion_id, x.target_type });
+                    table.PrimaryKey("PK_rating_criterion_targets", x => new { x.collection_id, x.rating_criterion_id, x.target_type });
                     table.ForeignKey(
-                        name: "FK_rating_criterion_targets_rating_criteria_rating_criterion_id",
-                        column: x => x.rating_criterion_id,
+                        name: "FK_rating_criterion_targets_rating_criteria_collection_id_rati~",
+                        columns: x => new { x.collection_id, x.rating_criterion_id },
                         principalTable: "rating_criteria",
-                        principalColumn: "rating_criterion_id",
+                        principalColumns: new[] { "collection_id", "rating_criterion_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -540,16 +587,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     release_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_release_genres", x => new { x.release_id, x.name });
+                    table.PrimaryKey("PK_release_genres", x => new { x.collection_id, x.release_id, x.name });
                     table.ForeignKey(
-                        name: "FK_release_genres_releases_release_id",
-                        column: x => x.release_id,
+                        name: "FK_release_genres_releases_collection_id_release_id",
+                        columns: x => new { x.collection_id, x.release_id },
                         principalTable: "releases",
-                        principalColumn: "release_id",
+                        principalColumns: new[] { "collection_id", "release_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -588,16 +636,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     release_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_release_tags", x => new { x.release_id, x.name });
+                    table.PrimaryKey("PK_release_tags", x => new { x.collection_id, x.release_id, x.name });
                     table.ForeignKey(
-                        name: "FK_release_tags_releases_release_id",
-                        column: x => x.release_id,
+                        name: "FK_release_tags_releases_collection_id_release_id",
+                        columns: x => new { x.collection_id, x.release_id },
                         principalTable: "releases",
-                        principalColumn: "release_id",
+                        principalColumns: new[] { "collection_id", "release_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -619,7 +668,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_credits", x => x.id);
-                    table.UniqueConstraint("credit_id", x => x.credit_id);
+                    table.UniqueConstraint("ak_credits_collection_credit_id", x => new { x.collection_id, x.credit_id });
                     table.CheckConstraint("ck_credits_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
                     table.ForeignKey(
                         name: "FK_credits_artists_collection_id_contributor_artist_id",
@@ -676,7 +725,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_owned_items", x => x.id);
-                    table.UniqueConstraint("owned_item_id", x => x.owned_item_id);
+                    table.UniqueConstraint("ak_owned_items_collection_owned_item_id", x => new { x.collection_id, x.owned_item_id });
                     table.CheckConstraint("ck_owned_items_target_consistency", "(target_type = 'release' AND target_release_id IS NOT NULL AND target_track_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_release_id IS NULL)");
                     table.ForeignKey(
                         name: "FK_owned_items_collections_collection_id",
@@ -699,37 +748,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "playlists",
-                columns: table => new
-                {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    playlist_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    description = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: true),
-                    playlist_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    rule_genres = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
-                    rule_media = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
-                    rule_ownership_statuses = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
-                    rule_tags = table.Column<string>(type: "character varying(4096)", maxLength: 4096, nullable: false),
-                    rule_year_from = table.Column<int>(type: "integer", nullable: true),
-                    rule_year_to = table.Column<int>(type: "integer", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_playlists", x => x.id);
-                    table.UniqueConstraint("ak_playlists_collection_playlist_id", x => new { x.collection_id, x.playlist_id });
-                    table.UniqueConstraint("playlist_id", x => x.playlist_id);
-                    table.ForeignKey(
-                        name: "FK_playlists_collections_collection_id",
-                        column: x => x.collection_id,
-                        principalTable: "collections",
-                        principalColumn: "collection_id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "playlist_entries",
                 columns: table => new
                 {
@@ -737,9 +755,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     position = table.Column<int>(type: "integer", nullable: false),
                     kind = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     release_id = table.Column<Guid>(type: "uuid", nullable: true),
                     track_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     playlist_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
@@ -785,7 +803,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_rating_values", x => x.id);
-                    table.UniqueConstraint("rating_value_id", x => x.rating_value_id);
+                    table.UniqueConstraint("ak_rating_values_collection_rating_value_id", x => new { x.collection_id, x.rating_value_id });
                     table.CheckConstraint("ck_rating_values_target_consistency", "(target_type = 'artist' AND target_artist_id IS NOT NULL AND target_release_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'release' AND target_release_id IS NOT NULL AND target_artist_id IS NULL AND target_track_id IS NULL AND target_label_id IS NULL) OR (target_type = 'track' AND target_track_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_label_id IS NULL) OR (target_type = 'label' AND target_label_id IS NOT NULL AND target_artist_id IS NULL AND target_release_id IS NULL AND target_track_id IS NULL)");
                     table.ForeignKey(
                         name: "FK_rating_values_artists_collection_id_target_artist_id",
@@ -862,16 +880,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     track_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_track_genres", x => new { x.track_id, x.name });
+                    table.PrimaryKey("PK_track_genres", x => new { x.collection_id, x.track_id, x.name });
                     table.ForeignKey(
-                        name: "FK_track_genres_tracks_track_id",
-                        column: x => x.track_id,
+                        name: "FK_track_genres_tracks_collection_id_track_id",
+                        columns: x => new { x.collection_id, x.track_id },
                         principalTable: "tracks",
-                        principalColumn: "track_id",
+                        principalColumns: new[] { "collection_id", "track_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -890,7 +909,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_track_relations", x => x.id);
-                    table.UniqueConstraint("track_relation_id", x => x.track_relation_id);
+                    table.UniqueConstraint("ak_track_relations_collection_relation_id", x => new { x.collection_id, x.track_relation_id });
                     table.ForeignKey(
                         name: "FK_track_relations_collections_collection_id",
                         column: x => x.collection_id,
@@ -916,16 +935,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
                     track_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_track_tags", x => new { x.track_id, x.name });
+                    table.PrimaryKey("PK_track_tags", x => new { x.collection_id, x.track_id, x.name });
                     table.ForeignKey(
-                        name: "FK_track_tags_tracks_track_id",
-                        column: x => x.track_id,
+                        name: "FK_track_tags_tracks_collection_id_track_id",
+                        columns: x => new { x.collection_id, x.track_id },
                         principalTable: "tracks",
-                        principalColumn: "track_id",
+                        principalColumns: new[] { "collection_id", "track_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -943,7 +963,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     audio_file_format = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     size_bytes = table.Column<long>(type: "bigint", nullable: false),
                     last_modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    content_hash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     duration = table.Column<TimeSpan>(type: "interval", nullable: true),
                     position_number = table.Column<int>(type: "integer", nullable: true),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
@@ -951,6 +970,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     selected_track_id = table.Column<Guid>(type: "uuid", nullable: true),
                     artist_credits_json = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: false),
                     artist_names_json = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: false),
+                    content_hash = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     issues_json = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: false),
                     selected_artist_ids_json = table.Column<string>(type: "character varying(8192)", maxLength: 8192, nullable: false)
                 },
@@ -994,37 +1014,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_artists_collection_id",
                 table: "artists",
-                column: "collection_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlist_entries_collection_id_playlist_id_position",
-                table: "playlist_entries",
-                columns: new[] { "collection_id", "playlist_id", "position" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlist_entries_collection_id_release_id",
-                table: "playlist_entries",
-                columns: new[] { "collection_id", "release_id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlist_entries_collection_id_track_id",
-                table: "playlist_entries",
-                columns: new[] { "collection_id", "track_id" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlist_entries_release_id",
-                table: "playlist_entries",
-                column: "release_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlist_entries_track_id",
-                table: "playlist_entries",
-                column: "track_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_playlists_collection_id",
-                table: "playlists",
                 column: "collection_id");
 
             migrationBuilder.CreateIndex(
@@ -1138,6 +1127,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ix_invites_code_hash",
+                table: "invites",
+                column: "code_hash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_labels_collection_id",
                 table: "labels",
                 column: "collection_id");
@@ -1184,6 +1179,37 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_owned_items_target_track_id",
                 table: "owned_items",
                 column: "target_track_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlist_entries_collection_id_playlist_id_position",
+                table: "playlist_entries",
+                columns: new[] { "collection_id", "playlist_id", "position" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlist_entries_collection_id_release_id",
+                table: "playlist_entries",
+                columns: new[] { "collection_id", "release_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlist_entries_collection_id_track_id",
+                table: "playlist_entries",
+                columns: new[] { "collection_id", "track_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlist_entries_release_id",
+                table: "playlist_entries",
+                column: "release_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlist_entries_track_id",
+                table: "playlist_entries",
+                column: "track_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_playlists_collection_id",
+                table: "playlists",
+                column: "collection_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_rating_criteria_collection_id",
@@ -1370,6 +1396,25 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "collection_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_entity",
+                table: "search_documents",
+                columns: new[] { "collection_id", "entity_type", "entity_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_entity_type",
+                table: "search_documents",
+                columns: new[] { "collection_id", "entity_type" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collection_label_id",
+                table: "search_documents",
+                columns: new[] { "collection_id", "label_id" });
+
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_vector ON search_documents USING GIN (search_vector)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_text_trgm ON search_documents USING GIN (search_text gin_trgm_ops)");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_track_relations_collection_id",
                 table: "track_relations",
                 column: "collection_id");
@@ -1398,33 +1443,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_tracks_collection_id",
                 table: "tracks",
                 column: "collection_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_search_documents_collection_entity",
-                table: "search_documents",
-                columns: new[] { "collection_id", "entity_type", "entity_id" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_search_documents_collection_entity_type",
-                table: "search_documents",
-                columns: new[] { "collection_id", "entity_type" });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_search_documents_collection_label_id",
-                table: "search_documents",
-                columns: new[] { "collection_id", "label_id" });
-
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_vector ON search_documents USING GIN (search_vector)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_text_trgm ON search_documents USING GIN (search_text gin_trgm_ops)");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "search_documents");
-
             migrationBuilder.DropTable(
                 name: "artist_relations");
 
@@ -1453,13 +1476,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "import_patterns");
 
             migrationBuilder.DropTable(
-                name: "playlist_entries");
-
-            migrationBuilder.DropTable(
-                name: "playlists");
+                name: "invites");
 
             migrationBuilder.DropTable(
                 name: "owned_items");
+
+            migrationBuilder.DropTable(
+                name: "playlist_entries");
 
             migrationBuilder.DropTable(
                 name: "rating_criterion_targets");
@@ -1483,6 +1506,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "release_tracks");
 
             migrationBuilder.DropTable(
+                name: "search_documents");
+
+            migrationBuilder.DropTable(
                 name: "track_genres");
 
             migrationBuilder.DropTable(
@@ -1496,6 +1522,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "playlists");
 
             migrationBuilder.DropTable(
                 name: "artists");

@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260525124939_InviteRegistration")]
-    partial class InviteRegistration
+    [Migration("20260525164331_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
