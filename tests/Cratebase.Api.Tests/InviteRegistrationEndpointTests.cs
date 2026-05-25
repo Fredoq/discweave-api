@@ -132,6 +132,25 @@ public sealed class InviteRegistrationEndpointTests : IClassFixture<PostgresFixt
         Assert.Equal("auth.invite_unavailable", revokedDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Invite note length is validated before persistence")]
+    public async Task Invite_note_length_is_validated_before_persistence()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = host.CreateClient();
+
+        using HttpResponseMessage bootstrapResponse = await adminClient.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterRequest("owner@example.com", "Password1!", null));
+        using HttpResponseMessage createInviteResponse = await adminClient.PostAsJsonAsync(
+            "/api/admin/invites",
+            new CreateInviteRequest(null, new string('a', 513)));
+        using JsonDocument createInviteDocument = await ReadJsonAsync(createInviteResponse);
+
+        Assert.Equal(HttpStatusCode.Created, bootstrapResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, createInviteResponse.StatusCode);
+        Assert.Equal("invite.note_too_long", createInviteDocument.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<string> CreateInviteCodeAsync(HttpClient adminClient)
     {
         using HttpResponseMessage response = await adminClient.PostAsJsonAsync("/api/admin/invites", new CreateInviteRequest(null, null));

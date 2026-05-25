@@ -10,6 +10,8 @@ namespace Cratebase.Api.Features.Admin;
 
 public static class AdminInvitesEndpointRouteBuilderExtensions
 {
+    private const int MaxNoteLength = 512;
+
     public static IEndpointRouteBuilder MapAdminInvitesEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -31,6 +33,11 @@ public static class AdminInvitesEndpointRouteBuilderExtensions
         ICurrentUser currentUser,
         CancellationToken cancellationToken)
     {
+        if (request.Note?.Length > MaxNoteLength)
+        {
+            return EndpointErrors.BadRequest("invite.note_too_long", "Invite note must be 512 characters or fewer");
+        }
+
         DateTimeOffset now = DateTimeOffset.UtcNow;
         string code = InviteCodes.Generate();
         var invite = Invite.Create(

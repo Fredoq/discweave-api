@@ -81,15 +81,26 @@ public static class AdminUsersEndpointRouteBuilderExtensions
     private static async Task<IResult> UpdateStatusAsync(
         Guid userId,
         UpdateUserStatusRequest request,
-        UserManager<CratebaseUser> userManager)
+        UserManager<CratebaseUser> userManager,
+        CratebaseDbContext context,
+        CancellationToken cancellationToken)
     {
-        CratebaseUser? user = await userManager.FindByIdAsync(userId.ToString());
+        bool isAdmin = await IsAdminAsync(userId, context, cancellationToken);
+
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
+        CratebaseUser? user = await LockUserForStatusUpdateAsync(
+            userId,
+            request.IsDisabled && isAdmin,
+            context,
+            cancellationToken);
         if (user is null)
         {
             return EndpointErrors.NotFound("user.not_found", "User was not found");
         }
 
-        if (request.IsDisabled && await IsLastActiveAdminAsync(user, userManager))
+        if (request.IsDisabled && !user.IsDisabled && isAdmin && await IsLastActiveAdminAsync(context, cancellationToken))
         {
             return EndpointErrors.Conflict("user.last_admin", "The last active admin cannot be disabled");
         }
@@ -102,9 +113,14 @@ public static class AdminUsersEndpointRouteBuilderExtensions
         }
 
         IdentityResult stampResult = await userManager.UpdateSecurityStampAsync(user);
-        return !stampResult.Succeeded
-            ? IdentityError(stampResult)
-            : Results.Ok(await ToResponseAsync(user, userManager));
+        if (!stampResult.Succeeded)
+        {
+            return IdentityError(stampResult);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Results.Ok(await ToResponseAsync(user, userManager));
     }
 
     private static async Task<IResult> SetPasswordAsync(
@@ -129,17 +145,64 @@ public static class AdminUsersEndpointRouteBuilderExtensions
         return stampResult.Succeeded ? Results.NoContent() : IdentityError(stampResult);
     }
 
-    private static async Task<bool> IsLastActiveAdminAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
+    private static async Task<CratebaseUser?> LockUserForStatusUpdateAsync(
+        Guid userId,
+        bool lockActiveAdmins,
+        CratebaseDbContext context,
+        CancellationToken cancellationToken)
     {
-        if (!await userManager.IsInRoleAsync(user, CratebaseRoles.Admin))
+        if (lockActiveAdmins)
         {
-            return false;
+            CratebaseUser[] activeAdmins = await context.Users
+                .FromSqlInterpolated($"""
+                    SELECT u.*
+                    FROM "AspNetUsers" AS u
+                    INNER JOIN "AspNetUserRoles" AS ur ON u."Id" = ur."UserId"
+                    INNER JOIN "AspNetRoles" AS r ON ur."RoleId" = r."Id"
+                    WHERE r."Name" = {CratebaseRoles.Admin} AND u."IsDisabled" = FALSE
+                    ORDER BY u."Id"
+                    FOR UPDATE
+                    """)
+                .ToArrayAsync(cancellationToken);
+            CratebaseUser? activeAdmin = activeAdmins.SingleOrDefault(admin => admin.Id == userId);
+            if (activeAdmin is not null)
+            {
+                return activeAdmin;
+            }
         }
 
-        IList<CratebaseUser> admins = await userManager.GetUsersInRoleAsync(CratebaseRoles.Admin);
-
-        return admins.Count(admin => !admin.IsDisabled) <= 1;
+        return await context.Users
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "AspNetUsers"
+                WHERE "Id" = {userId}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken);
     }
+
+    private static async Task<bool> IsLastActiveAdminAsync(CratebaseDbContext context, CancellationToken cancellationToken)
+    {
+        int activeAdminCount = await context.Users
+            .CountAsync(user =>
+                !user.IsDisabled &&
+                context.UserRoles.Any(userRole =>
+                    userRole.UserId == user.Id &&
+                    context.Roles.Any(role => role.Id == userRole.RoleId && role.Name == CratebaseRoles.Admin)),
+                cancellationToken);
+
+        return activeAdminCount <= 1;
+    }
+
+    private static async Task<bool> IsAdminAsync(Guid userId, CratebaseDbContext context, CancellationToken cancellationToken)
+    {
+        return await context.UserRoles.AnyAsync(
+            userRole =>
+                userRole.UserId == userId &&
+                context.Roles.Any(role => role.Id == userRole.RoleId && role.Name == CratebaseRoles.Admin),
+            cancellationToken);
+    }
+
 
     private static async Task<AdminUserResponse> ToResponseAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
     {
