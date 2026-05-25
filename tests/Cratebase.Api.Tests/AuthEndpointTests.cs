@@ -71,8 +71,8 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
         Assert.True(await host.CollectionExistsAsync(defaultCollectionId.Value));
     }
 
-    [Fact(DisplayName = "Public registration closes after the first user exists")]
-    public async Task Public_registration_closes_after_the_first_user_exists()
+    [Fact(DisplayName = "Registration requires an invite after the first user exists")]
+    public async Task Registration_requires_an_invite_after_the_first_user_exists()
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient firstClient = host.CreateClient();
@@ -87,8 +87,8 @@ public sealed class AuthEndpointTests : IClassFixture<PostgresFixture>
         using JsonDocument secondDocument = await ReadJsonAsync(secondResponse);
 
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
-        Assert.Equal("auth.registration_closed", secondDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
+        Assert.Equal("auth.invite_required", secondDocument.RootElement.GetProperty("code").GetString());
     }
 
     [Fact(DisplayName = "Login and logout update the current user cookie session")]

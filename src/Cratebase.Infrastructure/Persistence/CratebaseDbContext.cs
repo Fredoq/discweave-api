@@ -40,6 +40,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<MusicCollection> MusicCollections => Set<MusicCollection>();
 
+    public DbSet<Invite> Invites => Set<Invite>();
+
     public DbSet<Artist> Artists => Set<Artist>();
 
     public DbSet<Label> Labels => Set<Label>();
@@ -144,6 +146,7 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new CreditConfiguration());
         _ = builder.ApplyConfiguration(new LabelConfiguration());
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
+        _ = builder.ApplyConfiguration(new InviteConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
         _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
         _ = builder.ApplyConfiguration(new PlaylistConfiguration());
