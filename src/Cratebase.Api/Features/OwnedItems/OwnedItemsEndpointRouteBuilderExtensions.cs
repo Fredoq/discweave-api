@@ -137,6 +137,7 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         Guid ownedItemId,
         UpdateOwnedItemRequest request,
         IUnitOfWork unitOfWork,
+        CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
@@ -149,7 +150,31 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
 
         try
         {
-            item.UpdateHolding(OwnedItemMapper.CreateHolding(item.Holding.Medium, request.Status, request.Condition, request.StorageLocation));
+            if (!TryCreateUpdatedTarget(request, out OwnedItemTarget? target, out IResult targetError))
+            {
+                return targetError;
+            }
+
+            if (target is not null)
+            {
+                item.UpdateTarget(target);
+            }
+
+            IMedium medium = item.Holding.Medium;
+            if (request.Medium is not null)
+            {
+                CollectionDictionaryEntry mediaEntry = await DictionaryValidation.RequireActiveEntryAsync(
+                    context,
+                    currentCollection.CollectionId,
+                    DictionaryKind.MediaType,
+                    request.Medium.Type ?? string.Empty,
+                    "medium.type_invalid",
+                    "Medium type is invalid",
+                    cancellationToken);
+                medium = OwnedItemMapper.CreateMedium(request.Medium, mediaEntry);
+            }
+
+            item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(OwnedItemMapper.ToResponse(item));
@@ -162,6 +187,33 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
         {
             return EndpointErrors.BadRequest("owned_item.request_invalid", "Owned item request is invalid");
         }
+        catch (ReferencedResourceMissingException)
+        {
+            return EndpointErrors.Conflict("owned_item.target_conflict", "Owned item target does not exist");
+        }
+    }
+
+    private static bool TryCreateUpdatedTarget(
+        UpdateOwnedItemRequest request,
+        out OwnedItemTarget? target,
+        out IResult error)
+    {
+        target = null;
+        error = null!;
+
+        if (request.TargetType is null && request.TargetId is null)
+        {
+            return true;
+        }
+
+        if (request.TargetType is null || request.TargetId is null)
+        {
+            error = EndpointErrors.BadRequest("owned_item.target_shape_invalid", "Owned item target requires both targetType and targetId");
+            return false;
+        }
+
+        target = OwnedItemMapper.CreateTarget(request.TargetType, request.TargetId.Value);
+        return true;
     }
 
     private static async Task<IResult> DeleteOwnedItemAsync(

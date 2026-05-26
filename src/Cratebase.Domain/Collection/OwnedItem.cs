@@ -58,11 +58,6 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
         return new OwnedItem(collectionId, id, target, OwnedItemHolding.Create(status, medium));
     }
 
-    public OwnedItem WithStatus(OwnershipStatus status)
-    {
-        return new OwnedItem(CollectionId, Id, Target, Holding.WithStatus(status));
-    }
-
     public OwnedItem WithCondition(ItemCondition condition)
     {
         return new OwnedItem(CollectionId, Id, Target, Holding.WithDetails(Holding.Details.WithCondition(condition)));
@@ -76,6 +71,11 @@ public sealed class OwnedItem : IEntity<OwnedItemId>
     public void UpdateHolding(OwnedItemHolding holding)
     {
         SetHolding(holding);
+    }
+
+    public void UpdateTarget(OwnedItemTarget target)
+    {
+        SetTarget(target);
     }
 
     private void SetTarget(OwnedItemTarget target)

@@ -122,9 +122,8 @@ public sealed class OwnedItemTests
         OwnedItem item = OwnedItem.Create(collectionId,
                 OwnedItemId.New(),
                 OwnedItemTarget.ForRelease(ReleaseId.New()),
-                OwnershipStatus.Wanted,
+                OwnershipStatus.Owned,
                 VinylRecord.Create("LP"))
-            .WithStatus(OwnershipStatus.Owned)
             .WithCondition(ItemCondition.VeryGoodPlus)
             .WithStorageLocation(StorageLocation.FromName("Shelf A"));
 
@@ -136,6 +135,51 @@ public sealed class OwnedItemTests
         Assert.Equal(
             "Shelf A",
             Assert.IsType<PresentOptionalValue<StorageLocation>>(item.Holding.Details.StorageLocation).Value.Name);
+    }
+
+    [Fact]
+    public void Owned_item_can_update_its_target_without_changing_identity_or_holding()
+    {
+        var collectionId = CollectionId.New();
+        var ownedItemId = OwnedItemId.New();
+        var firstReleaseId = ReleaseId.New();
+        var trackId = TrackId.New();
+        var item = OwnedItem.Create(
+            collectionId,
+            ownedItemId,
+            OwnedItemTarget.ForRelease(firstReleaseId),
+            OwnershipStatus.Wanted,
+            CompactDisc.Create(1));
+
+        item.UpdateTarget(OwnedItemTarget.ForTrack(trackId));
+
+        Assert.Equal(collectionId, item.CollectionId);
+        Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(OwnershipStatus.Wanted, item.Holding.Status);
+        Assert.Equal(trackId, Assert.IsType<TrackOwnedItemTarget>(item.Target).TrackId);
+        _ = Assert.IsType<CompactDisc>(item.Holding.Medium);
+    }
+
+    [Fact]
+    public void Owned_item_can_replace_its_medium_without_changing_identity_or_target()
+    {
+        var collectionId = CollectionId.New();
+        var ownedItemId = OwnedItemId.New();
+        var releaseId = ReleaseId.New();
+        var item = OwnedItem.Create(
+            collectionId,
+            ownedItemId,
+            OwnedItemTarget.ForRelease(releaseId),
+            OwnershipStatus.Owned,
+            VinylRecord.Create("LP"));
+
+        item.UpdateHolding(OwnedItemHolding.Create(OwnershipStatus.NeedsDigitization, CassetteTape.Create("Chrome")));
+
+        Assert.Equal(collectionId, item.CollectionId);
+        Assert.Equal(ownedItemId, item.Id);
+        Assert.Equal(releaseId, Assert.IsType<ReleaseOwnedItemTarget>(item.Target).ReleaseId);
+        Assert.Equal(OwnershipStatus.NeedsDigitization, item.Holding.Status);
+        Assert.Equal("Chrome", Assert.IsType<CassetteTape>(item.Holding.Medium).TapeType);
     }
 
     [Fact]
@@ -160,7 +204,8 @@ public sealed class OwnedItemTests
             OwnershipStatus.Owned,
             VinylRecord.Create("LP"));
 
-        DomainException updateException = Assert.Throws<DomainException>(() => item.WithStatus((OwnershipStatus)999));
+        DomainException updateException = Assert.Throws<DomainException>(() =>
+            item.UpdateHolding(OwnedItemHolding.Create((OwnershipStatus)999, VinylRecord.Create("LP"))));
 
         Assert.Equal("owned_item.status_invalid", createException.Code);
         Assert.Equal("owned_item.status_invalid", updateException.Code);
