@@ -75,6 +75,31 @@ bootstrap, catalog, search, import, export, playlist, rating, and settings
 routes require the authenticated cookie and resolve the active collection from
 the user's default collection.
 
+## Hosted Private Beta Baseline
+
+The v1 private beta deployment baseline is vendor-neutral and same-origin:
+
+- the public placeholder origin is `https://cratebase.example.com`;
+- `/api/*` and `/health` route to the API container;
+- browser web routes go to the React static web container;
+- PostgreSQL is managed service data;
+- release covers and the optional macOS installer live in persistent service storage.
+
+The API container listens on internal HTTP port `8080` and expects production
+configuration from environment variables:
+
+```sh
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://+:8080
+ConnectionStrings__Cratebase=<managed-postgresql-connection-string>
+ReleaseCovers__StorageRoot=/var/lib/cratebase/release-covers
+DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
+```
+
+See [docs/hosting/hosted-deployment-baseline.md](docs/hosting/hosted-deployment-baseline.md)
+for topology, migration, secret, TLS, reverse proxy, storage, and compose
+example details.
+
 ## Verification
 
 ```bash

@@ -11,6 +11,16 @@ and `cratebase-web`.
 - Bootstrap the first admin user when the database is empty.
 - Sign in and confirm catalog routes use the authenticated cookie.
 
+## Hosted Setup
+
+- Use one HTTPS origin for browser and API traffic.
+- Route `/api/*` and `/health` to the API container.
+- Route every other path to the web static container.
+- Set `CRATEBASE_API_BASE_URL=https://cratebase.example.com` for desktop private beta builds until the real hosted domain is chosen.
+- Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
+- Store release covers and desktop installer artifacts on persistent service storage.
+- Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
+
 ## Acceptance Path
 
 1. Bootstrap a clean database and create the first admin user.
