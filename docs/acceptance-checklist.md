@@ -15,11 +15,13 @@ and `cratebase-web`.
 
 - Use one HTTPS origin for browser and API traffic.
 - Route `/api/*` and `/health` to the API container.
-- Route every other path to the web static container.
-- Set `CRATEBASE_API_BASE_URL=https://cratebase.example.com` for desktop private beta builds until the real hosted domain is chosen.
+- Route `/web-health` and every other path to the web static container.
+- Keep browser API calls relative to `/api`.
+- Confirm private beta desktop packages target `https://cratebase.example.com` by default, with `CRATEBASE_API_BASE_URL` available as a runtime override.
 - Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
 - Store release covers and desktop installer artifacts on persistent service storage.
 - Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
+- Build the API and web Docker images, then run the example compose stack and verify `/health`, `/web-health`, web routing and authenticated `/api` calls through the reverse proxy.
 
 ## Acceptance Path
 

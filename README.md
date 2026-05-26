@@ -81,7 +81,7 @@ The v1 private beta deployment baseline is vendor-neutral and same-origin:
 
 - the public placeholder origin is `https://cratebase.example.com`;
 - `/api/*` and `/health` route to the API container;
-- browser web routes go to the React static web container;
+- `/web-health` and browser web routes go to the React static web container;
 - PostgreSQL is managed service data;
 - release covers and the optional macOS installer live in persistent service storage.
 

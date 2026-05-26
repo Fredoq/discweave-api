@@ -19,9 +19,10 @@ Routing is same-origin:
 
 - `/api/*` routes to the API container;
 - `/health` routes to the API container;
+- `/web-health` routes to the web container;
 - every other path routes to the web container and falls back to `index.html`.
 
-The browser app uses relative `/api` requests. Do not configure browser CORS for normal hosted use. The desktop app should target the public origin with `CRATEBASE_API_BASE_URL=https://cratebase.example.com`.
+The browser app uses relative `/api` requests. Do not configure browser CORS for normal hosted use. Packaged desktop builds from `cratebase-web` default to the placeholder origin until the real private beta domain is chosen, and runtime deployments can override the API target with `CRATEBASE_API_BASE_URL`.
 
 ## Environments
 
@@ -107,6 +108,7 @@ Then check:
 
 ```sh
 curl http://localhost:8080/health
+curl http://localhost:8080/web-health
 ```
 
 The example publishes HTTP on `localhost:8080` only for local validation. Real hosted environments must terminate TLS before the reverse proxy.
@@ -133,6 +135,6 @@ Desktop release:
 
 1. Build the macOS DMG from `cratebase-web`.
 2. Publish it into the configured persistent installer path.
-3. Build the desktop app with `CRATEBASE_API_BASE_URL=https://cratebase.example.com` for private beta distribution.
+3. Confirm the packaged desktop API target is the private beta origin, or provide `CRATEBASE_API_BASE_URL` as a runtime override when targeting another hosted origin.
 
 Database and storage recovery are operator responsibilities and are covered by the later hosted backup and restore roadmap item.
