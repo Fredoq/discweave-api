@@ -27,6 +27,7 @@ public static class CratebaseEndpointRouteBuilderExtensions
 
         _ = endpoints.MapAuthEndpoints();
         _ = endpoints.MapAdminUsersEndpoints();
+        _ = endpoints.MapAdminInvitesEndpoints();
         _ = endpoints.MapArtistsEndpoints();
         _ = endpoints.MapLabelsEndpoints();
         _ = endpoints.MapTracksEndpoints();

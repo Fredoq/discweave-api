@@ -21,6 +21,10 @@ builder.Services.AddCratebaseInfrastructure(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.Zero;
+});
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "Cratebase.Auth";

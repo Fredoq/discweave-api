@@ -81,6 +81,21 @@ internal sealed class ApiTestHost : IAsyncDisposable
         return await context.MusicCollections.AnyAsync(collection => collection.Id == collectionId, cancellationToken);
     }
 
+    public async Task SeedInviteForUserAsync(
+        string creatorEmail,
+        string codeHash,
+        DateTimeOffset createdAt,
+        DateTimeOffset expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        CratebaseUser creator = await context.Users.SingleAsync(user => user.Email == creatorEmail, cancellationToken);
+
+        _ = context.Invites.Add(Invite.Create(Guid.CreateVersion7(), codeHash, creator.Id, null, expiresAt, createdAt));
+        _ = await context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<ArtistId> SeedArtistAsync(Artist artist, CancellationToken cancellationToken = default)
     {
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();

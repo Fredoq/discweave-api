@@ -1,8 +1,5 @@
 using Cratebase.Api.Http;
-using Cratebase.Domain.Collection;
-using Cratebase.Domain.Ratings;
-using Cratebase.Domain.Settings;
-using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Api.Features.Invites;
 using Cratebase.Infrastructure.Identity;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -10,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.Auth;
 
-public static class AuthEndpointRouteBuilderExtensions
+public static partial class AuthEndpointRouteBuilderExtensions
 {
     private const long FirstUserBootstrapLockKey = 807719852889734940;
 
@@ -27,6 +24,7 @@ public static class AuthEndpointRouteBuilderExtensions
         _ = group.MapGet("/session", GetSessionAsync).WithName("GetAuthSession");
         _ = group.MapPost("/logout", LogoutAsync).RequireAuthorization().WithName("Logout");
         _ = group.MapGet("/me", GetMeAsync).RequireAuthorization().WithName("GetCurrentUser");
+        _ = group.MapPost("/password", ChangePasswordAsync).RequireAuthorization().WithName("ChangeCurrentUserPassword");
 
         return endpoints;
     }
@@ -45,41 +43,82 @@ public static class AuthEndpointRouteBuilderExtensions
 
         if (await userManager.Users.AnyAsync(cancellationToken))
         {
-            return EndpointErrors.Conflict("auth.registration_closed", "Public registration is closed");
+            return await RegisterInvitedUserAsync(request, userManager, signInManager, roleManager, context, transaction, cancellationToken);
         }
 
-        IdentityResult rolesResult = await EnsureRolesAsync(roleManager);
+        IdentityResult rolesResult = await UserProvisioning.EnsureRolesAsync(roleManager);
         if (!rolesResult.Succeeded)
         {
             return IdentityError(rolesResult);
         }
 
-        var collectionId = CollectionId.New();
-        CratebaseUser user = CreateUser(request.Email);
-        IdentityResult createResult = await userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded)
+        (IdentityResult createResult, CratebaseUser? user) = await UserProvisioning.CreateUserWithCollectionAsync(
+            request.Email,
+            request.Password,
+            [CratebaseRoles.Admin, CratebaseRoles.User],
+            userManager,
+            context,
+            cancellationToken);
+        if (!createResult.Succeeded || user is null)
         {
             return IdentityError(createResult);
         }
 
-        IdentityResult roleResult = await userManager.AddToRolesAsync(user, [CratebaseRoles.Admin, CratebaseRoles.User]);
-        if (!roleResult.Succeeded)
+        await transaction.CommitAsync(cancellationToken);
+        await signInManager.SignInAsync(user, isPersistent: true);
+
+        return Results.Created("/api/auth/me", await ToResponseAsync(user, userManager));
+    }
+
+    private static async Task<IResult> RegisterInvitedUserAsync(
+        AuthRequest request,
+        UserManager<CratebaseUser> userManager,
+        SignInManager<CratebaseUser> signInManager,
+        RoleManager<IdentityRole<Guid>> roleManager,
+        CratebaseDbContext context,
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.InviteCode))
         {
-            return IdentityError(roleResult);
+            return EndpointErrors.BadRequest("auth.invite_required", "Invite code is required");
         }
 
-        _ = context.MusicCollections.Add(MusicCollection.Create(collectionId, new UserId(user.Id), "Main collection"));
-        context.CollectionDictionaryEntries.AddRange(CollectionDictionaryDefaults.CreateEntries(collectionId));
-        context.RatingCriteria.AddRange(RatingCriterionDefaults.CreateCriteria(collectionId));
+        string codeHash = InviteCodes.Hash(request.InviteCode);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        Invite? invite = await context.Invites
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM invites
+                WHERE code_hash = {codeHash}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (invite is null || !invite.IsAvailable(now))
+        {
+            return EndpointErrors.BadRequest("auth.invite_unavailable", "Invite code is unavailable");
+        }
+
+        IdentityResult rolesResult = await UserProvisioning.EnsureRolesAsync(roleManager);
+        if (!rolesResult.Succeeded)
+        {
+            return IdentityError(rolesResult);
+        }
+
+        (IdentityResult createResult, CratebaseUser? user) = await UserProvisioning.CreateUserWithCollectionAsync(
+            request.Email,
+            request.Password,
+            [CratebaseRoles.User],
+            userManager,
+            context,
+            cancellationToken);
+        if (!createResult.Succeeded || user is null)
+        {
+            return IdentityError(createResult);
+        }
+
+        invite.Redeem(user.Id, user.Email ?? request.Email, now);
         _ = await context.SaveChangesAsync(cancellationToken);
-
-        user.DefaultCollectionId = collectionId;
-        IdentityResult updateResult = await userManager.UpdateAsync(user);
-        if (!updateResult.Succeeded)
-        {
-            return IdentityError(updateResult);
-        }
-
         await transaction.CommitAsync(cancellationToken);
         await signInManager.SignInAsync(user, isPersistent: true);
 
@@ -149,33 +188,19 @@ public static class AuthEndpointRouteBuilderExtensions
             : Results.Ok(await ToResponseAsync(user, userManager));
     }
 
-    private static CratebaseUser CreateUser(string email)
+    private static async Task<IResult> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        UserManager<CratebaseUser> userManager,
+        HttpContext httpContext)
     {
-        string normalizedEmail = email.Trim();
-
-        return new CratebaseUser
+        CratebaseUser? user = await userManager.GetUserAsync(httpContext.User);
+        if (user is null || user.IsDisabled || user.DefaultCollectionId is null)
         {
-            Id = Guid.CreateVersion7(),
-            Email = normalizedEmail,
-            UserName = normalizedEmail
-        };
-    }
-
-    private static async Task<IdentityResult> EnsureRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
-    {
-        foreach (string roleName in new[] { CratebaseRoles.Admin, CratebaseRoles.User })
-        {
-            if (!await roleManager.RoleExistsAsync(roleName))
-            {
-                IdentityResult result = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
-                if (!result.Succeeded)
-                {
-                    return result;
-                }
-            }
+            return EndpointErrors.Unauthorized("auth.unauthenticated", "User is not authenticated");
         }
 
-        return IdentityResult.Success;
+        IdentityResult result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        return result.Succeeded ? Results.NoContent() : IdentityError(result);
     }
 
     private static async Task<AuthResponse> ToResponseAsync(CratebaseUser user, UserManager<CratebaseUser> userManager)
