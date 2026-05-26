@@ -28,21 +28,32 @@ public sealed class Invite
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeHash);
 
-        return id == Guid.Empty
-            ? throw new ArgumentException("Invite ID cannot be empty.", nameof(id))
-            : createdByUserId == Guid.Empty
-            ? throw new ArgumentException("Creator user ID cannot be empty.", nameof(createdByUserId))
-            : expiresAt <= now
-            ? throw new ArgumentException("Invite expiration must be in the future.", nameof(expiresAt))
-            : new Invite
-            {
-                Id = id,
-                CodeHash = codeHash,
-                CreatedAt = now,
-                CreatedByUserId = createdByUserId,
-                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
-                ExpiresAt = expiresAt
-            };
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Invite ID cannot be empty.", nameof(id));
+        }
+
+        if (createdByUserId == Guid.Empty)
+        {
+            throw new ArgumentException("Creator user ID cannot be empty.", nameof(createdByUserId));
+        }
+
+        if (expiresAt <= now)
+        {
+            throw new ArgumentException("Invite expiration must be in the future.", nameof(expiresAt));
+        }
+
+        string? normalizedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+
+        return new Invite
+        {
+            Id = id,
+            CodeHash = codeHash,
+            CreatedAt = now,
+            CreatedByUserId = createdByUserId,
+            Note = normalizedNote,
+            ExpiresAt = expiresAt
+        };
     }
 
     public bool IsAvailable(DateTimeOffset now)
@@ -52,11 +63,13 @@ public sealed class Invite
 
     public string Status(DateTimeOffset now)
     {
-        return RedeemedAt is not null
-            ? "redeemed"
-            : RevokedAt is not null
-                ? "revoked"
-                : ExpiresAt <= now ? "expired" : "available";
+        return (RedeemedAt, RevokedAt, ExpiresAt <= now) switch
+        {
+            ({ }, _, _) => "redeemed",
+            (_, { }, _) => "revoked",
+            (_, _, true) => "expired",
+            _ => "available"
+        };
     }
 
     public bool TryRevoke(Guid revokedByUserId, DateTimeOffset now)
