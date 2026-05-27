@@ -4,6 +4,7 @@ using Cratebase.Application.Security;
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Credits;
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.Relations;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
@@ -57,6 +58,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             TrackEntityType => await TrackResultAsync(context, collectionId, new TrackId(entityId), cancellationToken),
             OwnedItemRouteType or OwnedItemHyphenRouteType => await OwnedItemResultAsync(context, collectionId, new OwnedItemId(entityId), cancellationToken),
             LabelEntityType => await LabelResultAsync(context, collectionId, new LabelId(entityId), cancellationToken),
+            PlaylistEntityType => await PlaylistResultAsync(context, collectionId, new PlaylistId(entityId), cancellationToken),
             _ => EndpointErrors.NotFound(NotFoundCode, NotFoundMessage)
         };
     }
@@ -118,6 +120,18 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         GraphData? data = await GraphData.LoadLabelAsync(context, collectionId, labelId, cancellationToken);
         return data is not null && data.Labels.TryGetValue(labelId, out Label? label)
             ? Results.Ok(LabelContext(label, data))
+            : EndpointErrors.NotFound(NotFoundCode, NotFoundMessage);
+    }
+
+    private static async Task<IResult> PlaylistResultAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        PlaylistId playlistId,
+        CancellationToken cancellationToken)
+    {
+        GraphData? data = await GraphData.LoadPlaylistAsync(context, collectionId, playlistId, cancellationToken);
+        return data is not null && data.Playlists.TryGetValue(playlistId, out Playlist? playlist)
+            ? Results.Ok(PlaylistContext(playlist, data))
             : EndpointErrors.NotFound(NotFoundCode, NotFoundMessage);
     }
 

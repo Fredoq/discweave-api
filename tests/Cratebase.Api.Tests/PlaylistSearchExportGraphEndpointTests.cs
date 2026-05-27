@@ -38,6 +38,26 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
         Assert.Equal("playlist", playlistLink.GetProperty("type").GetString());
     }
 
+    [Fact(DisplayName = "Catalog graph context describes playlist entries and owned coverage")]
+    public async Task Catalog_graph_context_describes_playlist_entries_and_owned_coverage()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid releaseId = await CreateReleaseAsync(client, "Playlist Release");
+        Guid ownedItemId = await CreateOwnedItemAsync(client, releaseId, "owned", "vinyl");
+        Guid playlistId = await CreateManualPlaylistAsync(client, "Archive routes", releaseId);
+
+        using HttpResponseMessage response = await client.GetAsync($"/api/catalog-graph/playlist/{playlistId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal("playlist", document.RootElement.GetProperty("entity").GetProperty("type").GetString());
+        Assert.Equal(playlistId, document.RootElement.GetProperty("entity").GetProperty("id").GetGuid());
+        Assert.Equal("Archive routes", document.RootElement.GetProperty("entity").GetProperty("title").GetString());
+        Assert.Contains(document.RootElement.GetProperty("sections").GetProperty("releases").EnumerateArray(), link => link.GetProperty("id").GetGuid() == releaseId);
+        Assert.Contains(document.RootElement.GetProperty("sections").GetProperty("ownedCopies").EnumerateArray(), link => link.GetProperty("id").GetGuid() == ownedItemId);
+        Assert.Contains(document.RootElement.GetProperty("collectorSignals").EnumerateArray(), signal => signal.GetString() == "vinyl");
+    }
+
     [Fact(DisplayName = "Exports include playlist definitions and manual entries")]
     public async Task Exports_include_playlist_definitions_and_manual_entries()
     {
@@ -70,6 +90,23 @@ public sealed class PlaylistSearchExportGraphEndpointTests : IClassFixture<Postg
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/releases",
             new { title, type = "standalone", isVariousArtists = true, year = 1983, genres = EmptyStrings, tags = EmptyStrings });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task<Guid> CreateOwnedItemAsync(HttpClient client, Guid releaseId, string status, string medium)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/owned-items",
+            new
+            {
+                targetType = "release",
+                targetId = releaseId,
+                status,
+                medium = new { type = medium, description = medium }
+            });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
 

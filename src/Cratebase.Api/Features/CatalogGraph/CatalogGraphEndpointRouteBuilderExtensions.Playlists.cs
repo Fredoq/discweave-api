@@ -1,3 +1,4 @@
+using Cratebase.Domain.Playlists;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Domain.SharedKernel.Optional;
 
@@ -37,5 +38,41 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                 .OrderBy(playlist => playlist.Name)
                 .Select(playlist => Link(playlist.Id.Value, PlaylistEntityType, playlist.Name, playlist.Type.ToString(), "playlist backlink"))
         ];
+    }
+
+    private static ReleaseId[] PlaylistReleaseIds(Playlist playlist)
+    {
+        return
+        [
+            .. playlist.Entries
+                .Select(entry => entry.ReleaseId)
+                .OfType<PresentOptionalValue<ReleaseId>>()
+                .Select(id => id.Value)
+                .Distinct()
+        ];
+    }
+
+    private static TrackId[] PlaylistTrackIds(Playlist playlist)
+    {
+        return
+        [
+            .. playlist.Entries
+                .Select(entry => entry.TrackId)
+                .OfType<PresentOptionalValue<TrackId>>()
+                .Select(id => id.Value)
+                .Distinct()
+        ];
+    }
+
+    private static string PlaylistSummary(Playlist playlist)
+    {
+        return playlist.Description is PresentOptionalValue<string> description
+            ? description.Value
+            : playlist.Type switch
+            {
+                PlaylistType.Manual => $"{playlist.Entries.Count} manual entries",
+                PlaylistType.Smart => "Smart playlist rules",
+                _ => "Playlist"
+            };
     }
 }
