@@ -98,7 +98,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             [.. tracks.Select(track => ToTrackResponse(track, trackCreditsByTrackId, appearancesByTrackId, releaseCreditsByReleaseId, artistsById, labelsById))],
             await LoadOwnedItemsAsync(context, collectionId, cancellationToken),
             await LoadPlaylistsAsync(context, collectionId, cancellationToken),
-            [.. orderedCredits.Select(CreditMapper.ToResponse)],
+            [.. orderedCredits.Select(credit => CreditMapper.ToResponse(credit))],
             await LoadArtistRelationsAsync(context, collectionId, cancellationToken),
             await LoadTrackRelationsAsync(context, collectionId, cancellationToken),
             await LoadDictionariesAsync(context, collectionId, cancellationToken),

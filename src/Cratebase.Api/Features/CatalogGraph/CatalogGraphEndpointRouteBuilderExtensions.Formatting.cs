@@ -53,6 +53,28 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         return $"{data.Tracks.GetValueOrDefault(relation.SourceTrackId)?.Title ?? "Track"} to {data.Tracks.GetValueOrDefault(relation.TargetTrackId)?.Title ?? "Track"}";
     }
 
+    private static CatalogGraphContextResponse.LinkResponse? RelatedArtistLink(ArtistId originArtistId, ArtistRelation relation, GraphData data)
+    {
+        ArtistId relatedArtistId = relation.SourceArtistId == originArtistId
+            ? relation.TargetArtistId
+            : relation.SourceArtistId;
+
+        return data.Artists.TryGetValue(relatedArtistId, out Artist? artist)
+            ? Link(artist.Id.Value, ArtistEntityType, artist.Name, relation.Type, "artist relation")
+            : null;
+    }
+
+    private static CatalogGraphContextResponse.LinkResponse? RelatedTrackLink(TrackId originTrackId, TrackRelation relation, GraphData data)
+    {
+        TrackId relatedTrackId = relation.SourceTrackId == originTrackId
+            ? relation.TargetTrackId
+            : relation.SourceTrackId;
+
+        return data.Tracks.TryGetValue(relatedTrackId, out Track? track)
+            ? Link(track.Id.Value, TrackEntityType, track.Title, relation.RelationType, "track relation")
+            : null;
+    }
+
     private static IReadOnlyList<string> Signals(IReadOnlyList<OwnedItem> items)
     {
         return [.. items.SelectMany(item => new[] { item.Holding.Medium.Code, StatusCode(item.Holding.Status) }).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];

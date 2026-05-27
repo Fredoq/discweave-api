@@ -53,7 +53,19 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             ];
 
             Artist[] artists = await LoadArtistsAsync(context, collectionId, artistIds, cancellationToken);
-            Release[] releases = await LoadReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            Release[] directReleases = await LoadReleasesAsync(context, collectionId, releaseIds, cancellationToken);
+            Release[] trackAppearanceReleases = trackIds.Length == 0
+                ? []
+                : await ReleaseQuery(context)
+                    .Where(item => item.CollectionId == collectionId && item.Tracklist.Any(tracklistItem => trackIds.Contains(tracklistItem.TrackId)))
+                    .ToArrayAsync(cancellationToken);
+            Release[] releases =
+            [
+                .. directReleases
+                    .Concat(trackAppearanceReleases)
+                    .GroupBy(item => item.Id)
+                    .Select(group => group.First())
+            ];
             Track[] tracks = await LoadTracksAsync(context, collectionId, trackIds, cancellationToken);
             Playlist[] playlists = await LoadPlaylistsAsync(context, collectionId, releaseIds, trackIds, cancellationToken);
 

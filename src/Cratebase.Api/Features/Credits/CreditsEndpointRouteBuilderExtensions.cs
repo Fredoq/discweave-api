@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.Credits;
 
-public static class CreditsEndpointRouteBuilderExtensions
+public static partial class CreditsEndpointRouteBuilderExtensions
 {
     private const string CreditNotFoundCode = "credit.not_found";
     private const string CreditNotFoundMessage = "Credit was not found";
@@ -70,7 +70,9 @@ public static class CreditsEndpointRouteBuilderExtensions
             unitOfWork.GetRepository<Credit, CreditId>().Add(credit);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Created($"/api/credits/{credit.Id.Value}", CreditMapper.ToResponse(credit));
+            return Results.Created(
+                $"/api/credits/{credit.Id.Value}",
+                await ToResponseAsync(credit, context, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -90,7 +92,7 @@ public static class CreditsEndpointRouteBuilderExtensions
 
         return credit is null
             ? EndpointErrors.NotFound(CreditNotFoundCode, CreditNotFoundMessage)
-            : Results.Ok(CreditMapper.ToResponse(credit));
+            : Results.Ok(await ToResponseAsync(credit, context, cancellationToken));
     }
 
     private static async Task<IResult> ListCreditsAsync(
@@ -125,7 +127,11 @@ public static class CreditsEndpointRouteBuilderExtensions
             int total = await credits.CountAsync(cancellationToken);
             Credit[] page = await credits.OrderBy(credit => credit.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-            return Results.Ok(new ListResponse<CreditResponse>([.. page.Select(CreditMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<CreditResponse>(
+                await ToResponsesAsync(page, context, cancellationToken),
+                normalizedLimit,
+                normalizedOffset,
+                total));
         }
         catch (DomainException exception)
         {
@@ -180,7 +186,7 @@ public static class CreditsEndpointRouteBuilderExtensions
             credit.Update(CreditContributor.FromArtist(contributor), target, role);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(CreditMapper.ToResponse(credit));
+            return Results.Ok(await ToResponseAsync(credit, context, cancellationToken));
         }
         catch (DomainException exception)
         {

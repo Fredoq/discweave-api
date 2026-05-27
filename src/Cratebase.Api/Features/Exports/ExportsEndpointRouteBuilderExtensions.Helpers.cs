@@ -63,7 +63,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 .Where(relation => relation.CollectionId == collectionId)
                 .ToArrayAsync(cancellationToken))
                 .OrderBy(relation => relation.Id.Value)
-                .Select(ArtistRelationMapper.ToResponse)
+                .Select(relation => ArtistRelationMapper.ToResponse(relation))
         ];
     }
 
@@ -78,7 +78,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 .Where(relation => relation.CollectionId == collectionId)
                 .ToArrayAsync(cancellationToken))
                 .OrderBy(relation => relation.Id.Value)
-                .Select(TrackRelationMapper.ToResponse)
+                .Select(relation => TrackRelationMapper.ToResponse(relation))
         ];
     }
 

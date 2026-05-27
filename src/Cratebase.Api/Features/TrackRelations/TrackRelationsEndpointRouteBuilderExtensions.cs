@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.TrackRelations;
 
-public static class TrackRelationsEndpointRouteBuilderExtensions
+public static partial class TrackRelationsEndpointRouteBuilderExtensions
 {
     private const string TrackRelationNotFoundCode = "track_relation.not_found";
     private const string TrackRelationNotFoundMessage = "Track relation was not found";
@@ -60,7 +60,9 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
             unitOfWork.GetRepository<TrackRelation, TrackRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Created($"/api/track-relations/{relation.Id.Value}", TrackRelationMapper.ToResponse(relation));
+            return Results.Created(
+                $"/api/track-relations/{relation.Id.Value}",
+                await ToResponseAsync(relation, context, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -80,7 +82,7 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
 
         return relation is null
             ? EndpointErrors.NotFound(TrackRelationNotFoundCode, TrackRelationNotFoundMessage)
-            : Results.Ok(TrackRelationMapper.ToResponse(relation));
+            : Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
     }
 
     private static async Task<IResult> ListTrackRelationsAsync(
@@ -114,7 +116,11 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
             int total = await relations.CountAsync(cancellationToken);
             TrackRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-            return Results.Ok(new ListResponse<TrackRelationResponse>([.. page.Select(TrackRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<TrackRelationResponse>(
+                await ToResponsesAsync(page, context, cancellationToken),
+                normalizedLimit,
+                normalizedOffset,
+                total));
         }
         catch (DomainException exception)
         {
@@ -160,7 +166,7 @@ public static class TrackRelationsEndpointRouteBuilderExtensions
             relation.Update(new TrackId(request.SourceTrackId), new TrackId(request.TargetTrackId), relationType);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(TrackRelationMapper.ToResponse(relation));
+            return Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
         }
         catch (DomainException exception)
         {

@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.ArtistRelations;
 
-public static class ArtistRelationsEndpointRouteBuilderExtensions
+public static partial class ArtistRelationsEndpointRouteBuilderExtensions
 {
     private const string ArtistRelationNotFoundCode = "artist_relation.not_found";
     private const string ArtistRelationNotFoundMessage = "Artist relation was not found";
@@ -60,7 +60,9 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
             unitOfWork.GetRepository<ArtistRelation, ArtistRelationId>().Add(relation);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Created($"/api/artist-relations/{relation.Id.Value}", ArtistRelationMapper.ToResponse(relation));
+            return Results.Created(
+                $"/api/artist-relations/{relation.Id.Value}",
+                await ToResponseAsync(relation, context, cancellationToken));
         }
         catch (DomainException exception)
         {
@@ -80,7 +82,7 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
 
         return relation is null
             ? EndpointErrors.NotFound(ArtistRelationNotFoundCode, ArtistRelationNotFoundMessage)
-            : Results.Ok(ArtistRelationMapper.ToResponse(relation));
+            : Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
     }
 
     private static async Task<IResult> ListArtistRelationsAsync(
@@ -114,7 +116,11 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
             int total = await relations.CountAsync(cancellationToken);
             ArtistRelation[] page = await relations.OrderBy(relation => relation.Id).Skip(normalizedOffset).Take(normalizedLimit).ToArrayAsync(cancellationToken);
 
-            return Results.Ok(new ListResponse<ArtistRelationResponse>([.. page.Select(ArtistRelationMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            return Results.Ok(new ListResponse<ArtistRelationResponse>(
+                await ToResponsesAsync(page, context, cancellationToken),
+                normalizedLimit,
+                normalizedOffset,
+                total));
         }
         catch (DomainException exception)
         {
@@ -169,7 +175,7 @@ public static class ArtistRelationsEndpointRouteBuilderExtensions
 
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(ArtistRelationMapper.ToResponse(relation));
+            return Results.Ok(await ToResponseAsync(relation, context, cancellationToken));
         }
         catch (DomainException exception)
         {
