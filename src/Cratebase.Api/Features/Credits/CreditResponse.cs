@@ -6,4 +6,5 @@ public sealed record CreditResponse(
     string ContributorName,
     string TargetType,
     Guid TargetId,
-    string Role);
+    string Role,
+    string? TargetTitle = null);

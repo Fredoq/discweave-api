@@ -24,7 +24,7 @@ internal static class ArtistRelationMapper
         };
     }
 
-    public static ArtistRelationResponse ToResponse(ArtistRelation relation)
+    public static ArtistRelationResponse ToResponse(ArtistRelation relation, string? sourceArtistName = null, string? targetArtistName = null)
     {
         return new ArtistRelationResponse(
             relation.Id.Value,
@@ -32,7 +32,9 @@ internal static class ArtistRelationMapper
             relation.TargetArtistId.Value,
             relation.Type,
             GetStartYear(relation),
-            GetEndYear(relation));
+            GetEndYear(relation),
+            sourceArtistName,
+            targetArtistName);
     }
 
     private static int? GetStartYear(ArtistRelation relation)

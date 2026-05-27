@@ -156,12 +156,34 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
     {
         Credit[] credits = [.. data.Credits.Where(credit => credit.Contributor.ArtistId == artist.Id)];
         ArtistRelation[] relations = [.. data.ArtistRelations.Where(relation => relation.SourceArtistId == artist.Id || relation.TargetArtistId == artist.Id)];
+        TrackId[] creditedTrackIds =
+        [
+            .. credits
+                .Select(credit => credit.Target)
+                .OfType<TrackCreditTarget>()
+                .Select(target => target.TrackId)
+        ];
+        CatalogGraphContextResponse.LinkResponse[] creditedTrackAppearances =
+        [
+            .. data.Releases.Values
+                .Where(release => release.Tracklist.Any(track => creditedTrackIds.Contains(track.TrackId)))
+                .Select(release => Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "track appearance"))
+        ];
 
         return Response(
             Entity(artist.Id.Value, ArtistEntityType, artist.Name, artist.GetType().Name, string.Join(", ", credits.Select(credit => credit.Role).Distinct())),
             new GraphSections
             {
-                Releases = [.. credits.Select(credit => CreditTargetLink(credit, data)).Where(link => link is { Type: ReleaseEntityType }).Select(link => link!)],
+                Artists = [.. relations.Select(relation => RelatedArtistLink(artist.Id, relation, data)).WhereNotNull()],
+                Releases =
+                [
+                    .. credits
+                        .Select(credit => CreditTargetLink(credit, data))
+                        .Where(link => link is { Type: ReleaseEntityType })
+                        .Select(link => link!)
+                        .Concat(creditedTrackAppearances)
+                        .DistinctBy(link => link.Id)
+                ],
                 Tracks = [.. credits.Select(credit => CreditTargetLink(credit, data)).Where(link => link is { Type: TrackEntityType }).Select(link => link!)],
                 Credits = [.. credits.Select(credit => CreditTargetLink(credit, data)).WhereNotNull()],
                 Relations = [.. relations.Select(relation => Link(relation.Id.Value, RelationEntityType, ArtistRelationTitle(relation, data), relation.Type, "artist relation"))]
@@ -202,6 +224,7 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
             {
                 Artists = [.. credits.Select(credit => Link(credit.Contributor.ArtistId.Value, ArtistEntityType, credit.Contributor.Name, credit.Role, CreditRelation))],
                 Releases = [.. releases.Select(release => Link(release.Id.Value, ReleaseEntityType, release.Summary.Title, null, "appears on"))],
+                Tracks = [.. relations.Select(relation => RelatedTrackLink(track.Id, relation, data)).WhereNotNull()],
                 OwnedCopies = [.. ownedItems.Select(item => OwnedItemLink(item, data, "owned copy"))],
                 Credits = [.. credits.Select(credit => Link(credit.Contributor.ArtistId.Value, ArtistEntityType, credit.Contributor.Name, credit.Role, CreditRelation))],
                 Relations = [.. relations.Select(relation => Link(relation.Id.Value, RelationEntityType, TrackRelationTitle(relation, data), relation.RelationType, "track relation"))],

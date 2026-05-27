@@ -23,7 +23,7 @@ internal static class CreditMapper
         };
     }
 
-    public static CreditResponse ToResponse(Credit credit)
+    public static CreditResponse ToResponse(Credit credit, string? targetTitle = null)
     {
         CreditTarget target = credit.Target;
         (string targetType, Guid targetId) = target switch
@@ -39,7 +39,8 @@ internal static class CreditMapper
             credit.Contributor.Name,
             targetType,
             targetId,
-            ToRoleCode(credit.Role));
+            ToRoleCode(credit.Role),
+            targetTitle);
     }
 
     public static string ToRoleCode(string role)

@@ -12,12 +12,14 @@ internal static class TrackRelationMapper
             : type.Trim();
     }
 
-    public static TrackRelationResponse ToResponse(TrackRelation relation)
+    public static TrackRelationResponse ToResponse(TrackRelation relation, string? sourceTrackTitle = null, string? targetTrackTitle = null)
     {
         return new TrackRelationResponse(
             relation.Id.Value,
             relation.SourceTrackId.Value,
             relation.TargetTrackId.Value,
-            relation.RelationType);
+            relation.RelationType,
+            sourceTrackTitle,
+            targetTrackTitle);
     }
 }

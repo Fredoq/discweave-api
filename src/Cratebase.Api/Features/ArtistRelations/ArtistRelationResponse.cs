@@ -6,4 +6,6 @@ public sealed record ArtistRelationResponse(
     Guid TargetArtistId,
     string Type,
     int? StartYear,
-    int? EndYear);
+    int? EndYear,
+    string? SourceArtistName = null,
+    string? TargetArtistName = null);
