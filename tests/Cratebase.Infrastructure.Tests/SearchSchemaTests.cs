@@ -30,7 +30,7 @@ public sealed class SearchSchemaTests : IClassFixture<PostgresFixture>
     private static async Task<IReadOnlyList<string>> ReadIndexNamesAsync(CratebaseDbContext context, string tableName)
     {
         FormattableString sql = $"""
-            SELECT indexname
+            SELECT indexname AS "Value"
             FROM pg_indexes
             WHERE schemaname = 'public'
               AND tablename = {tableName}
