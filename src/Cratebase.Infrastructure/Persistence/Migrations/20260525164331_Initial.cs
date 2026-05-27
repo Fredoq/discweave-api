@@ -1421,6 +1421,12 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_vector ON search_documents USING GIN (search_vector)");
             migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_text_trgm ON search_documents USING GIN (search_text gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_role_facet_trgm ON search_documents USING GIN (role_facet gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_media_facet_trgm ON search_documents USING GIN (media_facet gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_status_facet_trgm ON search_documents USING GIN (status_facet gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_tag_facet_trgm ON search_documents USING GIN (tag_facet gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_label_id_facet_trgm ON search_documents USING GIN (label_id_facet gin_trgm_ops)");
+            migrationBuilder.Sql("CREATE INDEX ix_search_documents_collector_signal_facet_trgm ON search_documents USING GIN (collector_signal_facet gin_trgm_ops)");
 
             migrationBuilder.CreateIndex(
                 name: "IX_track_relations_collection_id",

@@ -50,6 +50,18 @@ dotnet test Cratebase.slnx
 dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 ```
 
+Search v1 large-seed smoke:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "<postgres>" \
+  --verify-search \
+  --search-budget-ms 250
+```
+
+See [search-v1.md](search-v1.md) for the backend search contract and saved view
+definitions.
+
 Frontend:
 
 ```bash

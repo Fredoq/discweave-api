@@ -32,6 +32,16 @@ public static class Program
             CancellationToken.None);
 
         WriteResult(result);
+        if (command.VerifySearch)
+        {
+            await SearchSmokeVerifier.VerifyAsync(
+                context,
+                result.CollectionId,
+                TimeSpan.FromMilliseconds(command.SearchBudgetMilliseconds),
+                Console.Out,
+                CancellationToken.None);
+        }
+
         return 0;
     }
 
@@ -83,5 +93,7 @@ public static class Program
         Console.WriteLine("  --labels <count>                Label count. Default: 120");
         Console.WriteLine("  --releases <count>              Release count. Default: 1500");
         Console.WriteLine("  --tracks-per-release <count>    Tracks per release. Default: 8");
+        Console.WriteLine("  --verify-search                 Run search v1 smoke probes after seeding.");
+        Console.WriteLine("  --search-budget-ms <ms>         Search smoke warning budget. Default: 250");
     }
 }

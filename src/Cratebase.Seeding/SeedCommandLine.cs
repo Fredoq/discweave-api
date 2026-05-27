@@ -6,6 +6,7 @@ public static class SeedCommandLine
 {
     private const string DefaultEmail = "seed@cratebase.local";
     private const string DefaultPassword = "SeedPassword1!";
+    private const int DefaultSearchBudgetMilliseconds = 250;
 
     public static SeedCommand Parse(IReadOnlyList<string> args, Func<string, string?> environment)
     {
@@ -19,6 +20,8 @@ public static class SeedCommandLine
         int labelCount = LargeCollectionSeedOptions.DefaultLabelCount;
         int releaseCount = LargeCollectionSeedOptions.DefaultReleaseCount;
         int tracksPerRelease = LargeCollectionSeedOptions.DefaultTracksPerRelease;
+        bool verifySearch = false;
+        int searchBudgetMilliseconds = DefaultSearchBudgetMilliseconds;
 
         for (int index = 0; index < args.Count; index++)
         {
@@ -46,6 +49,12 @@ public static class SeedCommandLine
                 case "--tracks-per-release":
                     tracksPerRelease = ParseInt(RequiredValue(args, ref index, argument), argument);
                     break;
+                case "--verify-search":
+                    verifySearch = true;
+                    break;
+                case "--search-budget-ms":
+                    searchBudgetMilliseconds = ParsePositiveInt(RequiredValue(args, ref index, argument), argument);
+                    break;
                 default:
                     throw new InvalidOperationException($"Unknown seed option: {argument}");
             }
@@ -62,7 +71,9 @@ public static class SeedCommandLine
                 : connectionString,
             email,
             password,
-            new LargeCollectionSeedOptions(artistCount, labelCount, releaseCount, tracksPerRelease));
+            new LargeCollectionSeedOptions(artistCount, labelCount, releaseCount, tracksPerRelease),
+            verifySearch,
+            searchBudgetMilliseconds);
     }
 
     private static string RequiredValue(IReadOnlyList<string> args, ref int index, string argument)
@@ -82,6 +93,14 @@ public static class SeedCommandLine
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
             ? parsed
             : throw new InvalidOperationException($"Seed option {argument} must be an integer");
+    }
+
+    private static int ParsePositiveInt(string value, string argument)
+    {
+        int parsed = ParseInt(value, argument);
+        return parsed > 0
+            ? parsed
+            : throw new InvalidOperationException($"Seed option {argument} must be greater than zero");
     }
 
     private static string? FirstText(params string?[] values)

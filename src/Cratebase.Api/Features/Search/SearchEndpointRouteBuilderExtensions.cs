@@ -75,18 +75,29 @@ public static class SearchEndpointRouteBuilderExtensions
         {
             parseError = EndpointErrors.BadRequest("search.offset_invalid", "Search offset must be an integer");
         }
+        else if (!SearchRequestValidation.TryNormalize(
+            QueryValue(values, "entityType"),
+            QueryValue(values, "status"),
+            QueryValue(values, "savedView"),
+            out string? entityType,
+            out string? status,
+            out string? savedView,
+            out IResult? validationError))
+        {
+            parseError = validationError;
+        }
         else
         {
             parsedRequest = new ParsedSearchRequest(
                 new CollectionSearchQuery(
                     normalizedQuery,
-                    QueryValue(values, "entityType"),
+                    entityType,
                     QueryValue(values, "role"),
                     QueryValue(values, "media"),
-                    QueryValue(values, "status"),
+                    status,
                     labelId,
                     QueryValue(values, "tag"),
-                    QueryValue(values, "savedView"),
+                    savedView,
                     0,
                     0),
                 limit,

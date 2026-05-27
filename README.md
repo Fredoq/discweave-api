@@ -120,6 +120,10 @@ dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 - Export portable JSON and CSV data, including playlists.
 - Restore a JSON export into an empty active collection.
 
+See [docs/search-v1.md](docs/search-v1.md) for the finalized search request and
+response contract, saved views, collection isolation behavior, and large-seed
+smoke verification command.
+
 ## Large Collection Seed
 
 Use `Cratebase.Seeding` to create a synthetic collection for search, graph,
@@ -149,6 +153,15 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --labels 250 \
   --releases 5000 \
   --tracks-per-release 10
+```
+
+Run the search v1 smoke probes after seeding:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+  --verify-search \
+  --search-budget-ms 250
 ```
 
 ## Product Boundaries

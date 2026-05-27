@@ -27,6 +27,33 @@ public sealed class SeedCommandLineTests
         Assert.Equal(6, command.Options.TracksPerRelease);
     }
 
+    [Fact(DisplayName = "Seed command line parses search verification options")]
+    public void SeedCommandLineParsesSearchVerificationOptions()
+    {
+        string[] args =
+        [
+            "--connection-string", "Host=localhost;Database=cratebase",
+            "--verify-search",
+            "--search-budget-ms", "500"
+        ];
+
+        SeedCommand command = SeedCommandLine.Parse(args, static _ => null);
+
+        Assert.True(command.VerifySearch);
+        Assert.Equal(500, command.SearchBudgetMilliseconds);
+    }
+
+    [Fact(DisplayName = "Seed command line uses the default search verification budget")]
+    public void SeedCommandLineUsesTheDefaultSearchVerificationBudget()
+    {
+        SeedCommand command = SeedCommandLine.Parse(
+            ["--connection-string", "Host=localhost;Database=cratebase", "--verify-search"],
+            static _ => null);
+
+        Assert.True(command.VerifySearch);
+        Assert.Equal(250, command.SearchBudgetMilliseconds);
+    }
+
     [Theory(DisplayName = "Seed command line uses connection string from environment")]
     [InlineData("ConnectionStrings__Cratebase", "Host=env;Database=cratebase")]
     [InlineData("CRATEBASE_CONNECTION_STRING", "Host=legacy;Database=cratebase")]
@@ -59,6 +86,19 @@ public sealed class SeedCommandLineTests
             SeedCommandLine.Parse(["--connection-string", "Host=localhost", optionName, "many"], static _ => null));
 
         Assert.Contains($"{optionName} must be an integer", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory(DisplayName = "Seed command line rejects invalid search verification budgets")]
+    [InlineData("soon")]
+    [InlineData("0")]
+    public void SeedCommandLineRejectsInvalidSearchVerificationBudgets(string budget)
+    {
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            SeedCommandLine.Parse(
+                ["--connection-string", "Host=localhost", "--verify-search", "--search-budget-ms", budget],
+                static _ => null));
+
+        Assert.Contains("--search-budget-ms", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Seed command line rejects unknown options")]
