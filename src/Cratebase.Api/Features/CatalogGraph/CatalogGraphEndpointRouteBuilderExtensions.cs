@@ -156,13 +156,11 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
     {
         Credit[] credits = [.. data.Credits.Where(credit => credit.Contributor.ArtistId == artist.Id)];
         ArtistRelation[] relations = [.. data.ArtistRelations.Where(relation => relation.SourceArtistId == artist.Id || relation.TargetArtistId == artist.Id)];
-        TrackId[] creditedTrackIds =
-        [
-            .. credits
-                .Select(credit => credit.Target)
-                .OfType<TrackCreditTarget>()
-                .Select(target => target.TrackId)
-        ];
+        var creditedTrackIds = credits
+            .Select(credit => credit.Target)
+            .OfType<TrackCreditTarget>()
+            .Select(target => target.TrackId)
+            .ToHashSet();
         CatalogGraphContextResponse.LinkResponse[] creditedTrackAppearances =
         [
             .. data.Releases.Values
