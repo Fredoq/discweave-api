@@ -40,30 +40,6 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
         ];
     }
 
-    private static ReleaseId[] PlaylistReleaseIds(Playlist playlist)
-    {
-        return
-        [
-            .. playlist.Entries
-                .Select(entry => entry.ReleaseId)
-                .OfType<PresentOptionalValue<ReleaseId>>()
-                .Select(id => id.Value)
-                .Distinct()
-        ];
-    }
-
-    private static TrackId[] PlaylistTrackIds(Playlist playlist)
-    {
-        return
-        [
-            .. playlist.Entries
-                .Select(entry => entry.TrackId)
-                .OfType<PresentOptionalValue<TrackId>>()
-                .Select(id => id.Value)
-                .Distinct()
-        ];
-    }
-
     private static string PlaylistSummary(Playlist playlist)
     {
         return playlist.Description is PresentOptionalValue<string> description

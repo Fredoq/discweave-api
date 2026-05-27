@@ -1,7 +1,6 @@
 using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Collection;
 using Cratebase.Domain.Playlists;
-using Cratebase.Domain.SharedKernel.Ids;
 
 namespace Cratebase.Api.Features.CatalogGraph;
 
@@ -9,18 +8,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
 {
     private static CatalogGraphContextResponse PlaylistContext(Playlist playlist, GraphData data)
     {
-        ReleaseId[] releaseIds = PlaylistReleaseIds(playlist);
-        TrackId[] trackIds = PlaylistTrackIds(playlist);
         Release[] releases =
         [
             .. data.Releases.Values
-                .Where(release => releaseIds.Contains(release.Id) || release.Tracklist.Any(item => trackIds.Contains(item.TrackId)))
                 .OrderBy(release => release.Summary.Title)
         ];
         Track[] tracks =
         [
             .. data.Tracks.Values
-                .Where(track => trackIds.Contains(track.Id))
                 .OrderBy(track => track.Title)
         ];
         OwnedItem[] ownedItems =
@@ -33,7 +28,14 @@ public static partial class CatalogGraphEndpointRouteBuilderExtensions
                     _ => false
                 })
         ];
-        Label[] labels = [.. releases.SelectMany(ReleaseLabelIds).Select(id => data.Labels.GetValueOrDefault(id)).WhereNotNull()];
+        Label[] labels =
+        [
+            .. releases
+                .SelectMany(ReleaseLabelIds)
+                .Distinct()
+                .Select(id => data.Labels.GetValueOrDefault(id))
+                .WhereNotNull()
+        ];
 
         return Response(
             Entity(playlist.Id.Value, PlaylistEntityType, playlist.Name, playlist.Type.ToString(), PlaylistSummary(playlist)),
