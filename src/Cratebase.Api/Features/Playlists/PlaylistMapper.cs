@@ -113,6 +113,16 @@ internal static partial class PlaylistMapper
             results);
     }
 
+    internal static async Task<PlaylistItemResponse[]> ResolveResultsAsync(
+        Playlist playlist,
+        CratebaseDbContext context,
+        CancellationToken cancellationToken)
+    {
+        return playlist.Type == PlaylistType.Manual
+            ? await ResolveEntriesAsync(playlist, context, cancellationToken)
+            : await ResolveSmartResultsAsync(playlist, context, cancellationToken);
+    }
+
     private static PlaylistEntry ToEntry(
         int index,
         PlaylistEntryRequest request,
