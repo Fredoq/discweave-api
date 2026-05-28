@@ -25,10 +25,10 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     {
         Domain.Collection.OwnedItem[] ownedItems =
         [
-            .. (await context.OwnedItems.AsNoTracking()
+            .. await context.OwnedItems.AsNoTracking()
                 .Where(item => item.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-                .OrderBy(item => item.Id.Value)
+                .OrderBy(item => item.Id)
+                .ToArrayAsync(cancellationToken)
         ];
 
         return await OwnedItemResponseMapper.ToResponsesAsync(context, collectionId, ownedItems, cancellationToken);

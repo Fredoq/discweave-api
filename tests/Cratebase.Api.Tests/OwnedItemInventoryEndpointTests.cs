@@ -46,13 +46,19 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     {
         await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
         HttpClient client = await host.CreateAuthenticatedClientAsync();
+        await CreateMediaDictionaryEntryAsync(client, "bandcamp", "Bandcamp", "digital");
         Guid physicalOnlyReleaseId = await CreateReleaseAsync(client, "Physical Only");
         Guid physicalOnlyItemId = await CreateOwnedItemAsync(client, "release", physicalOnlyReleaseId, "owned", "vinyl");
         Guid physicalWithDigitalReleaseId = await CreateReleaseAsync(client, "Physical With Digital");
         Guid physicalWithDigitalItemId = await CreateOwnedItemAsync(client, "release", physicalWithDigitalReleaseId, "owned", "vinyl");
         _ = await CreateDigitalOwnedItemAsync(client, "release", physicalWithDigitalReleaseId, "flac");
+        Guid physicalWithCustomDigitalReleaseId = await CreateReleaseAsync(client, "Physical With Custom Digital");
+        Guid physicalWithCustomDigitalItemId = await CreateOwnedItemAsync(client, "release", physicalWithCustomDigitalReleaseId, "owned", "vinyl");
+        _ = await CreateDigitalOwnedItemAsync(client, "release", physicalWithCustomDigitalReleaseId, "flac", "bandcamp");
         Guid lossyOnlyReleaseId = await CreateReleaseAsync(client, "Lossy Only");
         Guid lossyOnlyItemId = await CreateDigitalOwnedItemAsync(client, "release", lossyOnlyReleaseId, "mp3");
+        Guid customLossyOnlyReleaseId = await CreateReleaseAsync(client, "Custom Lossy Only");
+        Guid customLossyOnlyItemId = await CreateDigitalOwnedItemAsync(client, "release", customLossyOnlyReleaseId, "mp3", "bandcamp");
         Guid lossyWithLosslessReleaseId = await CreateReleaseAsync(client, "Lossy With Lossless");
         Guid lossyWithLosslessItemId = await CreateDigitalOwnedItemAsync(client, "release", lossyWithLosslessReleaseId, "mp3");
         _ = await CreateDigitalOwnedItemAsync(client, "release", lossyWithLosslessReleaseId, "flac");
@@ -67,9 +73,13 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
         using JsonDocument physicalWithoutDigital = await GetJsonAsync(client, "/api/owned-items?inventoryView=physicalWithoutDigital&limit=20&offset=0", HttpStatusCode.OK);
         AssertSignal(FindItem(physicalWithoutDigital, physicalOnlyItemId), "physicalWithoutDigital");
         AssertNoItem(physicalWithoutDigital, physicalWithDigitalItemId);
+        AssertNoItem(physicalWithoutDigital, physicalWithCustomDigitalItemId);
 
         using JsonDocument lossyWithoutLossless = await GetJsonAsync(client, "/api/owned-items?inventoryView=lossyWithoutLossless&limit=20&offset=0", HttpStatusCode.OK);
         AssertSignal(FindItem(lossyWithoutLossless, lossyOnlyItemId), "lossyWithoutLossless");
+        JsonElement customLossyOnlyItem = FindItem(lossyWithoutLossless, customLossyOnlyItemId);
+        AssertSignal(customLossyOnlyItem, "lossyWithoutLossless");
+        AssertSignalsAreSorted(customLossyOnlyItem);
         AssertNoItem(lossyWithoutLossless, lossyWithLosslessItemId);
 
         using JsonDocument wantedNotOwned = await GetJsonAsync(client, "/api/owned-items?inventoryView=wantedNotOwned&limit=20&offset=0", HttpStatusCode.OK);
@@ -173,9 +183,9 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
         return document.RootElement.GetProperty("id").GetGuid();
     }
 
-    private static async Task<Guid> CreateDigitalOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string format)
+    private static async Task<Guid> CreateDigitalOwnedItemAsync(HttpClient client, string targetType, Guid targetId, string format, string medium = "digital")
     {
-        return await CreateOwnedItemAsync(client, targetType, targetId, "owned", "digital", format: format);
+        return await CreateOwnedItemAsync(client, targetType, targetId, "owned", medium, format: format);
     }
 
     private static async Task<Guid> CreateOwnedItemAsync(
@@ -188,13 +198,20 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
         string? storageLocation = null,
         string? format = null)
     {
-        object mediumRequest = medium == "digital"
+        object mediumRequest = format is not null
             ? new { type = medium, path = $"/music/{targetId:N}-{format}.audio", format = format ?? "flac" }
             : new { type = medium, description = medium };
         using JsonDocument document = await SendJsonAsync(
             client.PostAsJsonAsync("/api/owned-items", new { targetType, targetId, status, medium = mediumRequest, condition, storageLocation }),
             HttpStatusCode.Created);
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task CreateMediaDictionaryEntryAsync(HttpClient client, string code, string name, string mediaProfile)
+    {
+        using JsonDocument _ = await SendJsonAsync(
+            client.PostAsJsonAsync("/api/settings/dictionaries", new { kind = "mediaType", code, name, mediaProfile }),
+            HttpStatusCode.Created);
     }
 
     private static async Task<JsonDocument> GetJsonAsync(HttpClient client, string path, HttpStatusCode expectedStatus)
@@ -229,5 +246,11 @@ public sealed class OwnedItemInventoryEndpointTests : IClassFixture<PostgresFixt
     private static void AssertSignal(JsonElement item, string signal)
     {
         Assert.Contains(item.GetProperty("inventorySignals").EnumerateArray(), value => value.GetString() == signal);
+    }
+
+    private static void AssertSignalsAreSorted(JsonElement item)
+    {
+        string[] signals = [.. item.GetProperty("inventorySignals").EnumerateArray().Select(value => value.GetString() ?? string.Empty)];
+        Assert.Equal(signals.OrderBy(signal => signal, StringComparer.OrdinalIgnoreCase), signals);
     }
 }

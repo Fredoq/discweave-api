@@ -251,7 +251,12 @@ internal static class OwnedItemResponseMapper
             signals.Add("wantedNotOwned");
         }
 
-        return [.. signals.Distinct(StringComparer.OrdinalIgnoreCase)];
+        return
+        [
+            .. signals
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(signal => signal, StringComparer.OrdinalIgnoreCase)
+        ];
     }
 
     private static bool IsLossless(AudioFileFormat format)
