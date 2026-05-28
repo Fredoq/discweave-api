@@ -192,6 +192,7 @@ public static partial class CatalogQualityEndpointRouteBuilderExtensions
             .Select(item => new TargetItem(
                 new TargetKey(item.TargetType, TargetId(item)),
                 item.Status,
+                item.MediumType,
                 item.DigitalFileFormat))
             .Where(item => item.Target.Id != Guid.Empty)
             .GroupBy(item => item.Target)
@@ -200,8 +201,8 @@ public static partial class CatalogQualityEndpointRouteBuilderExtensions
         return new CatalogQualityResponse.FormatGapReport(
             TargetSampleSection(
                 targetGroups.Where(group =>
-                    group.Items.Any(item => item.DigitalFileFormat is null) &&
-                    !group.Items.Any(item => item.DigitalFileFormat is not null)),
+                    group.Items.Any(item => item.IsPhysical) &&
+                    !group.Items.Any(item => item.IsDigital)),
                 releaseTitles,
                 trackTitles,
                 limit),

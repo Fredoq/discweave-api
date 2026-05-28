@@ -11,7 +11,9 @@ general public SaaS platform.
 - Forward `Host`, `X-Forwarded-For`, `X-Forwarded-Host` and
   `X-Forwarded-Proto` to the API.
 - Keep the API container private to the service network. The API accepts one
-  forwarded-header hop from the reverse proxy under this deployment assumption.
+  forwarded-header hop from the reverse proxy when its network or IP is listed
+  under `HostedSecurity:ForwardedHeaders:KnownNetworks` or
+  `HostedSecurity:ForwardedHeaders:KnownProxies`.
 - Production cookies are secure, HTTP-only and `SameSite=Lax`.
 - Browser API calls remain same-origin relative `/api` calls.
 - Do not add broad browser CORS for hosted v1.

@@ -38,6 +38,8 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
         _ = await CreateOwnedItemAsync(client, "release", wantedOnlyReleaseId, "wanted", new { type = "vinyl", description = "LP" });
         Guid needsDigitizationReleaseId = await CreateReleaseAsync(client, "Digitization Report", year: 1999);
         _ = await CreateOwnedItemAsync(client, "release", needsDigitizationReleaseId, "needsDigitization", new { type = "cassette", description = "Tape" });
+        Guid missingDigitalFormatReleaseId = await CreateReleaseAsync(client, "Missing Digital Format Report", year: 2000);
+        Guid missingDigitalFormatOwnedItemId = await host.SeedDigitalOwnedItemWithoutFormatAsync(missingDigitalFormatReleaseId);
 
         using JsonDocument report = await GetJsonAsync(client, "/api/catalog-quality?limit=10", HttpStatusCode.OK);
         string reportJson = report.RootElement.GetRawText();
@@ -52,7 +54,9 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
         AssertSample(report, "missingMetadata", "tracksMissingDuration", missingTrackId);
         AssertSample(report, "missingMetadata", "ownedItemsMissingCondition", missingOwnedItemId);
         AssertSample(report, "missingMetadata", "ownedItemsMissingStorageLocation", missingOwnedItemId);
+        AssertSample(report, "missingMetadata", "ownedItemsMissingDigitalFormat", missingDigitalFormatOwnedItemId);
         AssertSample(report, "formatGaps", "physicalWithoutDigital", physicalOnlyReleaseId);
+        AssertNoSample(report, "formatGaps", "physicalWithoutDigital", missingDigitalFormatReleaseId);
         AssertSample(report, "formatGaps", "lossyWithoutLossless", lossyOnlyReleaseId);
         AssertSample(report, "formatGaps", "wantedNotOwned", wantedOnlyReleaseId);
         AssertSample(report, "formatGaps", "needsDigitization", needsDigitizationReleaseId);
@@ -174,6 +178,13 @@ public sealed class CatalogQualityEndpointTests : IClassFixture<PostgresFixture>
     private static void AssertSample(JsonDocument document, string area, string section, Guid id)
     {
         Assert.Contains(
+            SectionItems(document, area, section),
+            item => item.GetProperty("id").GetGuid() == id);
+    }
+
+    private static void AssertNoSample(JsonDocument document, string area, string section, Guid id)
+    {
+        Assert.DoesNotContain(
             SectionItems(document, area, section),
             item => item.GetProperty("id").GetGuid() == id);
     }

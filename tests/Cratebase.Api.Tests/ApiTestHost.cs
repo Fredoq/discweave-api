@@ -138,6 +138,35 @@ internal sealed class ApiTestHost : IAsyncDisposable
         _ = await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> SeedDigitalOwnedItemWithoutFormatAsync(Guid releaseId, CancellationToken cancellationToken = default)
+    {
+        var ownedItemId = Guid.CreateVersion7();
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        _ = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO owned_items (
+                collection_id,
+                owned_item_id,
+                digital_file_path,
+                medium_type,
+                ownership_status,
+                target_release_id,
+                target_type)
+            VALUES (
+                {DefaultCollectionId.Value},
+                {ownedItemId},
+                {"/music/missing-format-file"},
+                {"digital"},
+                {"Owned"},
+                {releaseId},
+                {"release"})
+            """,
+            cancellationToken);
+
+        return ownedItemId;
+    }
+
     public async ValueTask DisposeAsync()
     {
         _factory.Dispose();

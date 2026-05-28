@@ -7,9 +7,10 @@ namespace Cratebase.Api.Hosting;
 
 public static class HostedSecurityServiceCollectionExtensions
 {
-    public static IServiceCollection AddHostedSecurity(this IServiceCollection services)
+    public static IServiceCollection AddHostedSecurity(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         _ = services.Configure<ForwardedHeadersOptions>(options =>
         {
@@ -18,8 +19,7 @@ public static class HostedSecurityServiceCollectionExtensions
                 ForwardedHeaders.XForwardedProto |
                 ForwardedHeaders.XForwardedHost;
             options.ForwardLimit = 1;
-            options.KnownIPNetworks.Clear();
-            options.KnownProxies.Clear();
+            AddKnownForwardedHeaderPeers(options, configuration);
         });
         _ = services.AddHsts(options =>
         {
@@ -39,6 +39,27 @@ public static class HostedSecurityServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static void AddKnownForwardedHeaderPeers(
+        ForwardedHeadersOptions options,
+        IConfiguration configuration)
+    {
+        foreach (IConfigurationSection section in configuration.GetSection("HostedSecurity:ForwardedHeaders:KnownNetworks").GetChildren())
+        {
+            if (!string.IsNullOrWhiteSpace(section.Value))
+            {
+                options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(section.Value));
+            }
+        }
+
+        foreach (IConfigurationSection section in configuration.GetSection("HostedSecurity:ForwardedHeaders:KnownProxies").GetChildren())
+        {
+            if (!string.IsNullOrWhiteSpace(section.Value))
+            {
+                options.KnownProxies.Add(System.Net.IPAddress.Parse(section.Value));
+            }
+        }
     }
 
     private static RateLimitPartition<string> CreateLimiter(HttpContext context)

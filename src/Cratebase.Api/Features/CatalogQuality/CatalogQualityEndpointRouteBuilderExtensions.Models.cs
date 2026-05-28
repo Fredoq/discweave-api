@@ -20,7 +20,16 @@ public static partial class CatalogQualityEndpointRouteBuilderExtensions
 
     private sealed record TargetKey(string Type, Guid Id);
 
-    private sealed record TargetItem(TargetKey Target, OwnershipStatus Status, AudioFileFormat? DigitalFileFormat);
+    private sealed record TargetItem(
+        TargetKey Target,
+        OwnershipStatus Status,
+        string MediumType,
+        AudioFileFormat? DigitalFileFormat)
+    {
+        public bool IsDigital => string.Equals(MediumType, "digital", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsPhysical => !IsDigital;
+    }
 
     private sealed record TargetGroup(TargetKey Target, IReadOnlyList<TargetItem> Items);
 }

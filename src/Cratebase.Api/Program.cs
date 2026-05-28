@@ -19,7 +19,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCratebaseApplication();
 builder.Services.AddCratebaseInfrastructure(builder.Configuration);
-builder.Services.AddHostedSecurity();
+builder.Services.AddHostedSecurity(builder.Configuration);
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
