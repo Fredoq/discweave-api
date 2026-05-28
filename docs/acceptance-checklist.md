@@ -21,6 +21,8 @@ and `cratebase-web`.
 - Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
 - Store release covers and desktop installer artifacts on persistent service storage.
 - Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
+- Verify production responses include hosted security headers, invalid unsafe origins receive `security.origin_invalid`, and limited endpoint families return structured `rate_limit.exceeded` responses.
+- Run the local hosted restore drill before private beta release evidence is collected.
 - Build the API and web Docker images, then run the example compose stack and verify `/health`, `/web-health`, web routing and authenticated `/api` calls through the reverse proxy.
 
 ## Acceptance Path
@@ -72,6 +74,12 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --performance-budget-ms 250
 ```
 
+Hosted restore drill:
+
+```bash
+bash deploy/hosted-restore-drill.sh
+```
+
 See [search-v1.md](search-v1.md) for the backend search contract and saved view
 definitions.
 See [imports/desktop-import-api-boundary.md](imports/desktop-import-api-boundary.md)
@@ -81,6 +89,13 @@ hosted JSON/CSV export contract and restore boundary.
 See [quality/large-collection-quality-baseline.md](quality/large-collection-quality-baseline.md)
 for the catalog quality report, destructive delete confirmations and local
 performance smoke probes.
+See [hosting/hosted-backup-restore-baseline.md](hosting/hosted-backup-restore-baseline.md)
+for hosted backup ownership, service storage backups and restore drill scope.
+See [security/hosted-security-baseline.md](security/hosted-security-baseline.md)
+for the hosted security baseline and rate-limit matrix.
+See [private-beta/data-handling-and-trust.md](private-beta/data-handling-and-trust.md)
+and [private-beta/release-readiness.md](private-beta/release-readiness.md) for
+private beta trust copy, release evidence and feedback capture.
 
 Frontend:
 

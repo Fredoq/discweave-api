@@ -3,6 +3,7 @@ using Cratebase.Api;
 using Cratebase.Api.Auth;
 using Cratebase.Api.Features;
 using Cratebase.Api.Features.Imports;
+using Cratebase.Api.Hosting;
 using Cratebase.Api.Http;
 using Cratebase.Application;
 using Cratebase.Application.Security;
@@ -18,6 +19,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCratebaseApplication();
 builder.Services.AddCratebaseInfrastructure(builder.Configuration);
+builder.Services.AddHostedSecurity();
 builder.Services.AddScoped<ReleaseImportConfirmationService>();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
@@ -96,7 +98,9 @@ builder.Services.AddAuthorizationBuilder()
 
 WebApplication app = builder.Build();
 
+app.UseHostedSecurity();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapCratebaseEndpoints();

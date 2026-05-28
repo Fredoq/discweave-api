@@ -99,12 +99,22 @@ DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
 See [docs/hosting/hosted-deployment-baseline.md](docs/hosting/hosted-deployment-baseline.md)
 for topology, migration, secret, TLS, reverse proxy, storage, and compose
 example details.
+See [docs/hosting/hosted-backup-restore-baseline.md](docs/hosting/hosted-backup-restore-baseline.md)
+for managed PostgreSQL, service storage, and local restore drill expectations.
+See [docs/security/hosted-security-baseline.md](docs/security/hosted-security-baseline.md)
+for forwarded-header, same-origin, rate-limit, security-header, and logging
+redaction expectations.
+Private beta data handling and release readiness are documented in
+[docs/private-beta/data-handling-and-trust.md](docs/private-beta/data-handling-and-trust.md)
+and
+[docs/private-beta/release-readiness.md](docs/private-beta/release-readiness.md).
 
 ## Verification
 
 ```bash
 dotnet test Cratebase.slnx
 dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+bash deploy/hosted-restore-drill.sh
 ```
 
 ## Product Workflows
