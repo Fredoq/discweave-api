@@ -2,11 +2,16 @@ using Cratebase.Domain.Collection;
 using Cratebase.Infrastructure.Persistence.Search;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NpgsqlTypes;
 
 namespace Cratebase.Infrastructure.Persistence.Configurations;
 
 internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<SearchDocument>
 {
+    private const string GinIndexMethod = "GIN";
+    private const string TrigramOperator = "gin_trgm_ops";
+    private const string SearchVectorProperty = "SearchVector";
+
     public void Configure(EntityTypeBuilder<SearchDocument> builder)
     {
         _ = builder.ToTable("search_documents");
@@ -47,6 +52,12 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
         _ = builder.Property(document => document.SearchText)
             .HasColumnName("search_text")
             .HasColumnType("text")
+            .IsRequired();
+
+        _ = builder.Property<NpgsqlTsVector>(SearchVectorProperty)
+            .HasColumnName("search_vector")
+            .HasColumnType("tsvector")
+            .HasComputedColumnSql("to_tsvector('simple', coalesce(search_text, ''))", stored: true)
             .IsRequired();
 
         _ = builder.Property(document => document.MatchedFields)
@@ -99,6 +110,37 @@ internal sealed class SearchDocumentConfiguration : IEntityTypeConfiguration<Sea
             .HasDatabaseName("ix_search_documents_collection_entity_type");
         _ = builder.HasIndex(document => new { document.CollectionId, document.LabelId })
             .HasDatabaseName("ix_search_documents_collection_label_id");
+        _ = builder.HasIndex(SearchVectorProperty)
+            .HasDatabaseName("ix_search_documents_search_vector")
+            .HasMethod(GinIndexMethod);
+        _ = builder.HasIndex(document => document.SearchText)
+            .HasDatabaseName("ix_search_documents_search_text_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.RoleFacet)
+            .HasDatabaseName("ix_search_documents_role_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.MediaFacet)
+            .HasDatabaseName("ix_search_documents_media_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.StatusFacet)
+            .HasDatabaseName("ix_search_documents_status_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.TagFacet)
+            .HasDatabaseName("ix_search_documents_tag_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.LabelIdFacet)
+            .HasDatabaseName("ix_search_documents_label_id_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
+        _ = builder.HasIndex(document => document.CollectorSignalFacet)
+            .HasDatabaseName("ix_search_documents_collector_signal_facet_trgm")
+            .HasMethod(GinIndexMethod)
+            .HasOperators(TrigramOperator);
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()
