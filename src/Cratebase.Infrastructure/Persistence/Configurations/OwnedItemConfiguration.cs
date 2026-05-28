@@ -127,6 +127,18 @@ internal sealed class OwnedItemConfiguration : IEntityTypeConfiguration<OwnedIte
         _ = builder.HasIndex(item => item.CollectionId);
         _ = builder.HasIndex("_mediumType");
         _ = builder.HasIndex("_status");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_condition")
+            .HasDatabaseName("ix_owned_items_collection_condition");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_storageLocation")
+            .HasDatabaseName("ix_owned_items_collection_storage_location");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_targetType", "_targetReleaseId", "_mediumType")
+            .HasDatabaseName("ix_owned_items_inventory_release_medium");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_targetType", "_targetTrackId", "_mediumType")
+            .HasDatabaseName("ix_owned_items_inventory_track_medium");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_targetType", "_targetReleaseId", "_status")
+            .HasDatabaseName("ix_owned_items_inventory_release_status");
+        _ = builder.HasIndex(nameof(OwnedItem.CollectionId), "_targetType", "_targetTrackId", "_status")
+            .HasDatabaseName("ix_owned_items_inventory_track_status");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()

@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.OwnedItems;
 
-public static class OwnedItemsEndpointRouteBuilderExtensions
+public static partial class OwnedItemsEndpointRouteBuilderExtensions
 {
     public static IEndpointRouteBuilder MapOwnedItemsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -61,7 +61,13 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
             items.Add(item);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Created($"/api/owned-items/{item.Id}", OwnedItemMapper.ToResponse(item));
+            OwnedItemResponse response = await OwnedItemResponseMapper.ToResponseAsync(
+                context,
+                currentCollection.CollectionId,
+                item,
+                cancellationToken);
+
+            return Results.Created($"/api/owned-items/{item.Id}", response);
         }
         catch (DomainException exception)
         {
@@ -89,48 +95,11 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
 
         return item is null
             ? EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found")
-            : Results.Ok(OwnedItemMapper.ToResponse(item));
-    }
-
-    private static async Task<IResult> ListOwnedItemsAsync(
-        string? status,
-        string? medium,
-        int? limit,
-        int? offset,
-        CratebaseDbContext context,
-        ICurrentCollection currentCollection,
-        CancellationToken cancellationToken)
-    {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
-        {
-            return error;
-        }
-
-        IQueryable<OwnedItem> items = context.OwnedItems.AsNoTracking().Where(item => item.CollectionId == currentCollection.CollectionId);
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            if (!OwnedItemMapper.TryParseOwnershipStatus(status, out OwnershipStatus normalizedStatus))
-            {
-                return EndpointErrors.BadRequest("owned_item.status_invalid", "Owned item status is invalid");
-            }
-
-            items = items.Where(item => EF.Property<OwnershipStatus>(item, "_status") == normalizedStatus);
-        }
-
-        if (!string.IsNullOrWhiteSpace(medium))
-        {
-            string normalizedMedium = medium.Trim();
-            items = items.Where(item => EF.Property<string>(item, "_mediumType") == normalizedMedium);
-        }
-
-        int total = await items.CountAsync(cancellationToken);
-        OwnedItem[] page = await items
-            .OrderBy(item => item.Id)
-            .Skip(normalizedOffset)
-            .Take(normalizedLimit)
-            .ToArrayAsync(cancellationToken);
-
-        return Results.Ok(new ListResponse<OwnedItemResponse>([.. page.Select(OwnedItemMapper.ToResponse)], normalizedLimit, normalizedOffset, total));
+            : Results.Ok(await OwnedItemResponseMapper.ToResponseAsync(
+                context,
+                currentCollection.CollectionId,
+                item,
+                cancellationToken));
     }
 
     private static async Task<IResult> UpdateOwnedItemAsync(
@@ -177,7 +146,13 @@ public static class OwnedItemsEndpointRouteBuilderExtensions
             item.UpdateHolding(OwnedItemMapper.CreateHolding(medium, request.Status, request.Condition, request.StorageLocation));
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(OwnedItemMapper.ToResponse(item));
+            OwnedItemResponse response = await OwnedItemResponseMapper.ToResponseAsync(
+                context,
+                currentCollection.CollectionId,
+                item,
+                cancellationToken);
+
+            return Results.Ok(response);
         }
         catch (DomainException exception)
         {
