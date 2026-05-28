@@ -138,7 +138,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         return candidates
             .Where(release =>
-                release.Tracklist.Count > 0 &&
+                release.Tracklist.Count == selectedTrackIdSet.Count &&
                 release.Tracklist.All(track => selectedTrackIdSet.Contains(track.TrackId)))
             .OrderByDescending(release => release.Tracklist.Count)
             .FirstOrDefault();
