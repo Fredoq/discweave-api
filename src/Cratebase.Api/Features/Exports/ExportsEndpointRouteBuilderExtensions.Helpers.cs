@@ -23,14 +23,15 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        return
+        Domain.Collection.OwnedItem[] ownedItems =
         [
-            .. (await context.OwnedItems.AsNoTracking()
+            .. await context.OwnedItems.AsNoTracking()
                 .Where(item => item.CollectionId == collectionId)
-                .ToArrayAsync(cancellationToken))
-                .OrderBy(item => item.Id.Value)
-                .Select(OwnedItemMapper.ToResponse)
+                .OrderBy(item => item.Id)
+                .ToArrayAsync(cancellationToken)
         ];
+
+        return await OwnedItemResponseMapper.ToResponsesAsync(context, collectionId, ownedItems, cancellationToken);
     }
 
     private static async Task<IReadOnlyList<PlaylistResponse>> LoadPlaylistsAsync(

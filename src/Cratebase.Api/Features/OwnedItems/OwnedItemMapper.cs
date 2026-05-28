@@ -59,7 +59,10 @@ internal static class OwnedItemMapper
         };
     }
 
-    public static OwnedItemResponse ToResponse(OwnedItem item)
+    public static OwnedItemResponse ToResponse(
+        OwnedItem item,
+        OwnedItemTargetResponse? targetResponse,
+        IReadOnlyList<string> inventorySignals)
     {
         OwnedItemHolding holding = item.Holding;
         OwnedItemTarget target = item.Target;
@@ -68,10 +71,12 @@ internal static class OwnedItemMapper
             item.Id.Value,
             target is ReleaseOwnedItemTarget ? "release" : "track",
             target is ReleaseOwnedItemTarget release ? release.ReleaseId.Value : ((TrackOwnedItemTarget)target).TrackId.Value,
+            targetResponse,
             ToOwnershipStatusCode(holding.Status),
             ToMediumResponse(holding.Medium),
             holding.Details.Condition.HasValue ? holding.Details.Condition.Match(ToItemConditionCode, () => string.Empty) : null,
-            holding.Details.StorageLocation.HasValue ? holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty) : null);
+            holding.Details.StorageLocation.HasValue ? holding.Details.StorageLocation.Match(location => location.Name, () => string.Empty) : null,
+            inventorySignals);
     }
 
     public static bool TryParseOwnershipStatus(string status, out OwnershipStatus ownershipStatus)
@@ -108,6 +113,37 @@ internal static class OwnedItemMapper
         };
     }
 
+    public static bool TryParseItemCondition(string condition, out ItemCondition itemCondition)
+    {
+        switch (condition.Trim())
+        {
+            case "mint":
+                itemCondition = ItemCondition.Mint;
+                return true;
+            case "nearMint":
+                itemCondition = ItemCondition.NearMint;
+                return true;
+            case "veryGoodPlus":
+                itemCondition = ItemCondition.VeryGoodPlus;
+                return true;
+            case "veryGood":
+                itemCondition = ItemCondition.VeryGood;
+                return true;
+            case "good":
+                itemCondition = ItemCondition.Good;
+                return true;
+            case "fair":
+                itemCondition = ItemCondition.Fair;
+                return true;
+            case "poor":
+                itemCondition = ItemCondition.Poor;
+                return true;
+            default:
+                itemCondition = default;
+                return false;
+        }
+    }
+
     private static MediumResponse ToMediumResponse(IMedium medium)
     {
         return medium switch
@@ -123,17 +159,9 @@ internal static class OwnedItemMapper
 
     private static ItemCondition ParseItemCondition(string condition)
     {
-        return Required(condition, "owned_item.condition_required").Trim() switch
-        {
-            "mint" => ItemCondition.Mint,
-            "nearMint" => ItemCondition.NearMint,
-            "veryGoodPlus" => ItemCondition.VeryGoodPlus,
-            "veryGood" => ItemCondition.VeryGood,
-            "good" => ItemCondition.Good,
-            "fair" => ItemCondition.Fair,
-            "poor" => ItemCondition.Poor,
-            _ => throw new DomainException("owned_item.condition_invalid", "Owned item condition is invalid")
-        };
+        return TryParseItemCondition(Required(condition, "owned_item.condition_required"), out ItemCondition itemCondition)
+            ? itemCondition
+            : throw new DomainException("owned_item.condition_invalid", "Owned item condition is invalid");
     }
 
     private static AudioFileFormat ParseAudioFileFormat(string format)
@@ -151,7 +179,7 @@ internal static class OwnedItemMapper
         };
     }
 
-    private static string ToOwnershipStatusCode(OwnershipStatus status)
+    public static string ToOwnershipStatusCode(OwnershipStatus status)
     {
         return status switch
         {
