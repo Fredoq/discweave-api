@@ -4,6 +4,7 @@ using Cratebase.Domain.Catalog;
 using Cratebase.Domain.Credits;
 using Cratebase.Domain.Imports;
 using Cratebase.Domain.Settings;
+using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -135,7 +136,7 @@ public sealed partial class ReleaseImportConfirmationService
                 track => track.CollectionId == collectionId && track.Id == selectedTrackId,
                 cancellationToken);
 
-            return existing ?? throw new InvalidOperationException("Selected track is missing");
+            return existing ?? throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
         }
 
         var track = Track.Create(collectionId, TrackId.New(), draftTrack.Title);

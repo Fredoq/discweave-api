@@ -164,7 +164,10 @@ Matching order:
 When a scan matches an existing owned digital track, the draft track receives
 `selectedTrackId` and a `release_import.duplicate_file` warning. Confirming a
 fully duplicate draft is a no-op for existing release, track, and owned item
-rows. Repeating the same scan must not create duplicate catalog data.
+rows. Confirming a partial duplicate reuses a same-title release only when the
+existing release tracklist is safely represented by selected duplicate tracks in
+the reviewed draft; the backend then appends only missing tracks and owned
+digital items. Repeating the same scan must not create duplicate catalog data.
 
 ## No Audio Uploads
 
