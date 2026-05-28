@@ -140,6 +140,8 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
     {
         base.OnModelCreating(builder);
 
+        _ = builder.HasPostgresExtension("pg_trgm");
+
         _ = builder.ApplyConfiguration(new ArtistConfiguration());
         _ = builder.ApplyConfiguration(new ArtistRelationConfiguration());
         _ = builder.ApplyConfiguration(new CollectionDictionaryEntryConfiguration());

@@ -25,16 +25,25 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public static async Task<ApiTestHost> CreateAsync(PostgresFixture postgres, CancellationToken cancellationToken = default)
     {
-        return await CreateAsync(postgres, new Dictionary<string, string?>(), cancellationToken);
+        return await CreateAsync(postgres, new Dictionary<string, string?>(), cancellationToken: cancellationToken);
+    }
+
+    public static async Task<ApiTestHost> CreateAsync(
+        PostgresFixture postgres,
+        string environmentName,
+        CancellationToken cancellationToken = default)
+    {
+        return await CreateAsync(postgres, new Dictionary<string, string?>(), environmentName, cancellationToken);
     }
 
     public static async Task<ApiTestHost> CreateAsync(
         PostgresFixture postgres,
         IReadOnlyDictionary<string, string?> settings,
+        string environmentName = "Development",
         CancellationToken cancellationToken = default)
     {
         string connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
-        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings);
+        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings, environmentName);
 
         var host = new ApiTestHost(factory);
         await host.MigrateAsync(cancellationToken);
@@ -45,6 +54,11 @@ internal sealed class ApiTestHost : IAsyncDisposable
     public HttpClient CreateClient()
     {
         return _factory.CreateClient();
+    }
+
+    public HttpClient CreateClient(Uri baseAddress)
+    {
+        return _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = baseAddress });
     }
 
     public async Task<HttpClient> CreateAuthenticatedClientAsync(CancellationToken cancellationToken = default)
@@ -124,6 +138,35 @@ internal sealed class ApiTestHost : IAsyncDisposable
         _ = await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> SeedDigitalOwnedItemWithoutFormatAsync(Guid releaseId, CancellationToken cancellationToken = default)
+    {
+        var ownedItemId = Guid.CreateVersion7();
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+        _ = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO owned_items (
+                collection_id,
+                owned_item_id,
+                digital_file_path,
+                medium_type,
+                ownership_status,
+                target_release_id,
+                target_type)
+            VALUES (
+                {DefaultCollectionId.Value},
+                {ownedItemId},
+                {"/music/missing-format-file"},
+                {"digital"},
+                {"Owned"},
+                {releaseId},
+                {"release"})
+            """,
+            cancellationToken);
+
+        return ownedItemId;
+    }
+
     public async ValueTask DisposeAsync()
     {
         _factory.Dispose();
@@ -141,16 +184,22 @@ internal sealed class ApiTestHost : IAsyncDisposable
     {
         private readonly string _connectionString;
         private readonly IReadOnlyDictionary<string, string?> _settings;
+        private readonly string _environmentName;
 
-        public ConfiguredApiFactory(string connectionString, IReadOnlyDictionary<string, string?> settings)
+        public ConfiguredApiFactory(
+            string connectionString,
+            IReadOnlyDictionary<string, string?> settings,
+            string environmentName)
         {
             _connectionString = connectionString;
             _settings = settings;
+            _environmentName = environmentName;
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             _ = builder.UseSetting("ConnectionStrings:Cratebase", _connectionString);
+            _ = builder.UseEnvironment(_environmentName);
             _ = builder.ConfigureAppConfiguration((context, configuration) =>
             {
                 _ = context;

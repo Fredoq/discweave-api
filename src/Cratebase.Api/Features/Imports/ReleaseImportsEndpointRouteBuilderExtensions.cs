@@ -228,16 +228,16 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
         try
         {
             draft.Skip();
+            ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
+                ?? throw new InvalidOperationException("Release import session is required");
+            await ReleaseImportConfirmationService.UpdateSessionStatusAsync(context, session, draft, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);
+            return Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));
         }
         catch (DomainException exception)
         {
             return EndpointErrors.BadRequest(exception.Code, exception.Message);
         }
-
-        ReleaseImportSession session = await FindSessionAsync(context, currentCollection.CollectionId, sessionId, cancellationToken)
-            ?? throw new InvalidOperationException("Release import session is required");
-        return Results.Ok(await ReleaseImportResponseMapper.ToDetailResponseAsync(session, context, currentCollection.CollectionId, cancellationToken));
     }
 
 }

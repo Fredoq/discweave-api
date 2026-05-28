@@ -99,12 +99,22 @@ DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
 See [docs/hosting/hosted-deployment-baseline.md](docs/hosting/hosted-deployment-baseline.md)
 for topology, migration, secret, TLS, reverse proxy, storage, and compose
 example details.
+See [docs/hosting/hosted-backup-restore-baseline.md](docs/hosting/hosted-backup-restore-baseline.md)
+for managed PostgreSQL, service storage, and local restore drill expectations.
+See [docs/security/hosted-security-baseline.md](docs/security/hosted-security-baseline.md)
+for forwarded-header, same-origin, rate-limit, security-header, and logging
+redaction expectations.
+Private beta data handling and release readiness are documented in
+[docs/private-beta/data-handling-and-trust.md](docs/private-beta/data-handling-and-trust.md)
+and
+[docs/private-beta/release-readiness.md](docs/private-beta/release-readiness.md).
 
 ## Verification
 
 ```bash
 dotnet test Cratebase.slnx
 dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+bash deploy/hosted-restore-drill.sh
 ```
 
 ## Product Workflows
@@ -120,9 +130,22 @@ dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 - Export portable JSON and CSV data, including playlists.
 - Restore a JSON export into an empty active collection.
 
+See [docs/exports/portable-export-v1.md](docs/exports/portable-export-v1.md)
+for the hosted JSON/CSV export contract, CSV table headers, collection scoping,
+cover metadata boundary, and restore limits.
+
 See [docs/search-v1.md](docs/search-v1.md) for the finalized search request and
 response contract, saved views, collection isolation behavior, and large-seed
 smoke verification command.
+
+See [docs/imports/desktop-import-api-boundary.md](docs/imports/desktop-import-api-boundary.md)
+for the hosted desktop folder scan contract, including request and response
+shapes, collection scoping, no-audio-upload boundaries, cover artifact limits,
+and duplicate matching rules.
+
+See [docs/quality/large-collection-quality-baseline.md](docs/quality/large-collection-quality-baseline.md)
+for the catalog quality report, destructive delete confirmation tokens, and
+large-collection performance smoke probes.
 
 ## Large Collection Seed
 
@@ -162,6 +185,15 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
   --verify-search \
   --search-budget-ms 250
+```
+
+Run the large-collection performance smoke probes after seeding:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+  --verify-performance \
+  --performance-budget-ms 250
 ```
 
 ## Product Boundaries

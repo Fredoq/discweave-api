@@ -18,6 +18,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Cratebase: Host=postgres;Port=5432;Database=cratebase;Username=cratebase;Password=${CRATEBASE_POSTGRES_PASSWORD:?Set CRATEBASE_POSTGRES_PASSWORD}
       DesktopDownloads__MacOsInstallerPath: /var/lib/cratebase/desktop/Cratebase.dmg
+      HostedSecurity__ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
       ReleaseCovers__StorageRoot: /var/lib/cratebase/release-covers
     depends_on:
       api-migrations:

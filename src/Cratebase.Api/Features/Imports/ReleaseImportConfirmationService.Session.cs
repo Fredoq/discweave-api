@@ -6,9 +6,10 @@ namespace Cratebase.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
-    private static async Task UpdateSessionStatusAsync(
+    internal static async Task UpdateSessionStatusAsync(
         CratebaseDbContext context,
         ReleaseImportSession session,
+        ReleaseImportDraft changedDraft,
         CancellationToken cancellationToken)
     {
         ReleaseImportDraftStatus[] openStatuses =
@@ -16,11 +17,16 @@ public sealed partial class ReleaseImportConfirmationService
             ReleaseImportDraftStatus.NeedsReview,
             ReleaseImportDraftStatus.Ready
         ];
-        bool hasOpenDrafts = await context.ReleaseImportDrafts.AnyAsync(
-            draft => draft.SessionId == session.Id && openStatuses.Contains(draft.Status),
+        bool changedDraftIsOpen = openStatuses.Contains(changedDraft.Status);
+        bool hasOtherOpenDrafts = await context.ReleaseImportDrafts.AnyAsync(
+            draft =>
+                draft.CollectionId == session.CollectionId &&
+                draft.SessionId == session.Id &&
+                draft.Id != changedDraft.Id &&
+                openStatuses.Contains(draft.Status),
             cancellationToken);
 
-        if (!hasOpenDrafts)
+        if (!changedDraftIsOpen && !hasOtherOpenDrafts)
         {
             session.Complete(DateTimeOffset.UtcNow);
         }

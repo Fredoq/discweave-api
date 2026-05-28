@@ -81,6 +81,18 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 throw new DomainException("release_import.track_not_found", "Release import draft track was not found");
             }
 
+            TrackId? selectedTrackId = trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value);
+            if (selectedTrackId is { } trackId)
+            {
+                bool selectedTrackExists = await context.Tracks.AnyAsync(
+                    candidate => candidate.CollectionId == draft.CollectionId && candidate.Id == trackId,
+                    cancellationToken);
+                if (!selectedTrackExists)
+                {
+                    throw new DomainException("release_import.selected_track_not_found", "Selected import track was not found");
+                }
+            }
+
             track.UpdateEditableFields(new DraftTrackEditableFields(
                 trackRequest.Position,
                 trackRequest.Title,
@@ -88,7 +100,7 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
                 trackRequest.ArtistNames ?? [],
                 [.. trackRequest.ArtistCredits?.Select(ToImportArtistCredit) ?? []],
                 trackRequest.SelectedArtistIds ?? [],
-                trackRequest.SelectedTrackId is null ? null : new TrackId(trackRequest.SelectedTrackId.Value),
+                selectedTrackId,
                 trackRequest.IsSkipped,
                 track.Issues));
         }

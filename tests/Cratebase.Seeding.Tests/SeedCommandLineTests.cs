@@ -43,6 +43,22 @@ public sealed class SeedCommandLineTests
         Assert.Equal(500, command.SearchBudgetMilliseconds);
     }
 
+    [Fact(DisplayName = "Seed command line parses performance verification options")]
+    public void SeedCommandLineParsesPerformanceVerificationOptions()
+    {
+        string[] args =
+        [
+            "--connection-string", "Host=localhost;Database=cratebase",
+            "--verify-performance",
+            "--performance-budget-ms", "750"
+        ];
+
+        SeedCommand command = SeedCommandLine.Parse(args, static _ => null);
+
+        Assert.True(command.VerifyPerformance);
+        Assert.Equal(750, command.PerformanceBudgetMilliseconds);
+    }
+
     [Fact(DisplayName = "Seed command line uses the default search verification budget")]
     public void SeedCommandLineUsesTheDefaultSearchVerificationBudget()
     {
@@ -52,6 +68,17 @@ public sealed class SeedCommandLineTests
 
         Assert.True(command.VerifySearch);
         Assert.Equal(250, command.SearchBudgetMilliseconds);
+    }
+
+    [Fact(DisplayName = "Seed command line uses the default performance verification budget")]
+    public void SeedCommandLineUsesTheDefaultPerformanceVerificationBudget()
+    {
+        SeedCommand command = SeedCommandLine.Parse(
+            ["--connection-string", "Host=localhost;Database=cratebase", "--verify-performance"],
+            static _ => null);
+
+        Assert.True(command.VerifyPerformance);
+        Assert.Equal(250, command.PerformanceBudgetMilliseconds);
     }
 
     [Theory(DisplayName = "Seed command line uses connection string from environment")]
@@ -99,6 +126,19 @@ public sealed class SeedCommandLineTests
                 static _ => null));
 
         Assert.Contains("--search-budget-ms", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory(DisplayName = "Seed command line rejects invalid performance verification budgets")]
+    [InlineData("soon")]
+    [InlineData("0")]
+    public void SeedCommandLineRejectsInvalidPerformanceVerificationBudgets(string budget)
+    {
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            SeedCommandLine.Parse(
+                ["--connection-string", "Host=localhost", "--verify-performance", "--performance-budget-ms", budget],
+                static _ => null));
+
+        Assert.Contains("--performance-budget-ms", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "Seed command line rejects unknown options")]

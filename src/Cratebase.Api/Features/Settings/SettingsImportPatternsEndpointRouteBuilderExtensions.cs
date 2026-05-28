@@ -109,8 +109,18 @@ public static partial class SettingsImportPatternsEndpointRouteBuilderExtensions
         }
     }
 
-    private static async Task<IResult> DeleteImportPatternAsync(Guid patternId, CratebaseDbContext context, ICurrentCollection currentCollection, CancellationToken cancellationToken)
+    private static async Task<IResult> DeleteImportPatternAsync(
+        Guid patternId,
+        HttpRequest request,
+        CratebaseDbContext context,
+        ICurrentCollection currentCollection,
+        CancellationToken cancellationToken)
     {
+        if (!DeleteConfirmation.Matches(request, "import-pattern", patternId))
+        {
+            return EndpointErrors.DeleteConfirmationRequired();
+        }
+
         ImportPattern? pattern = await FindPatternAsync(context, currentCollection.CollectionId, patternId, cancellationToken);
         if (pattern is null)
         {

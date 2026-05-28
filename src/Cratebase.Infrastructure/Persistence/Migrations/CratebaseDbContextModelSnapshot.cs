@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -21,6 +22,7 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Cratebase.Domain.Catalog.Artist", b =>
@@ -1467,6 +1469,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("search_text");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("to_tsvector('simple', coalesce(search_text, ''))", true);
+
                     b.Property<string>("Snippets")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1499,6 +1508,53 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .HasColumnName("title");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CollectorSignalFacet")
+                        .HasDatabaseName("ix_search_documents_collector_signal_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CollectorSignalFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("CollectorSignalFacet"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("LabelIdFacet")
+                        .HasDatabaseName("ix_search_documents_label_id_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("LabelIdFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("LabelIdFacet"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("MediaFacet")
+                        .HasDatabaseName("ix_search_documents_media_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MediaFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("MediaFacet"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("RoleFacet")
+                        .HasDatabaseName("ix_search_documents_role_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("RoleFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("RoleFacet"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("SearchText")
+                        .HasDatabaseName("ix_search_documents_search_text_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchText"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("SearchText"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_search_documents_search_vector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "GIN");
+
+                    b.HasIndex("StatusFacet")
+                        .HasDatabaseName("ix_search_documents_status_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("StatusFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("StatusFacet"), new[] { "gin_trgm_ops" });
+
+                    b.HasIndex("TagFacet")
+                        .HasDatabaseName("ix_search_documents_tag_facet_trgm");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("TagFacet"), "GIN");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("TagFacet"), new[] { "gin_trgm_ops" });
 
                     b.HasIndex("CollectionId", "EntityType")
                         .HasDatabaseName("ix_search_documents_collection_entity_type");

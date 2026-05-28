@@ -1,4 +1,5 @@
 using System.Net;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -217,4 +218,44 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
         Assert.DoesNotContain("Admin Secret", userSnapshot, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "Rich JSON and CSV exports stay scoped to the authenticated collection")]
+    public async Task Rich_json_and_csv_exports_stay_scoped_to_the_authenticated_collection()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
+        _ = await CreateRichSnapshotDataAsync(adminClient);
+        HttpClient userClient = await CreateUserClientAsync(host, adminClient);
+        _ = await CreateArtistAsync(userClient, "Visible Export Artist");
+
+        string userSnapshot = await ExportJsonAsync(userClient);
+        using HttpResponseMessage csvResponse = await userClient.GetAsync("/api/exports/csv");
+        Assert.Equal(HttpStatusCode.OK, csvResponse.StatusCode);
+        await using Stream csvStream = await csvResponse.Content.ReadAsStreamAsync();
+        using var archive = new ZipArchive(csvStream, ZipArchiveMode.Read);
+        string csv = await ReadAllCsvEntriesAsync(archive);
+
+        Assert.Contains("Visible Export Artist", userSnapshot, StringComparison.Ordinal);
+        Assert.Contains("Visible Export Artist", csv, StringComparison.Ordinal);
+        Assert.DoesNotContain("Factory Records", userSnapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore sequence", userSnapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("DAT safety copy", userSnapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("Minimal Synth", userSnapshot, StringComparison.Ordinal);
+        Assert.DoesNotContain("Factory Records", csv, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restore sequence", csv, StringComparison.Ordinal);
+        Assert.DoesNotContain("DAT safety copy", csv, StringComparison.Ordinal);
+        Assert.DoesNotContain("Minimal Synth", csv, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> ReadAllCsvEntriesAsync(ZipArchive archive)
+    {
+        var writer = new StringWriter();
+        foreach (ZipArchiveEntry entry in archive.Entries.OrderBy(entry => entry.FullName, StringComparer.Ordinal))
+        {
+            await using Stream stream = entry.Open();
+            using var reader = new StreamReader(stream);
+            await writer.WriteLineAsync(await reader.ReadToEndAsync());
+        }
+
+        return writer.ToString();
+    }
 }

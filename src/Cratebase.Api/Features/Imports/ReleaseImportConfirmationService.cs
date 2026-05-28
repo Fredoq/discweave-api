@@ -63,7 +63,19 @@ public sealed partial class ReleaseImportConfirmationService
         if (existingRelease is not null)
         {
             draft.Confirm(existingRelease.Id);
-            await UpdateSessionStatusAsync(context, session, cancellationToken);
+            await UpdateSessionStatusAsync(context, session, draft, cancellationToken);
+            _ = await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return session;
+        }
+
+        Release? partialDuplicateRelease = await FindPartialDuplicateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
+        if (partialDuplicateRelease is not null)
+        {
+            await AddTracksAsync(context, collectionId, partialDuplicateRelease, draft, tracks, cancellationToken);
+            draft.Confirm(partialDuplicateRelease.Id);
+            await UpdateSessionStatusAsync(context, session, draft, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -72,7 +84,7 @@ public sealed partial class ReleaseImportConfirmationService
 
         Release release = await CreateReleaseAsync(context, collectionId, draft, tracks, cancellationToken);
         draft.Confirm(release.Id);
-        await UpdateSessionStatusAsync(context, session, cancellationToken);
+        await UpdateSessionStatusAsync(context, session, draft, cancellationToken);
         _ = await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -103,6 +115,33 @@ public sealed partial class ReleaseImportConfirmationService
                 .OrderBy(track => track.Position.Number)
                 .Select(track => track.TrackId)
                 .SequenceEqual(selectedTrackIds));
+    }
+
+    private static async Task<Release?> FindPartialDuplicateReleaseAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        ReleaseImportDraft draft,
+        ReleaseImportDraftTrack[] tracks,
+        CancellationToken cancellationToken)
+    {
+        TrackId[] selectedTrackIds = [.. tracks.Select(track => track.SelectedTrackId).Where(id => id.HasValue).Select(id => id!.Value)];
+        if (selectedTrackIds.Length == 0 || selectedTrackIds.Length >= tracks.Length)
+        {
+            return null;
+        }
+
+        HashSet<TrackId> selectedTrackIdSet = [.. selectedTrackIds];
+        Release[] candidates = await context.Releases
+            .Include(release => release.Tracklist)
+            .Where(release => release.CollectionId == collectionId && release.Summary.Title == draft.Title)
+            .ToArrayAsync(cancellationToken);
+
+        return candidates
+            .Where(release =>
+                release.Tracklist.Count == selectedTrackIdSet.Count &&
+                release.Tracklist.All(track => selectedTrackIdSet.Contains(track.TrackId)))
+            .OrderByDescending(release => release.Tracklist.Count)
+            .FirstOrDefault();
     }
 
     private static async Task<ReleaseImportDraft?> FindDraftForUpdateAsync(

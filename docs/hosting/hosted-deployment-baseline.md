@@ -67,6 +67,10 @@ The reverse proxy must forward:
 - `X-Forwarded-Proto`.
 
 Keep the API container private to the service network. Only the reverse proxy should be public.
+Configure `HostedSecurity:ForwardedHeaders:KnownNetworks` or
+`HostedSecurity:ForwardedHeaders:KnownProxies` for the reverse proxy network or
+IP address so forwarded origin and client IP values are accepted only from
+trusted peers.
 
 ## Migrations
 

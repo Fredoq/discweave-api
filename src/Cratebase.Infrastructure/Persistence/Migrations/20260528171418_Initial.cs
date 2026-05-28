@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -12,7 +13,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+            migrationBuilder.AlterDatabase()
+                .Annotation("Npgsql:PostgresExtension:pg_trgm", ",,");
 
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
@@ -355,7 +357,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     subtitle = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
                     summary = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     search_text = table.Column<string>(type: "text", nullable: false),
-                    search_vector = table.Column<string>(type: "tsvector", nullable: false, computedColumnSql: "to_tsvector('simple', coalesce(search_text, ''))", stored: true),
                     matched_fields = table.Column<string>(type: "text", nullable: false),
                     snippets = table.Column<string>(type: "text", nullable: false),
                     role_facet = table.Column<string>(type: "text", nullable: false),
@@ -364,7 +365,8 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     tag_facet = table.Column<string>(type: "text", nullable: false),
                     label_id = table.Column<Guid>(type: "uuid", nullable: true),
                     label_id_facet = table.Column<string>(type: "text", nullable: false),
-                    collector_signal_facet = table.Column<string>(type: "text", nullable: false)
+                    collector_signal_facet = table.Column<string>(type: "text", nullable: false),
+                    search_vector = table.Column<NpgsqlTsVector>(type: "tsvector", nullable: false, computedColumnSql: "to_tsvector('simple', coalesce(search_text, ''))", stored: true)
                 },
                 constraints: table =>
                 {
@@ -1146,6 +1148,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "collection_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_owned_items_collection_condition",
+                table: "owned_items",
+                columns: new[] { "collection_id", "condition" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_owned_items_collection_id",
                 table: "owned_items",
                 column: "collection_id");
@@ -1161,12 +1168,37 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 columns: new[] { "collection_id", "target_track_id" });
 
             migrationBuilder.CreateIndex(
+                name: "ix_owned_items_collection_storage_location",
+                table: "owned_items",
+                columns: new[] { "collection_id", "storage_location" });
+
+            migrationBuilder.CreateIndex(
                 name: "ix_owned_items_import_identity",
                 table: "owned_items",
                 columns: new[] { "collection_id", "import_identity_path", "import_identity_size_bytes", "import_identity_last_modified_at", "import_identity_content_hash" },
                 unique: true,
                 filter: "import_identity_path IS NOT NULL")
                 .Annotation("Npgsql:NullsDistinct", false);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_owned_items_inventory_release_medium",
+                table: "owned_items",
+                columns: new[] { "collection_id", "target_type", "target_release_id", "medium_type" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_owned_items_inventory_release_status",
+                table: "owned_items",
+                columns: new[] { "collection_id", "target_type", "target_release_id", "ownership_status" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_owned_items_inventory_track_medium",
+                table: "owned_items",
+                columns: new[] { "collection_id", "target_type", "target_track_id", "medium_type" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_owned_items_inventory_track_status",
+                table: "owned_items",
+                columns: new[] { "collection_id", "target_type", "target_track_id", "ownership_status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_owned_items_medium_type",
@@ -1419,14 +1451,60 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 table: "search_documents",
                 columns: new[] { "collection_id", "label_id" });
 
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_vector ON search_documents USING GIN (search_vector)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_search_text_trgm ON search_documents USING GIN (search_text gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_role_facet_trgm ON search_documents USING GIN (role_facet gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_media_facet_trgm ON search_documents USING GIN (media_facet gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_status_facet_trgm ON search_documents USING GIN (status_facet gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_tag_facet_trgm ON search_documents USING GIN (tag_facet gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_label_id_facet_trgm ON search_documents USING GIN (label_id_facet gin_trgm_ops)");
-            migrationBuilder.Sql("CREATE INDEX ix_search_documents_collector_signal_facet_trgm ON search_documents USING GIN (collector_signal_facet gin_trgm_ops)");
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_collector_signal_facet_trgm",
+                table: "search_documents",
+                column: "collector_signal_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_label_id_facet_trgm",
+                table: "search_documents",
+                column: "label_id_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_media_facet_trgm",
+                table: "search_documents",
+                column: "media_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_role_facet_trgm",
+                table: "search_documents",
+                column: "role_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_search_text_trgm",
+                table: "search_documents",
+                column: "search_text")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_search_vector",
+                table: "search_documents",
+                column: "search_vector")
+                .Annotation("Npgsql:IndexMethod", "GIN");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_status_facet_trgm",
+                table: "search_documents",
+                column: "status_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_search_documents_tag_facet_trgm",
+                table: "search_documents",
+                column: "tag_facet")
+                .Annotation("Npgsql:IndexMethod", "GIN")
+                .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_track_relations_collection_id",
@@ -1462,10 +1540,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections");
-
             migrationBuilder.DropTable(
                 name: "artist_relations");
 

@@ -21,6 +21,8 @@ and `cratebase-web`.
 - Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
 - Store release covers and desktop installer artifacts on persistent service storage.
 - Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
+- Verify production responses include hosted security headers, invalid unsafe origins receive `security.origin_invalid`, and limited endpoint families return structured `rate_limit.exceeded` responses.
+- Run the local hosted restore drill before private beta release evidence is collected.
 - Build the API and web Docker images, then run the example compose stack and verify `/health`, `/web-health`, web routing and authenticated `/api` calls through the reverse proxy.
 
 ## Acceptance Path
@@ -34,12 +36,16 @@ and `cratebase-web`.
 7. Confirm playlists appear in search, export data, catalog links and graph backlinks.
 8. Use the desktop app to scan a local audio folder and create an import review session.
 9. Confirm every supported audio file includes a SHA-256 `contentHash` in the desktop scan request.
-10. Re-import the same folder and verify fully duplicate drafts are no-ops against existing catalog data.
-11. Rename or move duplicate files and verify same-collection content hash matching still preselects existing tracks.
-12. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
-13. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
-14. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
-15. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
+10. Submit a scan without one `contentHash` and verify the API records a `release_import.content_hash_missing` warning while preserving fallback
+    duplicate matching.
+11. Re-import the same folder and verify fully duplicate drafts are no-ops against existing catalog data.
+12. Rename or move duplicate files and verify same-collection content hash matching still preselects existing tracks.
+13. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
+14. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
+15. Open `GET /api/catalog-quality` and verify duplicate candidates, missing metadata and format gap sections are scoped to the signed-in collection.
+16. Verify rating value and import pattern deletes reject missing or mismatched `X-Cratebase-Confirm-Delete` tokens.
+17. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
+18. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
 
 ## Verification Commands
 
@@ -59,8 +65,37 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --search-budget-ms 250
 ```
 
+Large-collection performance smoke:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "<postgres>" \
+  --verify-performance \
+  --performance-budget-ms 250
+```
+
+Hosted restore drill:
+
+```bash
+bash deploy/hosted-restore-drill.sh
+```
+
 See [search-v1.md](search-v1.md) for the backend search contract and saved view
 definitions.
+See [imports/desktop-import-api-boundary.md](imports/desktop-import-api-boundary.md)
+for the hosted desktop folder scan API boundary.
+See [exports/portable-export-v1.md](exports/portable-export-v1.md) for the
+hosted JSON/CSV export contract and restore boundary.
+See [quality/large-collection-quality-baseline.md](quality/large-collection-quality-baseline.md)
+for the catalog quality report, destructive delete confirmations and local
+performance smoke probes.
+See [hosting/hosted-backup-restore-baseline.md](hosting/hosted-backup-restore-baseline.md)
+for hosted backup ownership, service storage backups and restore drill scope.
+See [security/hosted-security-baseline.md](security/hosted-security-baseline.md)
+for the hosted security baseline and rate-limit matrix.
+See [private-beta/data-handling-and-trust.md](private-beta/data-handling-and-trust.md)
+and [private-beta/release-readiness.md](private-beta/release-readiness.md) for
+private beta trust copy, release evidence and feedback capture.
 
 Frontend:
 

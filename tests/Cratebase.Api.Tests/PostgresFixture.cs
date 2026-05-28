@@ -5,7 +5,7 @@ namespace Cratebase.Api.Tests;
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:18-alpine")
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("cratebase")
         .WithUsername("cratebase")
         .WithPassword("cratebase")
