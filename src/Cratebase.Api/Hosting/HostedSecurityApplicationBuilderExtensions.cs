@@ -35,8 +35,8 @@ public static class HostedSecurityApplicationBuilderExtensions
 
     private static void AddSecurityHeaders(HttpResponse response)
     {
-        response.Headers["X-Content-Type-Options"] = "nosniff";
-        response.Headers["X-Frame-Options"] = "DENY";
+        response.Headers.XContentTypeOptions = "nosniff";
+        response.Headers.XFrameOptions = "DENY";
         response.Headers["Referrer-Policy"] = "no-referrer";
     }
 

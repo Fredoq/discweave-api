@@ -45,21 +45,23 @@ public static class HostedSecurityServiceCollectionExtensions
         ForwardedHeadersOptions options,
         IConfiguration configuration)
     {
-        foreach (IConfigurationSection section in configuration.GetSection("HostedSecurity:ForwardedHeaders:KnownNetworks").GetChildren())
+        foreach (string value in ConfiguredValues(configuration, "HostedSecurity:ForwardedHeaders:KnownNetworks"))
         {
-            if (!string.IsNullOrWhiteSpace(section.Value))
-            {
-                options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(section.Value));
-            }
+            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(value));
         }
 
-        foreach (IConfigurationSection section in configuration.GetSection("HostedSecurity:ForwardedHeaders:KnownProxies").GetChildren())
+        foreach (string value in ConfiguredValues(configuration, "HostedSecurity:ForwardedHeaders:KnownProxies"))
         {
-            if (!string.IsNullOrWhiteSpace(section.Value))
-            {
-                options.KnownProxies.Add(System.Net.IPAddress.Parse(section.Value));
-            }
+            options.KnownProxies.Add(System.Net.IPAddress.Parse(value));
         }
+    }
+
+    private static IEnumerable<string> ConfiguredValues(IConfiguration configuration, string key)
+    {
+        return configuration.GetSection(key).GetChildren()
+            .Select(section => section.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!);
     }
 
     private static RateLimitPartition<string> CreateLimiter(HttpContext context)
@@ -104,15 +106,14 @@ public static class HostedSecurityServiceCollectionExtensions
             request.Path.Equals("/api/imports/desktop-folder-scans", StringComparison.OrdinalIgnoreCase);
         bool isExportRequest = request.Path.StartsWithSegments("/api/exports", StringComparison.OrdinalIgnoreCase);
 
-        return isAuthRequest
-            ? HostedSecurityRateLimitPolicies.Auth
-            : isLifecycleRequest
-                ? HostedSecurityRateLimitPolicies.Lifecycle
-                : isDesktopImportRequest
-            ? HostedSecurityRateLimitPolicies.DesktopImport
-            : isExportRequest
-                ? HostedSecurityRateLimitPolicies.Export
-                : HostedSecurityRateLimitPolicies.Unlimited;
+        return request switch
+        {
+            _ when isAuthRequest => HostedSecurityRateLimitPolicies.Auth,
+            _ when isLifecycleRequest => HostedSecurityRateLimitPolicies.Lifecycle,
+            _ when isDesktopImportRequest => HostedSecurityRateLimitPolicies.DesktopImport,
+            _ when isExportRequest => HostedSecurityRateLimitPolicies.Export,
+            _ => HostedSecurityRateLimitPolicies.Unlimited
+        };
     }
 
     private static string ActorKey(HttpContext context)
