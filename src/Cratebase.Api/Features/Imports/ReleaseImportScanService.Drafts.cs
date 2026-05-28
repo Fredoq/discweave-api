@@ -62,6 +62,15 @@ public static partial class ReleaseImportScanService
         ParsedTrackFile parsed = TrackFileNameParser.Parse(Path.GetFileName(file.RelativePath), trackTemplates);
         DesktopAudioMetadataRequest? tags = file.Request.AudioMetadata;
         IReadOnlyList<string> artistNames = CleanNames(tags?.Artists);
+        string? contentHash = NormalizeContentHash(file.Request.ContentHash);
+        IReadOnlyList<ImportReviewIssue> issues = contentHash is null
+            ? [
+                .. parsed.Issues,
+                new ImportReviewIssue(
+                    ImportIssueCodes.ContentHashMissing,
+                    "Desktop audio file is missing a SHA-256 content hash; duplicate detection will fall back to path, size, and last modified time")
+            ]
+            : parsed.Issues;
 
         return new ReleaseFolderScanTrack(
             file.FilePath,
@@ -69,12 +78,12 @@ public static partial class ReleaseImportScanService
             file.AudioFormat ?? throw new InvalidOperationException("Track file requires an audio format"),
             file.Request.SizeBytes,
             file.Request.LastModifiedAt,
-            NormalizeContentHash(file.Request.ContentHash),
+            contentHash,
             tags?.DurationSeconds is null ? null : TimeSpan.FromSeconds(tags.DurationSeconds.Value),
             tags?.TrackNumber ?? parsed.Position,
             TrimOrNull(tags?.Title) ?? parsed.Title ?? Path.GetFileNameWithoutExtension(file.RelativePath),
             artistNames.Count > 0 ? artistNames : parsed.ArtistNames,
-            parsed.Issues);
+            issues);
     }
 
     private static DesktopAudioMetadataRequest FirstReleaseTags(IReadOnlyList<DesktopScanFile> audioFiles)

@@ -124,6 +124,11 @@ See [docs/search-v1.md](docs/search-v1.md) for the finalized search request and
 response contract, saved views, collection isolation behavior, and large-seed
 smoke verification command.
 
+See [docs/imports/desktop-import-api-boundary.md](docs/imports/desktop-import-api-boundary.md)
+for the hosted desktop folder scan contract, including request and response
+shapes, collection scoping, no-audio-upload boundaries, cover artifact limits,
+and duplicate matching rules.
+
 ## Large Collection Seed
 
 Use `Cratebase.Seeding` to create a synthetic collection for search, graph,

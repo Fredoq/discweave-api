@@ -39,7 +39,32 @@ public sealed class DesktopImportHashDedupeTests : IClassFixture<PostgresFixture
         await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
     }
 
-    private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)
+    [Fact(DisplayName = "Desktop import records warning when audio content hash is missing")]
+    public async Task Desktop_import_records_warning_when_audio_content_hash_is_missing()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using JsonDocument scan = await PostScanAsync(
+            client,
+            "/music/source",
+            "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+            contentHash: null);
+        JsonElement track = scan.RootElement.GetProperty("drafts")[0].GetProperty("tracks")[0];
+
+        Assert.Equal(JsonValueKind.Null, track.GetProperty("selectedTrackId").ValueKind);
+        Assert.Contains(
+            track.GetProperty("issues").EnumerateArray(),
+            issue =>
+                issue.GetProperty("code").GetString() == "release_import.content_hash_missing" &&
+                issue.GetProperty("severity").GetString() == "warning");
+    }
+
+    private static async Task<JsonDocument> PostScanAsync(
+        HttpClient client,
+        string rootPath,
+        string audioPath,
+        string? contentHash = ContentHash)
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/imports/desktop-folder-scans",
@@ -56,7 +81,7 @@ public sealed class DesktopImportHashDedupeTests : IClassFixture<PostgresFixture
                         format = "flac",
                         sizeBytes = 9,
                         lastModifiedAt = DateTimeOffset.UtcNow,
-                        contentHash = ContentHash,
+                        contentHash,
                         audioMetadata = new
                         {
                             title = (string?)null,
