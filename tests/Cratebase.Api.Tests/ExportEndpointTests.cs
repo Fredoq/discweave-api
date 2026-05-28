@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Cratebase.Api.Tests;
 
-public sealed class ExportEndpointTests : IClassFixture<PostgresFixture>
+public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
 {
     private static readonly string[] PostPunkGenres = ["Post-punk"];
     private static readonly string[] FactoryTags = ["factory", "classic"];

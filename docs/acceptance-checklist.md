@@ -65,6 +65,8 @@ See [search-v1.md](search-v1.md) for the backend search contract and saved view
 definitions.
 See [imports/desktop-import-api-boundary.md](imports/desktop-import-api-boundary.md)
 for the hosted desktop folder scan API boundary.
+See [exports/portable-export-v1.md](exports/portable-export-v1.md) for the
+hosted JSON/CSV export contract and restore boundary.
 
 Frontend:
 

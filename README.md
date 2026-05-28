@@ -120,6 +120,10 @@ dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
 - Export portable JSON and CSV data, including playlists.
 - Restore a JSON export into an empty active collection.
 
+See [docs/exports/portable-export-v1.md](docs/exports/portable-export-v1.md)
+for the hosted JSON/CSV export contract, CSV table headers, collection scoping,
+cover metadata boundary, and restore limits.
+
 See [docs/search-v1.md](docs/search-v1.md) for the finalized search request and
 response contract, saved views, collection isolation behavior, and large-seed
 smoke verification command.
