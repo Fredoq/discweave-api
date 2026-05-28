@@ -40,8 +40,10 @@ and `cratebase-web`.
 12. Rename or move duplicate files and verify same-collection content hash matching still preselects existing tracks.
 13. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
 14. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
-15. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
-16. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
+15. Open `GET /api/catalog-quality` and verify duplicate candidates, missing metadata and format gap sections are scoped to the signed-in collection.
+16. Verify rating value and import pattern deletes reject missing or mismatched `X-Cratebase-Confirm-Delete` tokens.
+17. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
+18. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
 
 ## Verification Commands
 
@@ -61,12 +63,24 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --search-budget-ms 250
 ```
 
+Large-collection performance smoke:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "<postgres>" \
+  --verify-performance \
+  --performance-budget-ms 250
+```
+
 See [search-v1.md](search-v1.md) for the backend search contract and saved view
 definitions.
 See [imports/desktop-import-api-boundary.md](imports/desktop-import-api-boundary.md)
 for the hosted desktop folder scan API boundary.
 See [exports/portable-export-v1.md](exports/portable-export-v1.md) for the
 hosted JSON/CSV export contract and restore boundary.
+See [quality/large-collection-quality-baseline.md](quality/large-collection-quality-baseline.md)
+for the catalog quality report, destructive delete confirmations and local
+performance smoke probes.
 
 Frontend:
 

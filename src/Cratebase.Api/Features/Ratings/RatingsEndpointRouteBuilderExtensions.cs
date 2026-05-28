@@ -165,12 +165,19 @@ public static partial class RatingsEndpointRouteBuilderExtensions
         string targetType,
         Guid targetId,
         Guid criterionId,
+        HttpRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
         try
         {
+            string expectedConfirmation = $"rating:{targetType}:{targetId}:{criterionId}";
+            if (!DeleteConfirmation.Matches(request, expectedConfirmation))
+            {
+                return EndpointErrors.DeleteConfirmationRequired();
+            }
+
             RatingTargetType parsedTargetType = RatingTargetTypeCodes.FromCode(targetType);
             RatingValue? value = await FindRatingValueAsync(
                 context,

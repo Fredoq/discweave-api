@@ -104,7 +104,9 @@ public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
             $"/api/ratings/track/{Guid.NewGuid()}/{criterionId}",
             new { value = 8 });
 
-        using HttpResponseMessage deleteResponse = await client.DeleteAsync($"/api/ratings/track/{trackId}/{criterionId}");
+        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/ratings/track/{trackId}/{criterionId}");
+        deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"rating:track:{trackId}:{criterionId}");
+        using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
         using HttpResponseMessage emptyListResponse = await client.GetAsync($"/api/ratings?targetType=track&targetId={trackId}");
         using JsonDocument emptyListDocument = await ReadJsonAsync(emptyListResponse);
 
@@ -120,6 +122,34 @@ public sealed partial class RatingEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.NotFound, missingTargetResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
         Assert.Equal(0, emptyListDocument.RootElement.GetProperty("total").GetInt32());
+    }
+
+    [Fact(DisplayName = "Rating value delete requires an exact confirmation token")]
+    public async Task Rating_value_delete_requires_an_exact_confirmation_token()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid criterionId = await FindOverallCriterionIdAsync(client);
+        Guid trackId = await CreateTrackAsync(client, "Token World");
+        using HttpResponseMessage upsertResponse = await client.PutAsJsonAsync(
+            $"/api/ratings/track/{trackId}/{criterionId}",
+            new { value = 8 });
+        Assert.Equal(HttpStatusCode.OK, upsertResponse.StatusCode);
+
+        using HttpResponseMessage missingResponse = await client.DeleteAsync($"/api/ratings/track/{trackId}/{criterionId}");
+        using JsonDocument missingDocument = await ReadJsonAsync(missingResponse);
+        using HttpRequestMessage mismatchedRequest = new(HttpMethod.Delete, $"/api/ratings/track/{trackId}/{criterionId}");
+        mismatchedRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"rating:track:{Guid.CreateVersion7()}:{criterionId}");
+        using HttpResponseMessage mismatchedResponse = await client.SendAsync(mismatchedRequest);
+        using JsonDocument mismatchedDocument = await ReadJsonAsync(mismatchedResponse);
+        using HttpResponseMessage listResponse = await client.GetAsync($"/api/ratings?targetType=track&targetId={trackId}");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, missingResponse.StatusCode);
+        Assert.Equal("delete.confirmation_required", missingDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, mismatchedResponse.StatusCode);
+        Assert.Equal("delete.confirmation_required", mismatchedDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
     }
 
     [Fact(DisplayName = "Rating endpoints preserve collection isolation")]

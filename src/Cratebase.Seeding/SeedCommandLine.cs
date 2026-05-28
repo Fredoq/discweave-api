@@ -7,6 +7,7 @@ public static class SeedCommandLine
     private const string DefaultEmail = "seed@cratebase.local";
     private const string DefaultPassword = "SeedPassword1!";
     private const int DefaultSearchBudgetMilliseconds = 250;
+    private const int DefaultPerformanceBudgetMilliseconds = 250;
 
     public static SeedCommand Parse(IReadOnlyList<string> args, Func<string, string?> environment)
     {
@@ -22,6 +23,8 @@ public static class SeedCommandLine
         int tracksPerRelease = LargeCollectionSeedOptions.DefaultTracksPerRelease;
         bool verifySearch = false;
         int searchBudgetMilliseconds = DefaultSearchBudgetMilliseconds;
+        bool verifyPerformance = false;
+        int performanceBudgetMilliseconds = DefaultPerformanceBudgetMilliseconds;
 
         for (int index = 0; index < args.Count; index++)
         {
@@ -55,6 +58,12 @@ public static class SeedCommandLine
                 case "--search-budget-ms":
                     searchBudgetMilliseconds = ParsePositiveInt(RequiredValue(args, ref index, argument), argument);
                     break;
+                case "--verify-performance":
+                    verifyPerformance = true;
+                    break;
+                case "--performance-budget-ms":
+                    performanceBudgetMilliseconds = ParsePositiveInt(RequiredValue(args, ref index, argument), argument);
+                    break;
                 default:
                     throw new InvalidOperationException($"Unknown seed option: {argument}");
             }
@@ -73,7 +82,9 @@ public static class SeedCommandLine
             password,
             new LargeCollectionSeedOptions(artistCount, labelCount, releaseCount, tracksPerRelease),
             verifySearch,
-            searchBudgetMilliseconds);
+            searchBudgetMilliseconds,
+            verifyPerformance,
+            performanceBudgetMilliseconds);
     }
 
     private static string RequiredValue(IReadOnlyList<string> args, ref int index, string argument)

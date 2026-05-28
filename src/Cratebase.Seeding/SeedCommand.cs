@@ -8,13 +8,16 @@ public sealed class SeedCommand
         string password,
         LargeCollectionSeedOptions options,
         bool verifySearch = false,
-        int searchBudgetMilliseconds = 250)
+        int searchBudgetMilliseconds = 250,
+        bool verifyPerformance = false,
+        int performanceBudgetMilliseconds = 250)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(password);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentOutOfRangeException.ThrowIfLessThan(searchBudgetMilliseconds, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(performanceBudgetMilliseconds, 1);
 
         ConnectionString = connectionString;
         Email = email;
@@ -22,6 +25,8 @@ public sealed class SeedCommand
         Options = options;
         VerifySearch = verifySearch;
         SearchBudgetMilliseconds = searchBudgetMilliseconds;
+        VerifyPerformance = verifyPerformance;
+        PerformanceBudgetMilliseconds = performanceBudgetMilliseconds;
     }
 
     public string ConnectionString { get; }
@@ -35,4 +40,8 @@ public sealed class SeedCommand
     public bool VerifySearch { get; }
 
     public int SearchBudgetMilliseconds { get; }
+
+    public bool VerifyPerformance { get; }
+
+    public int PerformanceBudgetMilliseconds { get; }
 }

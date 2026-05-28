@@ -133,6 +133,10 @@ for the hosted desktop folder scan contract, including request and response
 shapes, collection scoping, no-audio-upload boundaries, cover artifact limits,
 and duplicate matching rules.
 
+See [docs/quality/large-collection-quality-baseline.md](docs/quality/large-collection-quality-baseline.md)
+for the catalog quality report, destructive delete confirmation tokens, and
+large-collection performance smoke probes.
+
 ## Large Collection Seed
 
 Use `Cratebase.Seeding` to create a synthetic collection for search, graph,
@@ -171,6 +175,15 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
   --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
   --verify-search \
   --search-budget-ms 250
+```
+
+Run the large-collection performance smoke probes after seeding:
+
+```bash
+dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+  --verify-performance \
+  --performance-budget-ms 250
 ```
 
 ## Product Boundaries

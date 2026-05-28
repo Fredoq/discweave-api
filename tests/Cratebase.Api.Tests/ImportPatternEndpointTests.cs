@@ -86,7 +86,9 @@ public sealed class ImportPatternEndpointTests : IClassFixture<PostgresFixture>
                 isActive = false
             });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
-        using HttpResponseMessage deleteResponse = await client.DeleteAsync($"/api/settings/import-patterns/{patternId}");
+        using HttpRequestMessage deleteRequest = new(HttpMethod.Delete, $"/api/settings/import-patterns/{patternId}");
+        deleteRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"import-pattern:{patternId}");
+        using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
 
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, testResponse.StatusCode);
@@ -99,6 +101,43 @@ public sealed class ImportPatternEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(60, updateDocument.RootElement.GetProperty("sortOrder").GetInt32());
         Assert.False(updateDocument.RootElement.GetProperty("isActive").GetBoolean());
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+    }
+
+    [Fact(DisplayName = "Import pattern delete requires an exact confirmation token")]
+    public async Task Import_pattern_delete_requires_an_exact_confirmation_token()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+
+        using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            "/api/settings/import-patterns",
+            new
+            {
+                kind = "trackFile",
+                template = "{position} - {title}",
+                sortOrder = 70,
+                isActive = true
+            });
+        using JsonDocument createDocument = await ReadJsonAsync(createResponse);
+        Guid patternId = createDocument.RootElement.GetProperty("id").GetGuid();
+
+        using HttpResponseMessage missingResponse = await client.DeleteAsync($"/api/settings/import-patterns/{patternId}");
+        using JsonDocument missingDocument = await ReadJsonAsync(missingResponse);
+        using HttpRequestMessage mismatchedRequest = new(HttpMethod.Delete, $"/api/settings/import-patterns/{patternId}");
+        mismatchedRequest.Headers.Add("X-Cratebase-Confirm-Delete", $"import-pattern:{Guid.CreateVersion7()}");
+        using HttpResponseMessage mismatchedResponse = await client.SendAsync(mismatchedRequest);
+        using JsonDocument mismatchedDocument = await ReadJsonAsync(mismatchedResponse);
+        using HttpResponseMessage listResponse = await client.GetAsync("/api/settings/import-patterns?kind=trackFile");
+        using JsonDocument listDocument = await ReadJsonAsync(listResponse);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, missingResponse.StatusCode);
+        Assert.Equal("delete.confirmation_required", missingDocument.RootElement.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, mismatchedResponse.StatusCode);
+        Assert.Equal("delete.confirmation_required", mismatchedDocument.RootElement.GetProperty("code").GetString());
+        Assert.Contains(
+            listDocument.RootElement.GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("id").GetGuid() == patternId);
     }
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)

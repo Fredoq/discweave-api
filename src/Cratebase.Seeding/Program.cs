@@ -42,6 +42,16 @@ public static class Program
                 CancellationToken.None);
         }
 
+        if (command.VerifyPerformance)
+        {
+            await PerformanceSmokeVerifier.VerifyAsync(
+                context,
+                result.CollectionId,
+                TimeSpan.FromMilliseconds(command.PerformanceBudgetMilliseconds),
+                Console.Out,
+                CancellationToken.None);
+        }
+
         return 0;
     }
 
@@ -95,5 +105,7 @@ public static class Program
         Console.WriteLine("  --tracks-per-release <count>    Tracks per release. Default: 8");
         Console.WriteLine("  --verify-search                 Run search v1 smoke probes after seeding.");
         Console.WriteLine("  --search-budget-ms <ms>         Search smoke warning budget. Default: 250");
+        Console.WriteLine("  --verify-performance            Run large-collection performance smoke probes after seeding.");
+        Console.WriteLine("  --performance-budget-ms <ms>    Performance smoke warning budget per probe. Default: 250");
     }
 }
