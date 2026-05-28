@@ -24,18 +24,12 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
     private static readonly AudioFileFormat?[] LosslessFormats = [AudioFileFormat.Flac, AudioFileFormat.Wav, AudioFileFormat.Aiff, AudioFileFormat.Alac];
 
     private static async Task<IResult> ListOwnedItemsAsync(
-        string? status,
-        string? medium,
-        string? condition,
-        string? storageLocation,
-        string? inventoryView,
-        int? limit,
-        int? offset,
+        [AsParameters] OwnedItemListRequest request,
         CratebaseDbContext context,
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        if (!Pagination.TryNormalize(limit, offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
+        if (!Pagination.TryNormalize(request.Limit, request.Offset, out int normalizedLimit, out int normalizedOffset, out IResult error))
         {
             return error;
         }
@@ -44,30 +38,30 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             .Where(item => item.CollectionId == currentCollection.CollectionId);
         IQueryable<OwnedItem> items = collectionItems;
 
-        if (!ApplyStatusFilter(ref items, status, out IResult statusError))
+        if (!ApplyStatusFilter(ref items, request.Status, out IResult statusError))
         {
             return statusError;
         }
 
-        if (!ApplyConditionFilter(ref items, condition, out IResult conditionError))
+        if (!ApplyConditionFilter(ref items, request.Condition, out IResult conditionError))
         {
             return conditionError;
         }
 
-        if (!TryParseInventoryView(inventoryView, out OwnedItemInventoryView? parsedView, out IResult inventoryViewError))
+        if (!TryParseInventoryView(request.InventoryView, out OwnedItemInventoryView? parsedView, out IResult inventoryViewError))
         {
             return inventoryViewError;
         }
 
-        if (!string.IsNullOrWhiteSpace(medium))
+        if (!string.IsNullOrWhiteSpace(request.Medium))
         {
-            string normalizedMedium = medium.Trim();
+            string normalizedMedium = request.Medium.Trim();
             items = items.Where(item => EF.Property<string>(item, MediumTypeProperty) == normalizedMedium);
         }
 
-        if (!string.IsNullOrWhiteSpace(storageLocation))
+        if (!string.IsNullOrWhiteSpace(request.StorageLocation))
         {
-            string storageLocationPattern = $"%{storageLocation.Trim()}%";
+            string storageLocationPattern = $"%{request.StorageLocation.Trim()}%";
             items = items.Where(item =>
                 EF.Property<string?>(item, StorageLocationProperty) != null &&
                 EF.Functions.ILike(EF.Property<string>(item, StorageLocationProperty), storageLocationPattern));
@@ -145,8 +139,16 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
             return items.Where(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.NeedsDigitization);
         }
 
-        IQueryable<ReleaseId?> releaseIds = InventoryReleaseTargetIds(collectionItems, view);
-        IQueryable<TrackId?> trackIds = InventoryTrackTargetIds(collectionItems, view);
+        IQueryable<ReleaseId?> releaseIds = InventoryTargetIds<ReleaseId>(
+            collectionItems,
+            view,
+            ReleaseTargetType,
+            TargetReleaseIdProperty);
+        IQueryable<TrackId?> trackIds = InventoryTargetIds<TrackId>(
+            collectionItems,
+            view,
+            TrackTargetType,
+            TargetTrackIdProperty);
 
         return items.Where(item =>
             (EF.Property<string>(item, TargetTypeProperty) == ReleaseTargetType &&
@@ -155,13 +157,16 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                 trackIds.Contains(EF.Property<TrackId?>(item, TargetTrackIdProperty))));
     }
 
-    private static IQueryable<ReleaseId?> InventoryReleaseTargetIds(
+    private static IQueryable<TTargetId?> InventoryTargetIds<TTargetId>(
         IQueryable<OwnedItem> collectionItems,
-        OwnedItemInventoryView view)
+        OwnedItemInventoryView view,
+        string targetType,
+        string targetIdProperty)
+        where TTargetId : struct
     {
-        IQueryable<IGrouping<ReleaseId?, OwnedItem>> groups = collectionItems
-            .Where(item => EF.Property<string>(item, TargetTypeProperty) == ReleaseTargetType)
-            .GroupBy(item => EF.Property<ReleaseId?>(item, TargetReleaseIdProperty));
+        IQueryable<IGrouping<TTargetId?, OwnedItem>> groups = collectionItems
+            .Where(item => EF.Property<string>(item, TargetTypeProperty) == targetType)
+            .GroupBy(item => EF.Property<TTargetId?>(item, targetIdProperty));
 
         return view switch
         {
@@ -180,37 +185,9 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
                     group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Wanted) &&
                     !group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Owned))
                 .Select(group => group.Key),
-            OwnedItemInventoryView.NeedsDigitization => collectionItems.Where(_ => false).Select(item => EF.Property<ReleaseId?>(item, TargetReleaseIdProperty)),
-            _ => throw new InvalidOperationException("Owned item inventory view is not supported")
-        };
-    }
-
-    private static IQueryable<TrackId?> InventoryTrackTargetIds(
-        IQueryable<OwnedItem> collectionItems,
-        OwnedItemInventoryView view)
-    {
-        IQueryable<IGrouping<TrackId?, OwnedItem>> groups = collectionItems
-            .Where(item => EF.Property<string>(item, TargetTypeProperty) == TrackTargetType)
-            .GroupBy(item => EF.Property<TrackId?>(item, TargetTrackIdProperty));
-
-        return view switch
-        {
-            OwnedItemInventoryView.PhysicalWithoutDigital => groups
-                .Where(group =>
-                    group.Any(item => EF.Property<string>(item, MediumTypeProperty) != DigitalMediumCode) &&
-                    !group.Any(item => EF.Property<string>(item, MediumTypeProperty) == DigitalMediumCode))
-                .Select(group => group.Key),
-            OwnedItemInventoryView.LossyWithoutLossless => groups
-                .Where(group =>
-                    group.Any(item => EF.Property<string>(item, MediumTypeProperty) == DigitalMediumCode && LossyFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))) &&
-                    !group.Any(item => EF.Property<string>(item, MediumTypeProperty) == DigitalMediumCode && LosslessFormats.Contains(EF.Property<AudioFileFormat?>(item, DigitalFileFormatProperty))))
-                .Select(group => group.Key),
-            OwnedItemInventoryView.WantedNotOwned => groups
-                .Where(group =>
-                    group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Wanted) &&
-                    !group.Any(item => EF.Property<OwnershipStatus>(item, StatusProperty) == OwnershipStatus.Owned))
-                .Select(group => group.Key),
-            OwnedItemInventoryView.NeedsDigitization => collectionItems.Where(_ => false).Select(item => EF.Property<TrackId?>(item, TargetTrackIdProperty)),
+            OwnedItemInventoryView.NeedsDigitization => collectionItems
+                .Where(_ => false)
+                .Select(item => EF.Property<TTargetId?>(item, targetIdProperty)),
             _ => throw new InvalidOperationException("Owned item inventory view is not supported")
         };
     }
