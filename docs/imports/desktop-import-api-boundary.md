@@ -3,9 +3,12 @@
 Roadmap 14 defines the hosted API boundary for local folder scans produced by
 the macOS desktop app. The browser web app may review import sessions, but it
 must not browse arbitrary local folders. The desktop app performs native folder
-selection, local filesystem walking, audio metadata extraction, cover candidate
-reading, and SHA-256 hashing, then submits metadata to the authenticated hosted
-API.
+selection and local filesystem walking. In full-scan mode it also extracts audio
+metadata, reads cover candidates, and calculates SHA-256 hashes before
+submitting metadata to the authenticated hosted API. In names-only mode it
+submits paths, file names, file sizes, and timestamps without opening audio or
+cover files, so cloud-only folders can be reviewed without downloading file
+contents.
 
 The backend remains the owner of collection scope, import pattern parsing,
 release grouping, review sessions, duplicate matching, confirmation, and final
@@ -60,17 +63,19 @@ Successful submissions return `201 Created` with the persisted
 path used for inventory and fallback duplicate matching. `relativePath` is the
 path relative to `sourceRoot` and is used for grouping releases and tracks.
 
-Supported audio formats are `flac`, `mp3`, `wav`, `ogg`, and `m4a`. The desktop
-client must send a SHA-256 `contentHash` for every supported audio file. For
-compatibility, the backend accepts a missing hash, records a warning issue with
-code `release_import.content_hash_missing`, and falls back to
-`filePath + sizeBytes + lastModifiedAt` duplicate matching.
+Supported audio formats are `flac`, `mp3`, `wav`, `ogg`, and `m4a`. Full-scan
+desktop clients should send a SHA-256 `contentHash` for every supported audio
+file. Names-only scans send `contentHash: null` and `audioMetadata: null`. The
+backend accepts a missing hash, records a warning issue with code
+`release_import.content_hash_missing`, and falls back to duplicate matching by
+path, file size, and last modified time.
 
 Cover images may be submitted only as import review artifacts, not as audio
 files. Supported cover extensions are `.jpg`, `.jpeg`, `.png`, and `.webp`.
 The backend accepts a selected cover artifact up to 10 MiB and stores it on the
 import draft for review and later confirmation. Oversized cover candidates are
-kept as paths with a warning instead of attached content.
+kept as paths with a warning instead of attached content. Names-only cover
+candidates are kept as paths without attached content.
 
 ## Response Contract
 
