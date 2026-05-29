@@ -119,9 +119,13 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         Assert.Contains(trackCredits.EnumerateArray(), credit =>
             credit.GetProperty("artistName").GetString() == "C.K. & pH 1" &&
             credit.GetProperty("role").GetString() == "mainArtist");
-        Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
-        Assert.Equal("track", itemDocument.RootElement.GetProperty("items")[0].GetProperty("targetType").GetString());
-        Assert.Equal("flac", itemDocument.RootElement.GetProperty("items")[0].GetProperty("medium").GetProperty("format").GetString());
+        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
+        JsonElement[] ownedItems = [.. itemDocument.RootElement.GetProperty("items").EnumerateArray()];
+        Assert.Contains(ownedItems, item =>
+            item.GetProperty("targetType").GetString() == "release" &&
+            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
+        Assert.Contains(ownedItems, item => item.GetProperty("targetType").GetString() == "track" &&
+            item.GetProperty("medium").GetProperty("format").GetString() == "flac");
     }
 
     [Fact(DisplayName = "Confirmed desktop import drafts are terminal")]
@@ -188,7 +192,7 @@ public sealed class DesktopImportEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releaseDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.OK, itemResponse.StatusCode);
-        Assert.Equal(1, itemDocument.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(2, itemDocument.RootElement.GetProperty("total").GetInt32());
     }
 
     private static async Task<JsonDocument> PostScanAsync(HttpClient client, string rootPath, string audioPath)

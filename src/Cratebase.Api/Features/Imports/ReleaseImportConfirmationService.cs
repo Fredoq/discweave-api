@@ -74,6 +74,7 @@ public sealed partial class ReleaseImportConfirmationService
         if (partialDuplicateRelease is not null)
         {
             await AddTracksAsync(context, collectionId, partialDuplicateRelease, draft, tracks, cancellationToken);
+            await AddReleaseOwnedItemAsync(context, collectionId, partialDuplicateRelease, draft, tracks, cancellationToken);
             draft.Confirm(partialDuplicateRelease.Id);
             await UpdateSessionStatusAsync(context, session, draft, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);
@@ -211,6 +212,7 @@ public sealed partial class ReleaseImportConfirmationService
         _ = context.Releases.Add(release);
         await AddReleaseCreditsAsync(context, collectionId, release, draft, cancellationToken);
         await AddTracksAsync(context, collectionId, release, draft, draftTracks, cancellationToken);
+        await AddReleaseOwnedItemAsync(context, collectionId, release, draft, draftTracks, cancellationToken);
 
         return release;
     }

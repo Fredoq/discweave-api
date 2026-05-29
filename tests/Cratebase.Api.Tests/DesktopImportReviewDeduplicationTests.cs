@@ -138,7 +138,7 @@ public sealed class DesktopImportReviewDeduplicationTests : IClassFixture<Postgr
         Assert.Equal("Blue Truth", tracklist[1].GetProperty("title").GetString());
         await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
         await AssertListTotalAsync(client, "/api/tracks?search=Blue%20Truth&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 3);
     }
 
     private static object AudioFile(string rootPath, string filePath, string contentHash)

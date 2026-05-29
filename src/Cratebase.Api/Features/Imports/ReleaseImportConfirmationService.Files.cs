@@ -12,6 +12,8 @@ namespace Cratebase.Api.Features.Imports;
 
 public sealed partial class ReleaseImportConfirmationService
 {
+    private const string DigitalMediumType = "digital";
+
     private async Task<ReleaseMetadata> ApplyCoverAsync(
         ReleaseMetadata metadata,
         ReleaseId releaseId,
@@ -90,6 +92,36 @@ public sealed partial class ReleaseImportConfirmationService
             OwnedItemTarget.ForTrack(track.Id),
             OwnershipStatus.Owned,
             DigitalFile.Create(path, draftTrack.Format, identity));
+        _ = context.OwnedItems.Add(item);
+    }
+
+    private static async Task AddReleaseOwnedItemAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        Release release,
+        ReleaseImportDraft draft,
+        IReadOnlyList<ReleaseImportDraftTrack> draftTracks,
+        CancellationToken cancellationToken)
+    {
+        bool exists = await context.OwnedItems.AnyAsync(
+            item =>
+                item.CollectionId == collectionId &&
+                EF.Property<string>(item, "_targetType") == "release" &&
+                EF.Property<ReleaseId?>(item, "_targetReleaseId") == release.Id &&
+                EF.Property<string>(item, "_mediumType") == DigitalMediumType,
+            cancellationToken);
+        if (exists)
+        {
+            return;
+        }
+
+        AudioFileFormat releaseFormat = draftTracks[0].Format;
+        var item = OwnedItem.Create(
+            collectionId,
+            OwnedItemId.New(),
+            OwnedItemTarget.ForRelease(release.Id),
+            OwnershipStatus.Owned,
+            DigitalFile.Create(FilePath.FromAbsolutePath(draft.SourcePath), releaseFormat));
         _ = context.OwnedItems.Add(item);
     }
 

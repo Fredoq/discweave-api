@@ -36,7 +36,7 @@ public sealed class DesktopImportHashDedupeTests : IClassFixture<PostgresFixture
 
         await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 1);
         await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
-        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
     }
 
     [Fact(DisplayName = "Desktop import records warning when audio content hash is missing")]
