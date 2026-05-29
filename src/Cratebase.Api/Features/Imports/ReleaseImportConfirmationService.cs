@@ -62,6 +62,7 @@ public sealed partial class ReleaseImportConfirmationService
         Release? existingRelease = await FindExistingReleaseForSelectedTracksAsync(context, collectionId, draft, tracks, cancellationToken);
         if (existingRelease is not null)
         {
+            await AddReleaseOwnedItemAsync(context, collectionId, existingRelease, draft, tracks, cancellationToken);
             draft.Confirm(existingRelease.Id);
             await UpdateSessionStatusAsync(context, session, draft, cancellationToken);
             _ = await context.SaveChangesAsync(cancellationToken);

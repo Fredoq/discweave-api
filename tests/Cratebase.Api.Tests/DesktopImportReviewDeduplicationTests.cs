@@ -141,6 +141,36 @@ public sealed class DesktopImportReviewDeduplicationTests : IClassFixture<Postgr
         await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 3);
     }
 
+    [Fact(DisplayName = "Exact duplicate desktop import restores missing release ownership")]
+    public async Task Exact_duplicate_desktop_import_restores_missing_release_ownership()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        using JsonDocument firstScan = await PostScanAsync(
+            client,
+            "/music/source",
+            AudioFile(
+                "/music/source",
+                "/music/source/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BeginsContentHash));
+        using JsonDocument firstConfirmation = await ConfirmOnlyDraftAsync(client, firstScan);
+        await DeleteReleaseOwnedItemAsync(client);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 1);
+
+        using JsonDocument duplicateScan = await PostScanAsync(
+            client,
+            "/music/duplicate",
+            AudioFile(
+                "/music/duplicate",
+                "/music/duplicate/[AA 01, 2016] Steven Julien - Fallen/01 Begins.flac",
+                BeginsContentHash));
+        using JsonDocument duplicateConfirmation = await ConfirmOnlyDraftAsync(client, duplicateScan);
+
+        await AssertListTotalAsync(client, "/api/releases?search=Fallen&limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/tracks?search=Begins&limit=10&offset=0", 1);
+        await AssertListTotalAsync(client, "/api/owned-items?limit=10&offset=0", 2);
+    }
+
     private static object AudioFile(string rootPath, string filePath, string contentHash)
     {
         string fileName = Path.GetFileNameWithoutExtension(filePath);
@@ -254,6 +284,23 @@ public sealed class DesktopImportReviewDeduplicationTests : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(expected, document.RootElement.GetProperty("total").GetInt32());
+    }
+
+    private static async Task DeleteReleaseOwnedItemAsync(HttpClient client)
+    {
+        using HttpResponseMessage response = await client.GetAsync("/api/owned-items?limit=10&offset=0");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using JsonDocument document = await ReadJsonAsync(response);
+        JsonElement releaseItem = document.RootElement
+            .GetProperty("items")
+            .EnumerateArray()
+            .Single(item => item.GetProperty("targetType").GetString() == "release");
+        Guid ownedItemId = releaseItem.GetProperty("id").GetGuid();
+        using HttpRequestMessage request = new(HttpMethod.Delete, $"/api/owned-items/{ownedItemId}");
+        request.Headers.Add("X-Cratebase-Confirm-Delete", $"owned-item:{ownedItemId}");
+        using HttpResponseMessage deleteResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }
 
     private static async Task<(HttpClient AdminClient, HttpClient UserClient)> CreateAuthenticatedClientsAsync(ApiTestHost host)
