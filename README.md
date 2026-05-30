@@ -201,7 +201,9 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
 - Smart playlists are dynamic rule queries; they are not materialized snapshots.
 - Local audio scanning belongs to the desktop client. The API stores metadata and file identity, not audio files.
 - Catalog links are compact lookup results for selectors, not a full replacement for search.
-- There are no external Discogs, MusicBrainz, streaming, social, marketplace, or recommendation integrations.
+- V1 has no external Discogs, MusicBrainz, streaming, social, marketplace, or recommendation integrations.
+- V1.1 Discogs work is limited to bounded autocomplete and review flows; see
+  [docs/integrations/discogs-autocomplete-boundary.md](docs/integrations/discogs-autocomplete-boundary.md).
 
 See [docs/acceptance-checklist.md](docs/acceptance-checklist.md) for the shared
 acceptance path.
