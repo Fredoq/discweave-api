@@ -1,0 +1,25 @@
+namespace DiscWeave.Api.Features.Imports;
+
+public sealed record ReleaseImportDraftResponse(
+    Guid Id,
+    string SourcePath,
+    string RelativePath,
+    string Status,
+    string Title,
+    string Type,
+    string? CatalogNumber,
+    string? LabelName,
+    string? ReleaseDate,
+    int? Year,
+    bool IsVariousArtists,
+    bool NotOnLabel,
+    IReadOnlyList<string> ArtistNames,
+    IReadOnlyList<ReleaseImportArtistCreditResponse> ArtistCredits,
+    IReadOnlyList<Guid> SelectedArtistIds,
+    IReadOnlyList<EntitySuggestionResponse> ArtistSuggestions,
+    IReadOnlyList<ReleaseImportLabelResponse> Labels,
+    IReadOnlyList<string> Genres,
+    IReadOnlyList<string> Tags,
+    string? CoverPath,
+    IReadOnlyList<ImportIssueResponse> Issues,
+    IReadOnlyList<ReleaseImportDraftTrackResponse> Tracks);

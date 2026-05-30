@@ -1,6 +1,6 @@
 # Migration Policy
 
-Cratebase treats collection data as durable product data. Database migrations are append-only by default and must preserve the ability to upgrade an existing archive without rewriting history.
+DiscWeave treats collection data as durable product data. Database migrations are append-only by default and must preserve the ability to upgrade an existing archive without rewriting history.
 
 ## Rules
 

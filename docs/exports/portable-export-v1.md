@@ -20,12 +20,12 @@ not expose it.
 
 `GET /api/exports/json` returns `200 OK` with a JSON snapshot.
 `GET /api/exports/csv` returns `200 OK`, `application/zip`, and
-`cratebase-export-csv.zip`. `POST /api/exports/json/restore` restores a
+`discweave-export-csv.zip`. `POST /api/exports/json/restore` restores a
 `formatVersion` 1 JSON snapshot into the authenticated user's empty active
 collection only when the request includes:
 
 ```http
-X-Cratebase-Confirm-Restore: restore-empty-collection
+X-DiscWeave-Confirm-Restore: restore-empty-collection
 ```
 
 ## JSON Snapshot
@@ -48,7 +48,7 @@ shapes rather than persistence models. The top-level sections are:
 - `ratings`
 
 The snapshot intentionally includes convenience read fields that help users
-inspect the archive outside Cratebase: track release appearances, owned item
+inspect the archive outside DiscWeave: track release appearances, owned item
 targets, inventory signals, playlist results, release labels, tracklists,
 credit names, tags, genres, and release cover metadata. These fields are part
 of JSON export v1 and must remain restore-compatible for `formatVersion: 1`.

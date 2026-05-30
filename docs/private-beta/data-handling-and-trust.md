@@ -1,12 +1,12 @@
 # Private Beta Data Handling And Trust
 
-Cratebase private beta is a hosted personal music archive with a macOS desktop
+DiscWeave private beta is a hosted personal music archive with a macOS desktop
 companion. It is invite-only and operated for a small group of collectors while
 the v1 workflows are validated with real catalog data.
 
-## What Cratebase Stores
+## What DiscWeave Stores
 
-Cratebase stores private collection metadata for the authenticated user's
+DiscWeave stores private collection metadata for the authenticated user's
 default collection:
 
 - artists, labels, releases, tracks, credits and relations;

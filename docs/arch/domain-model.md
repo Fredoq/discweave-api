@@ -1,6 +1,6 @@
 # Domain Model
 
-This diagram describes the initial Cratebase domain model. It is intentionally centered on domain concepts and typed identifiers, not EF Core, API contracts, or database schema.
+This diagram describes the initial DiscWeave domain model. It is intentionally centered on domain concepts and typed identifiers, not EF Core, API contracts, or database schema.
 
 When the domain model changes, update this diagram in the same pull request.
 

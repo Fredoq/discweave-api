@@ -1,6 +1,6 @@
 # API Endpoint Structure
 
-Cratebase uses ASP.NET Core Minimal APIs with vertical feature slices. Endpoint code should stay close to request and response contracts, but no resource should be hidden inside a large umbrella route class.
+DiscWeave uses ASP.NET Core Minimal APIs with vertical feature slices. Endpoint code should stay close to request and response contracts, but no resource should be hidden inside a large umbrella route class.
 
 ## Options Considered
 
@@ -25,7 +25,7 @@ Use one resource slice per API resource:
 
 Each slice owns its Minimal API route builder extension, endpoint handlers, contracts, and resource-specific mapping. Shared HTTP helpers are allowed only for cross-cutting behavior that is already duplicated, such as structured errors, pagination, delete confirmation, and persistence conflict detection.
 
-The root `MapCratebaseEndpoints()` method composes resource slices directly. It must not delegate to broad umbrella route builders that mix unrelated resources.
+The root `MapDiscWeaveEndpoints()` method composes resource slices directly. It must not delegate to broad umbrella route builders that mix unrelated resources.
 
 ## Settings Dictionaries
 

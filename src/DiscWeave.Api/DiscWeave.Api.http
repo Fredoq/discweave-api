@@ -1,0 +1,6 @@
+@DiscWeave.Api_HostAddress = http://localhost:5094
+
+GET {{DiscWeave.Api_HostAddress}}/health
+Accept: application/json
+
+###

@@ -112,7 +112,7 @@ trigram indexes on filter facet columns. To create a repeatable large
 collection and run the local search smoke probes:
 
 ```sh
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-search \
   --search-budget-ms 250

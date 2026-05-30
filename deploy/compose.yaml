@@ -5,9 +5,9 @@ services:
       - api
       - web
     ports:
-      - "${CRATEBASE_HOST_PORT:-8080}:8080"
+      - "${DISCWEAVE_HOST_PORT:-8080}:8080"
     volumes:
-      - ./nginx/cratebase.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/discweave.conf:/etc/nginx/conf.d/default.conf:ro
 
   api:
     build:
@@ -16,17 +16,21 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Cratebase: Host=postgres;Port=5432;Database=cratebase;Username=cratebase;Password=${CRATEBASE_POSTGRES_PASSWORD:?Set CRATEBASE_POSTGRES_PASSWORD}
-      DesktopDownloads__MacOsInstallerPath: /var/lib/cratebase/desktop/Cratebase.dmg
+      ConnectionStrings__DiscWeave: Host=postgres;Port=5432;Database=discweave;Username=discweave;Password=${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
+      DesktopDownloads__MacOsInstallerPath: /var/lib/discweave/desktop/DiscWeave.dmg
+      Discogs__BaseUrl: ${DISCWEAVE_DISCOGS_BASE_URL:-https://api.discogs.com}
+      Discogs__Enabled: ${DISCWEAVE_DISCOGS_ENABLED:-false}
+      Discogs__TimeoutSeconds: ${DISCWEAVE_DISCOGS_TIMEOUT_SECONDS:-10}
+      Discogs__UserAgent: "${DISCWEAVE_DISCOGS_USER_AGENT:-DiscWeave/0.1 (+https://discweave.example.com)}"
       HostedSecurity__ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
-      ReleaseCovers__StorageRoot: /var/lib/cratebase/release-covers
+      ReleaseCovers__StorageRoot: /var/lib/discweave/release-covers
     depends_on:
       api-migrations:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
     volumes:
-      - cratebase-service-data:/var/lib/cratebase
+      - discweave-service-data:/var/lib/discweave
 
   api-migrations:
     build:
@@ -34,7 +38,7 @@ services:
       dockerfile: Dockerfile
       target: migrations
     environment:
-      CRATEBASE_DESIGN_TIME_CONNECTION_STRING: Host=postgres;Port=5432;Database=cratebase;Username=cratebase;Password=${CRATEBASE_POSTGRES_PASSWORD:?Set CRATEBASE_POSTGRES_PASSWORD}
+      DISCWEAVE_DESIGN_TIME_CONNECTION_STRING: Host=postgres;Port=5432;Database=discweave;Username=discweave;Password=${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,23 +46,23 @@ services:
 
   web:
     build:
-      context: ../../cratebase-web
+      context: ../../discweave-web
       dockerfile: Dockerfile
 
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: cratebase
-      POSTGRES_USER: cratebase
-      POSTGRES_PASSWORD: ${CRATEBASE_POSTGRES_PASSWORD:?Set CRATEBASE_POSTGRES_PASSWORD}
+      POSTGRES_DB: discweave
+      POSTGRES_USER: discweave
+      POSTGRES_PASSWORD: ${DISCWEAVE_POSTGRES_PASSWORD:?Set DISCWEAVE_POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cratebase -d cratebase"]
+      test: ["CMD-SHELL", "pg_isready -U discweave -d discweave"]
       interval: 5s
       timeout: 5s
       retries: 20
     volumes:
-      - cratebase-postgres-data:/var/lib/postgresql/data
+      - discweave-postgres-data:/var/lib/postgresql/data
 
 volumes:
-  cratebase-postgres-data:
-  cratebase-service-data:
+  discweave-postgres-data:
+  discweave-service-data:

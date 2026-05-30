@@ -21,7 +21,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore Cratebase.slnx
+        run: dotnet restore DiscWeave.slnx
 
       - name: Build
-        run: dotnet build Cratebase.slnx --configuration Release --no-restore
+        run: dotnet build DiscWeave.slnx --configuration Release --no-restore

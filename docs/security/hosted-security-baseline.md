@@ -1,6 +1,6 @@
 # Hosted Security Baseline
 
-Cratebase private beta uses secure HTTP-only cookie authentication on one
+DiscWeave private beta uses secure HTTP-only cookie authentication on one
 hosted origin. The hosted API must assume public internet traffic and protect
 auth, invite, import, export and restore endpoints without turning v1 into a
 general public SaaS platform.

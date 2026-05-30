@@ -56,7 +56,7 @@ collector may review manually.
 ## Destructive Confirmation Tokens
 
 Delete endpoints that remove catalog or settings data require
-`X-Cratebase-Confirm-Delete`. Missing or mismatched tokens return
+`X-DiscWeave-Confirm-Delete`. Missing or mismatched tokens return
 `delete.confirmation_required`.
 
 Roadmap 19 adds explicit confirmation to:
@@ -71,11 +71,11 @@ and do not authorize cross-collection access.
 
 ## Performance Smoke Mode
 
-`Cratebase.Seeding` can run representative large-collection probes after
+`DiscWeave.Seeding` can run representative large-collection probes after
 seeding:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-performance \
   --performance-budget-ms 250
@@ -98,7 +98,7 @@ Functional failures, such as a probe returning no representative data, print
 The existing search-specific mode remains available:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-search \
   --search-budget-ms 250
