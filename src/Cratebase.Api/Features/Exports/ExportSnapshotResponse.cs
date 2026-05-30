@@ -12,18 +12,39 @@ using Cratebase.Api.Features.Tracks;
 
 namespace Cratebase.Api.Features.Exports;
 
-public sealed record ExportSnapshotResponse(
-    int FormatVersion,
-    IReadOnlyList<ArtistResponse> Artists,
-    IReadOnlyList<LabelResponse> Labels,
-    IReadOnlyList<ReleaseResponse> Releases,
-    IReadOnlyList<TrackResponse> Tracks,
-    IReadOnlyList<OwnedItemResponse> OwnedItems,
-    IReadOnlyList<PlaylistResponse> Playlists,
-    IReadOnlyList<CreditResponse> Credits,
-    IReadOnlyList<ArtistRelationResponse> ArtistRelations,
-    IReadOnlyList<TrackRelationResponse> TrackRelations,
-    IReadOnlyList<DictionaryEntryResponse> Dictionaries,
-    IReadOnlyList<ImportPatternResponse> ImportPatterns,
-    IReadOnlyList<RatingCriterionResponse> RatingCriteria,
-    IReadOnlyList<RatingValueResponse> Ratings);
+public sealed record ExportSnapshotResponse
+{
+    public int FormatVersion { get; init; }
+
+    public IReadOnlyList<ArtistResponse> Artists { get; init; } = [];
+
+    public IReadOnlyList<LabelResponse> Labels { get; init; } = [];
+
+    public IReadOnlyList<ReleaseResponse> Releases { get; init; } = [];
+
+    public IReadOnlyList<TrackResponse> Tracks { get; init; } = [];
+
+    public IReadOnlyList<OwnedItemResponse> OwnedItems { get; init; } = [];
+
+    public IReadOnlyList<PlaylistResponse> Playlists { get; init; } = [];
+
+    public IReadOnlyList<CreditResponse> Credits { get; init; } = [];
+
+    public IReadOnlyList<ArtistRelationResponse> ArtistRelations { get; init; } = [];
+
+    public IReadOnlyList<TrackRelationResponse> TrackRelations { get; init; } = [];
+
+    public IReadOnlyList<DictionaryEntryResponse> Dictionaries { get; init; } = [];
+
+    public IReadOnlyList<ImportPatternResponse> ImportPatterns { get; init; } = [];
+
+    public IReadOnlyList<NamingProfileResponse> NamingProfiles { get; init; } = [];
+
+    public IReadOnlyList<TagRoleMappingResponse> TagRoleMappings { get; init; } = [];
+
+    public IReadOnlyList<ReleaseNamingOverrideResponse> ReleaseNamingOverrides { get; init; } = [];
+
+    public IReadOnlyList<RatingCriterionResponse> RatingCriteria { get; init; } = [];
+
+    public IReadOnlyList<RatingValueResponse> Ratings { get; init; } = [];
+}

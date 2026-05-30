@@ -169,6 +169,41 @@ public sealed partial class ExportRestoreEndpointTests
         return document.RootElement.GetProperty("id").GetGuid();
     }
 
+    private static async Task<Guid> CreateNamingProfileAsync(HttpClient client, string name)
+    {
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/settings/naming-profiles",
+            new
+            {
+                name,
+                releaseFolderTemplate = "{releaseArtists} - {title} ({year}) [{source} {format} {bitDepth}]",
+                trackFileTemplate = "{position} {title}",
+                trackFileWithArtistTemplate = "{position} {trackArtists} - {title}",
+                sortOrder = 50,
+                isDefault = false,
+                isActive = true
+            });
+        using JsonDocument document = await ReadJsonAsync(response);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static async Task PutReleaseNamingOverrideAsync(HttpClient client, Guid releaseId, Guid profileId)
+    {
+        using HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/releases/{releaseId}/naming-override",
+            new
+            {
+                namingProfileId = profileId,
+                releaseFolderTemplate = "{releaseArtists} - {title} ({year}) [{source} {format} {bitDepth}]",
+                trackFileTemplate = "{position} {title}",
+                trackFileWithArtistTemplate = "{position} {trackArtists} - {title}",
+                source = "WEB"
+            });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response)
     {
         return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());

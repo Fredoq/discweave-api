@@ -31,6 +31,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         _ = group.MapGet("", ListReleasesAsync).WithName("ListReleases");
         _ = group.MapPut("/{releaseId:guid}", UpdateReleaseAsync).WithName("UpdateRelease");
         _ = group.MapDelete("/{releaseId:guid}", DeleteReleaseAsync).WithName("DeleteRelease");
+        _ = group.MapGet("/{releaseId:guid}/naming-override", GetReleaseNamingOverrideAsync).WithName("GetReleaseNamingOverride");
+        _ = group.MapPut("/{releaseId:guid}/naming-override", PutReleaseNamingOverrideAsync).WithName("PutReleaseNamingOverride");
+        _ = group.MapDelete("/{releaseId:guid}/naming-override", DeleteReleaseNamingOverrideAsync).WithName("DeleteReleaseNamingOverride");
         _ = group.MapPut("/{releaseId:guid}/cover-image", PutReleaseCoverImageAsync).WithName("PutReleaseCoverImage");
         _ = group.MapGet("/{releaseId:guid}/cover-image", GetReleaseCoverImageAsync).WithName("GetReleaseCoverImage");
         _ = group.MapDelete("/{releaseId:guid}/cover-image", DeleteReleaseCoverImageAsync).WithName("DeleteReleaseCoverImage");

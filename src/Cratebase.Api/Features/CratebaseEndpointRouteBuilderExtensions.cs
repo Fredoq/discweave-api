@@ -46,6 +46,8 @@ public static class CratebaseEndpointRouteBuilderExtensions
         _ = endpoints.MapReleaseImportsEndpoints();
         _ = endpoints.MapSettingsDictionariesEndpoints();
         _ = endpoints.MapSettingsImportPatternsEndpoints();
+        _ = endpoints.MapSettingsNamingProfilesEndpoints();
+        _ = endpoints.MapSettingsTagRoleMappingsEndpoints();
         _ = endpoints.MapRatingCriteriaEndpoints();
         _ = endpoints.MapRatingsEndpoints();
 

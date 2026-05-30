@@ -102,6 +102,7 @@ public sealed class DomainModelShapeTests
             typeof(RatingCriterion).FullName!,
             typeof(RatingCriterionTarget).FullName!,
             typeof(RatingValue).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -140,6 +141,7 @@ public sealed class DomainModelShapeTests
             typeof(RatingCriterion).FullName!,
             typeof(RatingCriterionTarget).FullName!,
             typeof(RatingValue).FullName!,
+            typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
             typeof(TrackPosition).FullName!,
@@ -195,10 +197,12 @@ public sealed class DomainModelShapeTests
 
     private static int GetMaximumPublicPropertyCount(Type type)
     {
-        return type == typeof(CollectionDictionaryEntry)
+        return type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
             ? 10
+            : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
+            : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
             ? 9
             : type == typeof(Playlist)

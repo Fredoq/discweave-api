@@ -4,6 +4,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
 
 #nullable disable
+#pragma warning disable IDE0005
+#pragma warning disable IDE0058
+#pragma warning disable IDE0161
+#pragma warning disable IDE0300
+#pragma warning disable CA1861
 
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
@@ -145,14 +150,6 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections",
-                column: "owner_user_id",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
-
             migrationBuilder.CreateTable(
                 name: "collection_dictionary_entries",
                 columns: table => new
@@ -223,6 +220,35 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     table.UniqueConstraint("ak_labels_collection_label_id", x => new { x.collection_id, x.label_id });
                     table.ForeignKey(
                         name: "FK_labels_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "naming_profiles",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    naming_profile_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    release_folder_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    track_file_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    track_file_with_artist_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    is_default = table.Column<bool>(type: "boolean", nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_builtin = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_naming_profiles", x => x.id);
+                    table.UniqueConstraint("ak_naming_profiles_collection_profile_id", x => new { x.collection_id, x.naming_profile_id });
+                    table.ForeignKey(
+                        name: "FK_naming_profiles_collections_collection_id",
                         column: x => x.collection_id,
                         principalTable: "collections",
                         principalColumn: "collection_id",
@@ -373,6 +399,32 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_search_documents", x => x.id);
                     table.ForeignKey(
                         name: "FK_search_documents_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "tag_role_mappings",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    tag_role_mapping_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    credit_role_code = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    tag_field = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    sort_order = table.Column<int>(type: "integer", nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_builtin = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_tag_role_mappings", x => x.id);
+                    table.UniqueConstraint("ak_tag_role_mappings_collection_mapping_id", x => new { x.collection_id, x.tag_role_mapping_id });
+                    table.ForeignKey(
+                        name: "FK_tag_role_mappings_collections_collection_id",
                         column: x => x.collection_id,
                         principalTable: "collections",
                         principalColumn: "collection_id",
@@ -635,6 +687,44 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_release_labels_releases_collection_id_release_id",
+                        columns: x => new { x.collection_id, x.release_id },
+                        principalTable: "releases",
+                        principalColumns: new[] { "collection_id", "release_id" },
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "release_naming_overrides",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    release_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    naming_profile_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    release_folder_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    track_file_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    track_file_with_artist_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    source = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_release_naming_overrides", x => x.id);
+                    table.UniqueConstraint("ak_release_naming_overrides_collection_release_id", x => new { x.collection_id, x.release_id });
+                    table.ForeignKey(
+                        name: "FK_release_naming_overrides_collections_collection_id",
+                        column: x => x.collection_id,
+                        principalTable: "collections",
+                        principalColumn: "collection_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_release_naming_overrides_naming_profiles_collection_id_nami~",
+                        columns: x => new { x.collection_id, x.naming_profile_id },
+                        principalTable: "naming_profiles",
+                        principalColumns: new[] { "collection_id", "naming_profile_id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_release_naming_overrides_releases_collection_id_release_id",
                         columns: x => new { x.collection_id, x.release_id },
                         principalTable: "releases",
                         principalColumns: new[] { "collection_id", "release_id" },
@@ -1085,6 +1175,14 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "owner_user_id",
                 unique: true);
 
+            migrationBuilder.AddForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections",
+                column: "owner_user_id",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
             migrationBuilder.CreateIndex(
                 name: "IX_credits_collection_id",
                 table: "credits",
@@ -1146,6 +1244,24 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "IX_labels_collection_id",
                 table: "labels",
                 column: "collection_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_naming_profiles_collection_id_sort_order",
+                table: "naming_profiles",
+                columns: new[] { "collection_id", "sort_order" });
+
+            migrationBuilder.CreateIndex(
+                name: "ux_naming_profiles_collection_name",
+                table: "naming_profiles",
+                columns: new[] { "collection_id", "name" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ux_naming_profiles_collection_default",
+                table: "naming_profiles",
+                column: "collection_id",
+                unique: true,
+                filter: "is_default = TRUE");
 
             migrationBuilder.CreateIndex(
                 name: "ix_owned_items_collection_condition",
@@ -1406,6 +1522,16 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 column: "release_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_release_naming_overrides_collection_id_naming_profile_id",
+                table: "release_naming_overrides",
+                columns: new[] { "collection_id", "naming_profile_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_release_naming_overrides_naming_profile_id",
+                table: "release_naming_overrides",
+                column: "naming_profile_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_release_tracks_collection_id",
                 table: "release_tracks",
                 column: "collection_id");
@@ -1507,6 +1633,17 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 .Annotation("Npgsql:IndexOperators", new[] { "gin_trgm_ops" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_tag_role_mappings_collection_id_sort_order",
+                table: "tag_role_mappings",
+                columns: new[] { "collection_id", "sort_order" });
+
+            migrationBuilder.CreateIndex(
+                name: "ux_tag_role_mappings_collection_role",
+                table: "tag_role_mappings",
+                columns: new[] { "collection_id", "credit_role_code" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_track_relations_collection_id",
                 table: "track_relations",
                 column: "collection_id");
@@ -1592,6 +1729,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 name: "release_labels");
 
             migrationBuilder.DropTable(
+                name: "release_naming_overrides");
+
+            migrationBuilder.DropTable(
                 name: "release_tags");
 
             migrationBuilder.DropTable(
@@ -1599,6 +1739,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "search_documents");
+
+            migrationBuilder.DropTable(
+                name: "tag_role_mappings");
 
             migrationBuilder.DropTable(
                 name: "track_genres");
@@ -1629,6 +1772,9 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "labels");
+
+            migrationBuilder.DropTable(
+                name: "naming_profiles");
 
             migrationBuilder.DropTable(
                 name: "releases");

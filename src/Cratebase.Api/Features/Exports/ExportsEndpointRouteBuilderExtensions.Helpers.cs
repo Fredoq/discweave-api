@@ -117,6 +117,53 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         ];
     }
 
+    private static async Task<IReadOnlyList<NamingProfileResponse>> LoadNamingProfilesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        return
+        [
+            .. (await context.NamingProfiles.AsNoTracking()
+                .Where(profile => profile.CollectionId == collectionId)
+                .OrderBy(profile => profile.SortOrder)
+                .ThenBy(profile => profile.Name)
+                .ToArrayAsync(cancellationToken))
+                .Select(ToNamingProfileResponse)
+        ];
+    }
+
+    private static async Task<IReadOnlyList<ReleaseNamingOverrideResponse>> LoadReleaseNamingOverridesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        return
+        [
+            .. (await context.ReleaseNamingOverrides.AsNoTracking()
+                .Where(overrideEntry => overrideEntry.CollectionId == collectionId)
+                .OrderBy(overrideEntry => overrideEntry.ReleaseId)
+                .ToArrayAsync(cancellationToken))
+                .Select(ToReleaseNamingOverrideResponse)
+        ];
+    }
+
+    private static async Task<IReadOnlyList<TagRoleMappingResponse>> LoadTagRoleMappingsAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        return
+        [
+            .. (await context.TagRoleMappings.AsNoTracking()
+                .Where(mapping => mapping.CollectionId == collectionId)
+                .OrderBy(mapping => mapping.SortOrder)
+                .ThenBy(mapping => mapping.CreditRoleCode)
+                .ToArrayAsync(cancellationToken))
+                .Select(ToTagRoleMappingResponse)
+        ];
+    }
+
     private static async Task<IReadOnlyList<RatingCriterionResponse>> LoadRatingCriteriaAsync(
         CratebaseDbContext context,
         CollectionId collectionId,
@@ -193,6 +240,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
     }
 
     private static Guid? OptionalGuid(IOptionalValue<LabelId>? optional)
+    {
+        return optional is { HasValue: true } ? optional.Match(value => value.Value, () => Guid.Empty) : null;
+    }
+
+    private static Guid? OptionalGuid(IOptionalValue<NamingProfileId>? optional)
     {
         return optional is { HasValue: true } ? optional.Match(value => value.Value, () => Guid.Empty) : null;
     }

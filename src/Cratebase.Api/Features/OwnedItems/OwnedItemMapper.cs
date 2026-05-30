@@ -164,7 +164,7 @@ internal static class OwnedItemMapper
             : throw new DomainException("owned_item.condition_invalid", "Owned item condition is invalid");
     }
 
-    private static AudioFileFormat ParseAudioFileFormat(string format)
+    public static AudioFileFormat ParseAudioFileFormat(string format)
     {
         return Required(format, "medium.format_required").Trim() switch
         {
