@@ -47,6 +47,10 @@ ASPNETCORE_URLS=http://+:8080
 ConnectionStrings__Cratebase=<managed-postgresql-connection-string>
 ReleaseCovers__StorageRoot=/var/lib/cratebase/release-covers
 DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
+Discogs__Enabled=false
+Discogs__BaseUrl=https://api.discogs.com
+Discogs__UserAgent="Cratebase/0.1 (+https://cratebase.example.com)"
+Discogs__TimeoutSeconds=10
 ```
 
 `ConnectionStrings__Cratebase` is a secret. Store it in the provider secret manager, not in Git.
@@ -54,6 +58,12 @@ DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
 `ReleaseCovers__StorageRoot` must point at persistent service storage. The API stores release cover files, not audio files.
 
 `DesktopDownloads__MacOsInstallerPath` is optional until the desktop installer is published. If configured, it should point at the hosted DMG artifact that `/api/imports/desktop-downloads/macos` can serve.
+
+`Discogs__Enabled` must remain `false` until Discogs autocomplete endpoints are implemented and ready for the target environment.
+
+`Discogs__AccessToken` is a secret required only when `Discogs__Enabled=true`. Store it in the provider secret manager, not in Git, not in `deploy/.env.example`, and not in browser or desktop build variables. The web app must call only `cratebase-api` and must never receive Discogs credentials.
+
+See [../integrations/discogs-credentials-setup.md](../integrations/discogs-credentials-setup.md) for the Discogs credential setup contract, local disabled-provider workflow, and optional real-API smoke check.
 
 ## TLS, Cookies, And Proxy Rules
 

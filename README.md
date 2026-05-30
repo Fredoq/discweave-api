@@ -94,7 +94,17 @@ ASPNETCORE_URLS=http://+:8080
 ConnectionStrings__Cratebase=<managed-postgresql-connection-string>
 ReleaseCovers__StorageRoot=/var/lib/cratebase/release-covers
 DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
+Discogs__Enabled=false
+Discogs__BaseUrl=https://api.discogs.com
+Discogs__UserAgent="Cratebase/0.1 (+https://cratebase.example.com)"
+Discogs__TimeoutSeconds=10
 ```
+
+`Discogs__AccessToken` is required only when Discogs autocomplete is enabled.
+Store it in the hosted secret manager or a local developer secret store; never
+commit it or expose it to `cratebase-web`. See
+[docs/integrations/discogs-credentials-setup.md](docs/integrations/discogs-credentials-setup.md)
+for the credential setup contract.
 
 See [docs/hosting/hosted-deployment-baseline.md](docs/hosting/hosted-deployment-baseline.md)
 for topology, migration, secret, TLS, reverse proxy, storage, and compose

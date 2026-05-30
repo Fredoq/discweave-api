@@ -18,6 +18,10 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Cratebase: Host=postgres;Port=5432;Database=cratebase;Username=cratebase;Password=${CRATEBASE_POSTGRES_PASSWORD:?Set CRATEBASE_POSTGRES_PASSWORD}
       DesktopDownloads__MacOsInstallerPath: /var/lib/cratebase/desktop/Cratebase.dmg
+      Discogs__BaseUrl: ${CRATEBASE_DISCOGS_BASE_URL:-https://api.discogs.com}
+      Discogs__Enabled: ${CRATEBASE_DISCOGS_ENABLED:-false}
+      Discogs__TimeoutSeconds: ${CRATEBASE_DISCOGS_TIMEOUT_SECONDS:-10}
+      Discogs__UserAgent: "${CRATEBASE_DISCOGS_USER_AGENT:-Cratebase/0.1 (+https://cratebase.example.com)}"
       HostedSecurity__ForwardedHeaders__KnownNetworks__0: 172.16.0.0/12
       ReleaseCovers__StorageRoot: /var/lib/cratebase/release-covers
     depends_on:
