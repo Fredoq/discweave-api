@@ -52,7 +52,28 @@ internal static class TagRoleMappingDefaults
                 isBuiltin: true));
         }
 
-        _ = await context.SaveChangesAsync(cancellationToken);
+        await SaveSeedChangesAsync(context, collectionId, cancellationToken);
+    }
+
+    private static async Task SaveSeedChangesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _ = await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            context.ChangeTracker.Clear();
+            bool hasBuiltin = await context.TagRoleMappings.AsNoTracking()
+                .AnyAsync(mapping => mapping.CollectionId == collectionId && mapping.IsBuiltin, cancellationToken);
+            if (!hasBuiltin)
+            {
+                throw;
+            }
+        }
     }
 
     private sealed record BuiltinTagRoleMapping(string CreditRoleCode, string TagField, int SortOrder);

@@ -30,7 +30,7 @@ internal static class NamingProfileDefaults
                 10,
                 isDefault: true,
                 isBuiltin: true));
-            _ = await context.SaveChangesAsync(cancellationToken);
+            await SaveSeedChangesAsync(context, collectionId, cancellationToken);
             return;
         }
 
@@ -57,6 +57,27 @@ internal static class NamingProfileDefaults
             .OrderBy(profile => profile.SortOrder)
             .FirstOrDefaultAsync(cancellationToken);
         firstActive?.SetDefault(true);
-        _ = await context.SaveChangesAsync(cancellationToken);
+        await SaveSeedChangesAsync(context, collectionId, cancellationToken);
+    }
+
+    private static async Task SaveSeedChangesAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _ = await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            context.ChangeTracker.Clear();
+            bool hasBuiltin = await context.NamingProfiles.AsNoTracking()
+                .AnyAsync(profile => profile.CollectionId == collectionId && profile.IsBuiltin, cancellationToken);
+            if (!hasBuiltin)
+            {
+                throw;
+            }
+        }
     }
 }
