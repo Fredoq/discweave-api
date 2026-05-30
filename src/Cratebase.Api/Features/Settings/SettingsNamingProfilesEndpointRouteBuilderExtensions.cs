@@ -51,6 +51,8 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
 
         try
         {
+            bool isActive = request.IsActive != false;
+            bool isDefault = request.IsDefault == true && isActive;
             var profile = NamingProfile.Create(
                 currentCollection.CollectionId,
                 NamingProfileId.New(),
@@ -59,9 +61,9 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
                 request.TrackFileTemplate,
                 request.TrackFileWithArtistTemplate,
                 request.SortOrder ?? 100,
-                request.IsDefault == true,
+                isDefault,
                 isBuiltin: false);
-            if (request.IsActive == false)
+            if (!isActive)
             {
                 profile.Update(
                     profile.Name,
@@ -69,7 +71,7 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
                     profile.TrackFileTemplate,
                     profile.TrackFileWithArtistTemplate,
                     profile.SortOrder,
-                    profile.IsDefault,
+                    isDefault,
                     isActive: false);
             }
 
@@ -105,15 +107,23 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
 
         try
         {
+            bool wasDefault = profile.IsDefault;
+            bool isActive = request.IsActive ?? profile.IsActive;
+            bool isDefault = (request.IsDefault ?? profile.IsDefault) && isActive;
             profile.Update(
                 request.Name,
                 request.ReleaseFolderTemplate,
                 request.TrackFileTemplate,
                 request.TrackFileWithArtistTemplate,
                 request.SortOrder ?? profile.SortOrder,
-                request.IsDefault ?? profile.IsDefault,
-                request.IsActive ?? profile.IsActive);
+                isDefault,
+                isActive);
             await ApplyDefaultSelectionAsync(context, currentCollection.CollectionId, profile, cancellationToken);
+            if (wasDefault && !profile.IsDefault)
+            {
+                await SelectFallbackDefaultAsync(context, currentCollection.CollectionId, profile.Id, cancellationToken);
+            }
+
             _ = await context.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(ToResponse(profile));
@@ -154,11 +164,7 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
             _ = context.NamingProfiles.Remove(profile);
             if (wasDefault)
             {
-                NamingProfile? fallback = await context.NamingProfiles
-                    .Where(candidate => candidate.CollectionId == currentCollection.CollectionId && candidate.Id != profile.Id && candidate.IsActive)
-                    .OrderBy(candidate => candidate.SortOrder)
-                    .FirstOrDefaultAsync(cancellationToken);
-                fallback?.SetDefault(true);
+                await SelectFallbackDefaultAsync(context, currentCollection.CollectionId, profile.Id, cancellationToken);
             }
 
             _ = await context.SaveChangesAsync(cancellationToken);
@@ -203,6 +209,19 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
         {
             profile.SetDefault(false);
         }
+    }
+
+    private static async Task SelectFallbackDefaultAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        NamingProfileId excludedProfileId,
+        CancellationToken cancellationToken)
+    {
+        NamingProfile? fallback = await context.NamingProfiles
+            .Where(candidate => candidate.CollectionId == collectionId && candidate.Id != excludedProfileId && candidate.IsActive)
+            .OrderBy(candidate => candidate.SortOrder)
+            .FirstOrDefaultAsync(cancellationToken);
+        fallback?.SetDefault(true);
     }
 
     private static NamingProfileResponse ToResponse(NamingProfile profile)

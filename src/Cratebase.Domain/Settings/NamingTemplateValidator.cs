@@ -39,9 +39,17 @@ public static class NamingTemplateValidator
         while (index < normalized.Length)
         {
             int start = normalized.IndexOf('{', index);
+            int strayEnd = normalized.IndexOf('}', index);
             if (start < 0)
             {
-                return normalized.Trim();
+                return strayEnd >= 0
+                    ? throw new DomainException("naming_profile.template_token_invalid", "Naming template token is invalid")
+                    : normalized.Trim();
+            }
+
+            if (strayEnd >= 0 && strayEnd < start)
+            {
+                throw new DomainException("naming_profile.template_token_invalid", "Naming template token is invalid");
             }
 
             int end = normalized.IndexOf('}', start);

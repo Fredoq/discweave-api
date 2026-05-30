@@ -5,6 +5,7 @@ using Cratebase.Domain.Collection;
 using Cratebase.Domain.SharedKernel.Errors;
 using Cratebase.Domain.SharedKernel.Ids;
 using Cratebase.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cratebase.Api.Features.OwnedItems;
 
@@ -18,9 +19,10 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        IRepository<OwnedItem, OwnedItemId> items = unitOfWork.GetRepository<OwnedItem, OwnedItemId>();
-        OwnedItem? item = await items.TryFindAsync(new OwnedItemId(ownedItemId), cancellationToken);
-        if (item is null || item.CollectionId != currentCollection.CollectionId)
+        OwnedItem? item = await context.OwnedItems.SingleOrDefaultAsync(
+            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new OwnedItemId(ownedItemId),
+            cancellationToken);
+        if (item is null)
         {
             return EndpointErrors.NotFound("owned_item.not_found", "Owned item was not found");
         }

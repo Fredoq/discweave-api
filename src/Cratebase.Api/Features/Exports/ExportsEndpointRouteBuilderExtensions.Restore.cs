@@ -92,6 +92,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             !await context.ReleaseImportSessions.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ReleaseImportDrafts.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.ReleaseImportDraftTracks.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
+            !await context.NamingProfiles.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
+            !await context.TagRoleMappings.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken) &&
             !await context.RatingValues.AnyAsync(entity => entity.CollectionId == collectionId, cancellationToken);
     }
 

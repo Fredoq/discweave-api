@@ -1354,6 +1354,11 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_naming_profiles_collection_name");
 
+                    b.HasIndex("CollectionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_naming_profiles_collection_default")
+                        .HasFilter("is_default = TRUE");
+
                     b.HasIndex("CollectionId", "SortOrder");
 
                     b.ToTable("naming_profiles", (string)null);

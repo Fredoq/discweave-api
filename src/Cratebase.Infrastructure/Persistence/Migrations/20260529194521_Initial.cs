@@ -1257,6 +1257,13 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ux_naming_profiles_collection_default",
+                table: "naming_profiles",
+                column: "collection_id",
+                unique: true,
+                filter: "is_default = TRUE");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_owned_items_collection_condition",
                 table: "owned_items",
                 columns: new[] { "collection_id", "condition" });

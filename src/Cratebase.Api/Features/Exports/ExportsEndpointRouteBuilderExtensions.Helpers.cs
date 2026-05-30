@@ -122,8 +122,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        await NamingProfileDefaults.EnsureAsync(context, collectionId, cancellationToken);
-
         return
         [
             .. (await context.NamingProfiles.AsNoTracking()
@@ -155,8 +153,6 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        await TagRoleMappingDefaults.EnsureAsync(context, collectionId, cancellationToken);
-
         return
         [
             .. (await context.TagRoleMappings.AsNoTracking()

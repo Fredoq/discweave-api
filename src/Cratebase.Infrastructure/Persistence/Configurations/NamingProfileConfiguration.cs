@@ -57,6 +57,10 @@ internal sealed class NamingProfileConfiguration : IEntityTypeConfiguration<Nami
         _ = builder.HasIndex(profile => new { profile.CollectionId, profile.Name })
             .IsUnique()
             .HasDatabaseName("ux_naming_profiles_collection_name");
+        _ = builder.HasIndex(profile => profile.CollectionId)
+            .HasFilter("is_default = TRUE")
+            .IsUnique()
+            .HasDatabaseName("ux_naming_profiles_collection_default");
 
         _ = builder.HasOne<MusicCollection>()
             .WithMany()
