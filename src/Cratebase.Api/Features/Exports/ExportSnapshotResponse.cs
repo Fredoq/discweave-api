@@ -25,5 +25,8 @@ public sealed record ExportSnapshotResponse(
     IReadOnlyList<TrackRelationResponse> TrackRelations,
     IReadOnlyList<DictionaryEntryResponse> Dictionaries,
     IReadOnlyList<ImportPatternResponse> ImportPatterns,
+    IReadOnlyList<NamingProfileResponse> NamingProfiles,
+    IReadOnlyList<TagRoleMappingResponse> TagRoleMappings,
+    IReadOnlyList<ReleaseNamingOverrideResponse> ReleaseNamingOverrides,
     IReadOnlyList<RatingCriterionResponse> RatingCriteria,
     IReadOnlyList<RatingValueResponse> Ratings);

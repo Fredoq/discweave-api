@@ -26,6 +26,7 @@ public static partial class OwnedItemsEndpointRouteBuilderExtensions
         _ = group.MapGet("/{ownedItemId:guid}", GetOwnedItemAsync).WithName("GetOwnedItem");
         _ = group.MapGet("", ListOwnedItemsAsync).WithName("ListOwnedItems");
         _ = group.MapPut("/{ownedItemId:guid}", UpdateOwnedItemAsync).WithName("UpdateOwnedItem");
+        _ = group.MapPatch("/{ownedItemId:guid}/digital-file", UpdateDigitalFileAsync).WithName("UpdateOwnedItemDigitalFile");
         _ = group.MapDelete("/{ownedItemId:guid}", DeleteOwnedItemAsync).WithName("DeleteOwnedItem");
 
         return endpoints;

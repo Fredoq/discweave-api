@@ -62,6 +62,18 @@ internal static class PersistenceValueConverters
         id => id.Value,
         value => new ImportPatternId(value));
 
+    public static readonly ValueConverter<NamingProfileId, Guid> NamingProfileId = new(
+        id => id.Value,
+        value => new NamingProfileId(value));
+
+    public static readonly ValueConverter<NamingProfileId?, Guid?> NullableNamingProfileId = new(
+        id => id.HasValue ? id.Value.Value : null,
+        value => value.HasValue ? new NamingProfileId(value.Value) : null);
+
+    public static readonly ValueConverter<TagRoleMappingId, Guid> TagRoleMappingId = new(
+        id => id.Value,
+        value => new TagRoleMappingId(value));
+
     public static readonly ValueConverter<TrackId, Guid> TrackId = new(
         id => id.Value,
         value => new TrackId(value));

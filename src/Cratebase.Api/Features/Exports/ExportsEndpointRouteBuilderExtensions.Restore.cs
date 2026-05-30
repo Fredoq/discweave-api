@@ -49,10 +49,13 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             RestoreDictionaries(context, collectionId, snapshot.Dictionaries);
             RestoreRatingCriteria(context, collectionId, snapshot.RatingCriteria);
             RestoreImportPatterns(context, collectionId, snapshot.ImportPatterns);
+            RestoreNamingProfiles(context, collectionId, snapshot.NamingProfiles);
+            RestoreTagRoleMappings(context, collectionId, snapshot.TagRoleMappings);
             ArtistLookup artists = RestoreArtists(context, collectionId, snapshot.Artists);
             RestoreLabels(context, collectionId, snapshot.Labels);
             RestoreTracks(context, collectionId, snapshot.Tracks);
             RestoreReleases(context, collectionId, snapshot.Releases);
+            RestoreReleaseNamingOverrides(context, collectionId, snapshot.ReleaseNamingOverrides);
             RestoreOwnedItems(context, collectionId, snapshot.OwnedItems);
             RestoreCredits(context, collectionId, snapshot.Credits, artists);
             RestoreArtistRelations(context, collectionId, snapshot.ArtistRelations);
@@ -106,6 +109,12 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         _ = await context.RatingCriteria
             .Where(entity => entity.CollectionId == collectionId)
             .ExecuteDeleteAsync(cancellationToken);
+        _ = await context.NamingProfiles
+            .Where(entity => entity.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
+        _ = await context.TagRoleMappings
+            .Where(entity => entity.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     private static ExportRestoreResponse ToRestoreResponse(ExportSnapshotResponse snapshot)
@@ -124,6 +133,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             snapshot.TrackRelations.Count,
             snapshot.Dictionaries.Count,
             snapshot.ImportPatterns.Count,
+            snapshot.NamingProfiles.Count,
+            snapshot.TagRoleMappings.Count,
+            snapshot.ReleaseNamingOverrides.Count,
             snapshot.RatingCriteria.Count,
             snapshot.Ratings.Count);
     }

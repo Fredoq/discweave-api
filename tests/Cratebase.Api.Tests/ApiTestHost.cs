@@ -167,6 +167,21 @@ internal sealed class ApiTestHost : IAsyncDisposable
         return ownedItemId;
     }
 
+    public async Task<DigitalImportIdentity?> FindDigitalImportIdentityAsync(Guid ownedItemId, CancellationToken cancellationToken = default)
+    {
+        await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
+        CratebaseDbContext context = scope.ServiceProvider.GetRequiredService<CratebaseDbContext>();
+
+        return await context.OwnedItems.AsNoTracking()
+            .Where(item => item.Id == new OwnedItemId(ownedItemId))
+            .Select(item => new DigitalImportIdentity(
+                EF.Property<string?>(item, "_importIdentityPath"),
+                EF.Property<long?>(item, "_importIdentitySizeBytes"),
+                EF.Property<DateTimeOffset?>(item, "_importIdentityLastModifiedAt"),
+                EF.Property<string?>(item, "_importIdentityContentHash")))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async ValueTask DisposeAsync()
     {
         _factory.Dispose();
@@ -213,3 +228,9 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     private sealed record AuthRequest(string Email, string Password);
 }
+
+internal sealed record DigitalImportIdentity(
+    string? Path,
+    long? SizeBytes,
+    DateTimeOffset? LastModifiedAt,
+    string? ContentHash);

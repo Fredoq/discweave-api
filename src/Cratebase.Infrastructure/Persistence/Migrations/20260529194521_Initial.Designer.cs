@@ -10,11 +10,16 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
 
 #nullable disable
+#pragma warning disable IDE0005
+#pragma warning disable IDE0058
+#pragma warning disable IDE0161
+#pragma warning disable IDE0300
+#pragma warning disable CA1861
 
 namespace Cratebase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CratebaseDbContext))]
-    [Migration("20260528171418_Initial")]
+    [Migration("20260529194521_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -1283,6 +1288,185 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                     b.ToTable("collection_dictionary_entries", (string)null);
                 });
 
+            modelBuilder.Entity("Cratebase.Domain.Settings.NamingProfile", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("naming_profile_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBuiltin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_builtin");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ReleaseFolderTemplate")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("release_folder_template");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("TrackFileTemplate")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("track_file_template");
+
+                    b.Property<string>("TrackFileWithArtistTemplate")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("track_file_with_artist_template");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_naming_profiles_collection_profile_id");
+
+                    b.HasIndex("CollectionId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_naming_profiles_collection_name");
+
+                    b.HasIndex("CollectionId", "SortOrder");
+
+                    b.ToTable("naming_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.ReleaseNamingOverride", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<Guid?>("_namingProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("naming_profile_id");
+
+                    b.Property<string>("_releaseFolderTemplate")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("release_folder_template");
+
+                    b.Property<Guid>("ReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_id");
+
+                    b.Property<string>("_source")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("_trackFileTemplate")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("track_file_template");
+
+                    b.Property<string>("_trackFileWithArtistTemplate")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("track_file_with_artist_template");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("CollectionId", "ReleaseId")
+                        .HasName("ak_release_naming_overrides_collection_release_id");
+
+                    b.HasIndex("_namingProfileId");
+
+                    b.HasIndex("CollectionId", "_namingProfileId");
+
+                    b.ToTable("release_naming_overrides", (string)null);
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.TagRoleMapping", b =>
+                {
+                    b.Property<long>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("id"));
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("collection_id");
+
+                    b.Property<string>("CreditRoleCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("credit_role_code");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tag_role_mapping_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsBuiltin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_builtin");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("TagField")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("tag_field");
+
+                    b.HasKey("id");
+
+                    b.HasAlternateKey("CollectionId", "Id")
+                        .HasName("ak_tag_role_mappings_collection_mapping_id");
+
+                    b.HasIndex("CollectionId", "CreditRoleCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_tag_role_mappings_collection_role");
+
+                    b.HasIndex("CollectionId", "SortOrder");
+
+                    b.ToTable("tag_role_mappings", (string)null);
+                });
+
             modelBuilder.Entity("Cratebase.Infrastructure.Identity.CratebaseUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2309,6 +2493,49 @@ namespace Cratebase.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Cratebase.Domain.Settings.CollectionDictionaryEntry", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.NamingProfile", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.ReleaseNamingOverride", b =>
+                {
+                    b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Cratebase.Domain.Settings.NamingProfile", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_namingProfileId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Cratebase.Domain.Catalog.Release", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "ReleaseId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Cratebase.Domain.Settings.TagRoleMapping", b =>
                 {
                     b.HasOne("Cratebase.Domain.Collection.MusicCollection", null)
                         .WithMany()

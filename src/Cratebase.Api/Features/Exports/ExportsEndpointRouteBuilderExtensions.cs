@@ -103,6 +103,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             await LoadTrackRelationsAsync(context, collectionId, cancellationToken),
             await LoadDictionariesAsync(context, collectionId, cancellationToken),
             await LoadImportPatternsAsync(context, collectionId, cancellationToken),
+            await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
+            await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
+            await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
             await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
             await LoadRatingsAsync(context, collectionId, cancellationToken));
     }

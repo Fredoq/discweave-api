@@ -26,9 +26,12 @@ internal static class SearchDocumentRebuilder
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<SearchDocument> documents = await SearchDocumentBuilder.BuildAsync(context, collectionId, cancellationToken);
+        IReadOnlyList<SearchDocument> documents = Deduplicate(
+            await SearchDocumentBuilder.BuildAsync(context, collectionId, cancellationToken));
 
         await using IDbContextTransaction? transaction = await BeginTransactionIfNeededAsync(context, cancellationToken);
+
+        await LockCollectionSearchDocumentsAsync(context, collectionId, cancellationToken);
 
         _ = await context.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM search_documents WHERE collection_id = {collectionId.Value}",
@@ -52,6 +55,36 @@ internal static class SearchDocumentRebuilder
         return context.Database.CurrentTransaction is not null
             ? null
             : await context.Database.BeginTransactionAsync(cancellationToken);
+    }
+
+    private static async Task LockCollectionSearchDocumentsAsync(
+        CratebaseDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        byte[] bytes = collectionId.Value.ToByteArray();
+        int lockKeyOne = BitConverter.ToInt32(bytes, 0);
+        int lockKeyTwo = BitConverter.ToInt32(bytes, 4);
+
+        _ = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({lockKeyOne}, {lockKeyTwo})",
+            cancellationToken);
+    }
+
+    private static IReadOnlyList<SearchDocument> Deduplicate(IReadOnlyList<SearchDocument> documents)
+    {
+        return
+        [
+            .. documents
+                .GroupBy(
+                    document => new
+                    {
+                        document.CollectionId,
+                        document.EntityType,
+                        document.EntityId
+                    })
+                .Select(group => group.First())
+        ];
     }
 
     private static async Task CopyDocumentsAsync(

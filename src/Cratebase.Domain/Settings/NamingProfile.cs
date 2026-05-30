@@ -1,0 +1,142 @@
+using Cratebase.Domain.SharedKernel.Errors;
+using Cratebase.Domain.SharedKernel.Ids;
+using Cratebase.Domain.SharedKernel.Interfaces;
+using Cratebase.Domain.SharedKernel.Validation;
+
+namespace Cratebase.Domain.Settings;
+
+public sealed class NamingProfile : IEntity<NamingProfileId>
+{
+    private NamingProfile()
+    {
+    }
+
+    private NamingProfile(
+        CollectionId collectionId,
+        NamingProfileId id,
+        string name,
+        string releaseFolderTemplate,
+        string trackFileTemplate,
+        string trackFileWithArtistTemplate,
+        int sortOrder,
+        bool isDefault,
+        bool isBuiltin)
+    {
+        CollectionId = collectionId;
+        Id = id;
+        Name = Guard.RequiredText(name, nameof(name), "naming_profile.name_required");
+        ReleaseFolderTemplate = NamingTemplateValidator.Validate(releaseFolderTemplate, NamingTemplateKind.ReleaseFolder);
+        TrackFileTemplate = NamingTemplateValidator.Validate(trackFileTemplate, NamingTemplateKind.TrackFile);
+        TrackFileWithArtistTemplate = NamingTemplateValidator.Validate(trackFileWithArtistTemplate, NamingTemplateKind.TrackFileWithArtist);
+        SortOrder = RequiredSortOrder(sortOrder);
+        IsDefault = isDefault;
+        IsActive = true;
+        IsBuiltin = isBuiltin;
+    }
+
+    public NamingProfileId Id { get; private set; }
+
+    public CollectionId CollectionId { get; private set; }
+
+    public string Name { get; private set; } = string.Empty;
+
+    public string ReleaseFolderTemplate { get; private set; } = string.Empty;
+
+    public string TrackFileTemplate { get; private set; } = string.Empty;
+
+    public string TrackFileWithArtistTemplate { get; private set; } = string.Empty;
+
+    public int SortOrder { get; private set; }
+
+    public bool IsDefault { get; private set; }
+
+    public bool IsActive { get; private set; }
+
+    public bool IsBuiltin { get; private set; }
+
+    public static NamingProfile Create(
+        CollectionId collectionId,
+        NamingProfileId id,
+        string name,
+        string releaseFolderTemplate,
+        string trackFileTemplate,
+        string trackFileWithArtistTemplate,
+        int sortOrder,
+        bool isDefault,
+        bool isBuiltin)
+    {
+        return new NamingProfile(
+            collectionId,
+            id,
+            name,
+            releaseFolderTemplate,
+            trackFileTemplate,
+            trackFileWithArtistTemplate,
+            sortOrder,
+            isDefault,
+            isBuiltin);
+    }
+
+    public void Update(
+        string name,
+        string releaseFolderTemplate,
+        string trackFileTemplate,
+        string trackFileWithArtistTemplate,
+        int sortOrder,
+        bool isDefault,
+        bool isActive)
+    {
+        if (IsBuiltin)
+        {
+            throw new DomainException("naming_profile.builtin_immutable", "Built-in naming profiles cannot be edited");
+        }
+
+        Name = Guard.RequiredText(name, nameof(name), "naming_profile.name_required");
+        ReleaseFolderTemplate = NamingTemplateValidator.Validate(releaseFolderTemplate, NamingTemplateKind.ReleaseFolder);
+        TrackFileTemplate = NamingTemplateValidator.Validate(trackFileTemplate, NamingTemplateKind.TrackFile);
+        TrackFileWithArtistTemplate = NamingTemplateValidator.Validate(trackFileWithArtistTemplate, NamingTemplateKind.TrackFileWithArtist);
+        SortOrder = RequiredSortOrder(sortOrder);
+        IsDefault = isDefault;
+        IsActive = isActive;
+    }
+
+    public void SetDefault(bool isDefault)
+    {
+        IsDefault = isDefault;
+    }
+
+    public void SyncBuiltinDefaults(
+        string name,
+        string releaseFolderTemplate,
+        string trackFileTemplate,
+        string trackFileWithArtistTemplate,
+        int sortOrder)
+    {
+        if (!IsBuiltin)
+        {
+            throw new DomainException("naming_profile.not_builtin", "Only built-in naming profiles can be synchronized");
+        }
+
+        Name = Guard.RequiredText(name, nameof(name), "naming_profile.name_required");
+        ReleaseFolderTemplate = NamingTemplateValidator.Validate(releaseFolderTemplate, NamingTemplateKind.ReleaseFolder);
+        TrackFileTemplate = NamingTemplateValidator.Validate(trackFileTemplate, NamingTemplateKind.TrackFile);
+        TrackFileWithArtistTemplate = NamingTemplateValidator.Validate(trackFileWithArtistTemplate, NamingTemplateKind.TrackFileWithArtist);
+        SortOrder = RequiredSortOrder(sortOrder);
+        IsActive = true;
+    }
+
+    public void EnsureCanDelete()
+    {
+        if (IsBuiltin)
+        {
+            throw new DomainException("naming_profile.builtin_immutable", "Built-in naming profiles cannot be deleted");
+        }
+    }
+
+    private static int RequiredSortOrder(int sortOrder)
+    {
+        return sortOrder < 0
+            ? throw new DomainException("naming_profile.sort_order_invalid", "Naming profile sort order cannot be negative")
+            : sortOrder;
+    }
+}

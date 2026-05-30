@@ -68,6 +68,12 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
 
     public DbSet<ImportPattern> ImportPatterns => Set<ImportPattern>();
 
+    public DbSet<NamingProfile> NamingProfiles => Set<NamingProfile>();
+
+    public DbSet<ReleaseNamingOverride> ReleaseNamingOverrides => Set<ReleaseNamingOverride>();
+
+    public DbSet<TagRoleMapping> TagRoleMappings => Set<TagRoleMapping>();
+
     public DbSet<ReleaseImportSession> ReleaseImportSessions => Set<ReleaseImportSession>();
 
     public DbSet<ReleaseImportDraft> ReleaseImportDrafts => Set<ReleaseImportDraft>();
@@ -150,11 +156,14 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         _ = builder.ApplyConfiguration(new ImportPatternConfiguration());
         _ = builder.ApplyConfiguration(new InviteConfiguration());
         _ = builder.ApplyConfiguration(new MusicCollectionConfiguration());
+        _ = builder.ApplyConfiguration(new NamingProfileConfiguration());
         _ = builder.ApplyConfiguration(new OwnedItemConfiguration());
         _ = builder.ApplyConfiguration(new PlaylistConfiguration());
         _ = builder.ApplyConfiguration(new RatingCriterionConfiguration());
         _ = builder.ApplyConfiguration(new RatingValueConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseConfiguration());
+        _ = builder.ApplyConfiguration(new ReleaseNamingOverrideConfiguration());
+        _ = builder.ApplyConfiguration(new TagRoleMappingConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportDraftTrackConfiguration());
         _ = builder.ApplyConfiguration(new ReleaseImportSessionConfiguration());
@@ -198,6 +207,9 @@ public partial class CratebaseDbContext : IdentityDbContext<CratebaseUser, Ident
         ConfigureCollectionFilter<RatingCriterion>(modelBuilder);
         ConfigureCollectionFilter<RatingValue>(modelBuilder);
         ConfigureCollectionFilter<ImportPattern>(modelBuilder);
+        ConfigureCollectionFilter<NamingProfile>(modelBuilder);
+        ConfigureCollectionFilter<ReleaseNamingOverride>(modelBuilder);
+        ConfigureCollectionFilter<TagRoleMapping>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportSession>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraft>(modelBuilder);
         ConfigureCollectionFilter<ReleaseImportDraftTrack>(modelBuilder);
