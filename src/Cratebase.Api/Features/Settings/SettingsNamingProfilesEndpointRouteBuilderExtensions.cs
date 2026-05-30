@@ -56,13 +56,14 @@ public static class SettingsNamingProfilesEndpointRouteBuilderExtensions
             var profile = NamingProfile.Create(
                 currentCollection.CollectionId,
                 NamingProfileId.New(),
-                request.Name,
-                request.ReleaseFolderTemplate,
-                request.TrackFileTemplate,
-                request.TrackFileWithArtistTemplate,
-                request.SortOrder ?? 100,
-                isDefault,
-                isBuiltin: false);
+                (
+                    request.Name,
+                    request.ReleaseFolderTemplate,
+                    request.TrackFileTemplate,
+                    request.TrackFileWithArtistTemplate,
+                    request.SortOrder ?? 100,
+                    isDefault,
+                    IsBuiltin: false));
             if (!isActive)
             {
                 profile.Update(

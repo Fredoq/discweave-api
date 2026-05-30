@@ -90,24 +90,26 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             .ToDictionary(group => group.Key, group => group.ToArray());
         Credit[] orderedCredits = [.. credits.OrderBy(credit => credit.Id.Value)];
 
-        return new ExportSnapshotResponse(
-            FormatVersion,
-            [.. artists.Select(ToArtistResponse)],
-            [.. labels.Select(label => new LabelResponse(label.Id.Value, label.Name))],
-            [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
-            [.. tracks.Select(track => ToTrackResponse(track, trackCreditsByTrackId, appearancesByTrackId, releaseCreditsByReleaseId, artistsById, labelsById))],
-            await LoadOwnedItemsAsync(context, collectionId, cancellationToken),
-            await LoadPlaylistsAsync(context, collectionId, cancellationToken),
-            [.. orderedCredits.Select(credit => CreditMapper.ToResponse(credit))],
-            await LoadArtistRelationsAsync(context, collectionId, cancellationToken),
-            await LoadTrackRelationsAsync(context, collectionId, cancellationToken),
-            await LoadDictionariesAsync(context, collectionId, cancellationToken),
-            await LoadImportPatternsAsync(context, collectionId, cancellationToken),
-            await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
-            await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
-            await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
-            await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
-            await LoadRatingsAsync(context, collectionId, cancellationToken));
+        return new ExportSnapshotResponse
+        {
+            FormatVersion = FormatVersion,
+            Artists = [.. artists.Select(ToArtistResponse)],
+            Labels = [.. labels.Select(label => new LabelResponse(label.Id.Value, label.Name))],
+            Releases = [.. releases.Select(release => ToReleaseResponse(release, releaseCreditsByReleaseId, trackCreditsByTrackId, artistsById, labelsById, tracksById))],
+            Tracks = [.. tracks.Select(track => ToTrackResponse(track, trackCreditsByTrackId, appearancesByTrackId, releaseCreditsByReleaseId, artistsById, labelsById))],
+            OwnedItems = await LoadOwnedItemsAsync(context, collectionId, cancellationToken),
+            Playlists = await LoadPlaylistsAsync(context, collectionId, cancellationToken),
+            Credits = [.. orderedCredits.Select(credit => CreditMapper.ToResponse(credit))],
+            ArtistRelations = await LoadArtistRelationsAsync(context, collectionId, cancellationToken),
+            TrackRelations = await LoadTrackRelationsAsync(context, collectionId, cancellationToken),
+            Dictionaries = await LoadDictionariesAsync(context, collectionId, cancellationToken),
+            ImportPatterns = await LoadImportPatternsAsync(context, collectionId, cancellationToken),
+            NamingProfiles = await LoadNamingProfilesAsync(context, collectionId, cancellationToken),
+            TagRoleMappings = await LoadTagRoleMappingsAsync(context, collectionId, cancellationToken),
+            ReleaseNamingOverrides = await LoadReleaseNamingOverridesAsync(context, collectionId, cancellationToken),
+            RatingCriteria = await LoadRatingCriteriaAsync(context, collectionId, cancellationToken),
+            Ratings = await LoadRatingsAsync(context, collectionId, cancellationToken)
+        };
     }
 
     private static ArtistResponse ToArtistResponse(Artist artist)

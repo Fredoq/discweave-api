@@ -23,13 +23,14 @@ internal static class NamingProfileDefaults
             _ = context.NamingProfiles.Add(NamingProfile.Create(
                 collectionId,
                 NamingProfileId.New(),
-                DefaultName,
-                DefaultReleaseFolderTemplate,
-                DefaultTrackFileTemplate,
-                DefaultTrackFileWithArtistTemplate,
-                10,
-                isDefault: true,
-                isBuiltin: true));
+                (
+                    DefaultName,
+                    DefaultReleaseFolderTemplate,
+                    DefaultTrackFileTemplate,
+                    DefaultTrackFileWithArtistTemplate,
+                    10,
+                    IsDefault: true,
+                    IsBuiltin: true)));
             await SaveSeedChangesAsync(context, collectionId, cancellationToken);
             return;
         }

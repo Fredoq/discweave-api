@@ -9,82 +9,42 @@ using Cratebase.Api.Features.Releases;
 using Cratebase.Api.Features.Settings;
 using Cratebase.Api.Features.TrackRelations;
 using Cratebase.Api.Features.Tracks;
-using System.Text.Json.Serialization;
 
 namespace Cratebase.Api.Features.Exports;
 
 public sealed record ExportSnapshotResponse
 {
-    [JsonConstructor]
-    public ExportSnapshotResponse(
-        int formatVersion,
-        IReadOnlyList<ArtistResponse>? artists = null,
-        IReadOnlyList<LabelResponse>? labels = null,
-        IReadOnlyList<ReleaseResponse>? releases = null,
-        IReadOnlyList<TrackResponse>? tracks = null,
-        IReadOnlyList<OwnedItemResponse>? ownedItems = null,
-        IReadOnlyList<PlaylistResponse>? playlists = null,
-        IReadOnlyList<CreditResponse>? credits = null,
-        IReadOnlyList<ArtistRelationResponse>? artistRelations = null,
-        IReadOnlyList<TrackRelationResponse>? trackRelations = null,
-        IReadOnlyList<DictionaryEntryResponse>? dictionaries = null,
-        IReadOnlyList<ImportPatternResponse>? importPatterns = null,
-        IReadOnlyList<NamingProfileResponse>? namingProfiles = null,
-        IReadOnlyList<TagRoleMappingResponse>? tagRoleMappings = null,
-        IReadOnlyList<ReleaseNamingOverrideResponse>? releaseNamingOverrides = null,
-        IReadOnlyList<RatingCriterionResponse>? ratingCriteria = null,
-        IReadOnlyList<RatingValueResponse>? ratings = null)
-    {
-        FormatVersion = formatVersion;
-        Artists = artists ?? [];
-        Labels = labels ?? [];
-        Releases = releases ?? [];
-        Tracks = tracks ?? [];
-        OwnedItems = ownedItems ?? [];
-        Playlists = playlists ?? [];
-        Credits = credits ?? [];
-        ArtistRelations = artistRelations ?? [];
-        TrackRelations = trackRelations ?? [];
-        Dictionaries = dictionaries ?? [];
-        ImportPatterns = importPatterns ?? [];
-        NamingProfiles = namingProfiles ?? [];
-        TagRoleMappings = tagRoleMappings ?? [];
-        ReleaseNamingOverrides = releaseNamingOverrides ?? [];
-        RatingCriteria = ratingCriteria ?? [];
-        Ratings = ratings ?? [];
-    }
+    public int FormatVersion { get; init; }
 
-    public int FormatVersion { get; }
+    public IReadOnlyList<ArtistResponse> Artists { get; init; } = [];
 
-    public IReadOnlyList<ArtistResponse> Artists { get; }
+    public IReadOnlyList<LabelResponse> Labels { get; init; } = [];
 
-    public IReadOnlyList<LabelResponse> Labels { get; }
+    public IReadOnlyList<ReleaseResponse> Releases { get; init; } = [];
 
-    public IReadOnlyList<ReleaseResponse> Releases { get; }
+    public IReadOnlyList<TrackResponse> Tracks { get; init; } = [];
 
-    public IReadOnlyList<TrackResponse> Tracks { get; }
+    public IReadOnlyList<OwnedItemResponse> OwnedItems { get; init; } = [];
 
-    public IReadOnlyList<OwnedItemResponse> OwnedItems { get; }
+    public IReadOnlyList<PlaylistResponse> Playlists { get; init; } = [];
 
-    public IReadOnlyList<PlaylistResponse> Playlists { get; }
+    public IReadOnlyList<CreditResponse> Credits { get; init; } = [];
 
-    public IReadOnlyList<CreditResponse> Credits { get; }
+    public IReadOnlyList<ArtistRelationResponse> ArtistRelations { get; init; } = [];
 
-    public IReadOnlyList<ArtistRelationResponse> ArtistRelations { get; }
+    public IReadOnlyList<TrackRelationResponse> TrackRelations { get; init; } = [];
 
-    public IReadOnlyList<TrackRelationResponse> TrackRelations { get; }
+    public IReadOnlyList<DictionaryEntryResponse> Dictionaries { get; init; } = [];
 
-    public IReadOnlyList<DictionaryEntryResponse> Dictionaries { get; }
+    public IReadOnlyList<ImportPatternResponse> ImportPatterns { get; init; } = [];
 
-    public IReadOnlyList<ImportPatternResponse> ImportPatterns { get; }
+    public IReadOnlyList<NamingProfileResponse> NamingProfiles { get; init; } = [];
 
-    public IReadOnlyList<NamingProfileResponse> NamingProfiles { get; }
+    public IReadOnlyList<TagRoleMappingResponse> TagRoleMappings { get; init; } = [];
 
-    public IReadOnlyList<TagRoleMappingResponse> TagRoleMappings { get; }
+    public IReadOnlyList<ReleaseNamingOverrideResponse> ReleaseNamingOverrides { get; init; } = [];
 
-    public IReadOnlyList<ReleaseNamingOverrideResponse> ReleaseNamingOverrides { get; }
+    public IReadOnlyList<RatingCriterionResponse> RatingCriteria { get; init; } = [];
 
-    public IReadOnlyList<RatingCriterionResponse> RatingCriteria { get; }
-
-    public IReadOnlyList<RatingValueResponse> Ratings { get; }
+    public IReadOnlyList<RatingValueResponse> Ratings { get; init; } = [];
 }

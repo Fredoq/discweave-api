@@ -19,13 +19,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             var profile = NamingProfile.Create(
                 collectionId,
                 new NamingProfileId(response.Id),
-                response.Name,
-                response.ReleaseFolderTemplate,
-                response.TrackFileTemplate,
-                response.TrackFileWithArtistTemplate,
-                response.SortOrder,
-                response.IsDefault,
-                response.IsBuiltin);
+                (
+                    response.Name,
+                    response.ReleaseFolderTemplate,
+                    response.TrackFileTemplate,
+                    response.TrackFileWithArtistTemplate,
+                    response.SortOrder,
+                    response.IsDefault,
+                    response.IsBuiltin));
             _ = context.NamingProfiles.Add(profile);
             context.Entry(profile).Property(item => item.IsActive).CurrentValue = response.IsActive;
         }

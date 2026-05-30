@@ -14,24 +14,25 @@ public sealed class NamingProfile : IEntity<NamingProfileId>
     private NamingProfile(
         CollectionId collectionId,
         NamingProfileId id,
-        string name,
-        string releaseFolderTemplate,
-        string trackFileTemplate,
-        string trackFileWithArtistTemplate,
-        int sortOrder,
-        bool isDefault,
-        bool isBuiltin)
+        (
+            string Name,
+            string ReleaseFolderTemplate,
+            string TrackFileTemplate,
+            string TrackFileWithArtistTemplate,
+            int SortOrder,
+            bool IsDefault,
+            bool IsBuiltin) definition)
     {
         CollectionId = collectionId;
         Id = id;
-        Name = Guard.RequiredText(name, nameof(name), "naming_profile.name_required");
-        ReleaseFolderTemplate = NamingTemplateValidator.Validate(releaseFolderTemplate, NamingTemplateKind.ReleaseFolder);
-        TrackFileTemplate = NamingTemplateValidator.Validate(trackFileTemplate, NamingTemplateKind.TrackFile);
-        TrackFileWithArtistTemplate = NamingTemplateValidator.Validate(trackFileWithArtistTemplate, NamingTemplateKind.TrackFileWithArtist);
-        SortOrder = RequiredSortOrder(sortOrder);
-        IsDefault = isDefault;
+        Name = Guard.RequiredText(definition.Name, nameof(definition.Name), "naming_profile.name_required");
+        ReleaseFolderTemplate = NamingTemplateValidator.Validate(definition.ReleaseFolderTemplate, NamingTemplateKind.ReleaseFolder);
+        TrackFileTemplate = NamingTemplateValidator.Validate(definition.TrackFileTemplate, NamingTemplateKind.TrackFile);
+        TrackFileWithArtistTemplate = NamingTemplateValidator.Validate(definition.TrackFileWithArtistTemplate, NamingTemplateKind.TrackFileWithArtist);
+        SortOrder = RequiredSortOrder(definition.SortOrder);
+        IsDefault = definition.IsDefault;
         IsActive = true;
-        IsBuiltin = isBuiltin;
+        IsBuiltin = definition.IsBuiltin;
     }
 
     public NamingProfileId Id { get; private set; }
@@ -57,24 +58,19 @@ public sealed class NamingProfile : IEntity<NamingProfileId>
     public static NamingProfile Create(
         CollectionId collectionId,
         NamingProfileId id,
-        string name,
-        string releaseFolderTemplate,
-        string trackFileTemplate,
-        string trackFileWithArtistTemplate,
-        int sortOrder,
-        bool isDefault,
-        bool isBuiltin)
+        (
+            string Name,
+            string ReleaseFolderTemplate,
+            string TrackFileTemplate,
+            string TrackFileWithArtistTemplate,
+            int SortOrder,
+            bool IsDefault,
+            bool IsBuiltin) definition)
     {
         return new NamingProfile(
             collectionId,
             id,
-            name,
-            releaseFolderTemplate,
-            trackFileTemplate,
-            trackFileWithArtistTemplate,
-            sortOrder,
-            isDefault,
-            isBuiltin);
+            definition);
     }
 
     public void Update(
