@@ -2,13 +2,13 @@
 
 ## Scope
 
-This file applies to the `cratebase-api` repository.
+This file applies to the `discweave-api` repository.
 
-The root Cratebase rules still apply. In particular, everything committed to the repository must be written in English.
+The root DiscWeave rules still apply. In particular, everything committed to the repository must be written in English.
 
 ## Project Context
 
-`cratebase-api` is the backend API for Cratebase, a personal music archive for cataloging albums, tracks, media, owned items, credits, artist relations, imports, search, and exports.
+`discweave-api` is the backend API for DiscWeave, a personal music archive for cataloging albums, tracks, media, owned items, credits, artist relations, imports, search, and exports.
 
 The API must model the collection domain directly. Do not shape the backend around current UI screens or a future music player.
 
@@ -109,12 +109,12 @@ Statuses such as owned, wanted, sold, and needs digitization must be explicit da
 
 ## Authentication and Authorization
 
-Cratebase API is collection-scoped and multi-user.
+DiscWeave API is collection-scoped and multi-user.
 
 Authentication and authorization rules:
 
 - Use ASP.NET Core Identity local accounts with secure HTTP-only cookies.
-- Use `CratebaseUser : IdentityUser<Guid>` with role support for `User` and `Admin`.
+- Use `DiscWeaveUser : IdentityUser<Guid>` with role support for `User` and `Admin`.
 - Use local roles named exactly `User` and `Admin`.
 - The first public registration endpoint is only a bootstrap path. It must be available only while there are no users, and it must create the first admin plus that user's default `MusicCollection`.
 - Serialize first-user bootstrap with a database transaction and PostgreSQL advisory transaction lock so concurrent requests cannot create multiple first admins.

@@ -5,22 +5,22 @@ credentials. This document records the configuration contract that later
 provider implementation work must use. It does not add runtime Discogs API
 calls, HTTP endpoints, database schema, or application services.
 
-Discogs access is optional and disabled by default. Cratebase must keep
+Discogs access is optional and disabled by default. DiscWeave must keep
 ordinary catalog, search, import, export, and restore workflows working when the
 Discogs provider is disabled or when no Discogs credential is configured.
 
 ## Operator Setup
 
-Use a Discogs account controlled by the Cratebase operator. In Discogs account
+Use a Discogs account controlled by the DiscWeave operator. In Discogs account
 settings, open the `Developers` area to register the application or create an
 API token. Discogs documents this entry point in the account settings page as
 the place where applications can be registered and API tokens can be created.
 
 Use a durable application identity:
 
-- application name: `Cratebase`;
-- user agent: `Cratebase/0.1 (+https://cratebase.example.com)`;
-- website URL: the hosted Cratebase origin when it is available.
+- application name: `DiscWeave`;
+- user agent: `DiscWeave/0.1 (+https://discweave.example.com)`;
+- website URL: the hosted DiscWeave origin when it is available.
 
 Do not use a name that implies Discogs partnership, sponsorship, endorsement, or
 ownership. The app name and user agent must remain stable product identifiers,
@@ -34,7 +34,7 @@ configuration section named `Discogs`.
 ```sh
 Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="Cratebase/0.1 (+https://cratebase.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
 Discogs__TimeoutSeconds=10
 Discogs__AccessToken=<secret-discogs-api-token>
 ```
@@ -44,7 +44,7 @@ Discogs. The default is `false`.
 
 `Discogs__BaseUrl` defaults to the official Discogs API root.
 
-`Discogs__UserAgent` must identify Cratebase to Discogs and must not include
+`Discogs__UserAgent` must identify DiscWeave to Discogs and must not include
 secret values.
 
 `Discogs__TimeoutSeconds` is the outbound provider timeout. The default is
@@ -52,7 +52,7 @@ secret values.
 
 `Discogs__AccessToken` is a secret. It must be stored only in the hosted
 provider secret manager or in a local developer secret store. The token must not
-be committed to Git, added to `deploy/.env.example`, exposed to `cratebase-web`,
+be committed to Git, added to `deploy/.env.example`, exposed to `discweave-web`,
 or sent to the browser. Expected state: token not committed, not in sample
 configuration, and not visible to clients.
 
@@ -63,7 +63,7 @@ Set non-secret defaults through ordinary environment configuration:
 ```sh
 Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="Cratebase/0.1 (+https://cratebase.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
 Discogs__TimeoutSeconds=10
 ```
 
@@ -79,7 +79,7 @@ Do not place the token in:
 - desktop build environment variables;
 - issue comments, PR descriptions, logs, screenshots, or support messages.
 
-The browser web app must call only `cratebase-api` endpoints. It must never call
+The browser web app must call only `discweave-api` endpoints. It must never call
 Discogs directly and must never receive the Discogs token.
 
 ## Local Development
@@ -94,8 +94,8 @@ Discogs__Enabled=false
 For provider work, use local user secrets or an untracked environment file:
 
 ```sh
-dotnet user-secrets set "Discogs:Enabled" "true" --project src/Cratebase.Api/Cratebase.Api.csproj
-dotnet user-secrets set "Discogs:AccessToken" "<developer-discogs-api-token>" --project src/Cratebase.Api/Cratebase.Api.csproj
+dotnet user-secrets set "Discogs:Enabled" "true" --project src/DiscWeave.Api/DiscWeave.Api.csproj
+dotnet user-secrets set "Discogs:AccessToken" "<developer-discogs-api-token>" --project src/DiscWeave.Api/DiscWeave.Api.csproj
 ```
 
 The local token should belong to the developer or to an operator-approved test
@@ -117,7 +117,7 @@ The smoke check should verify:
 - a simple request to `https://api.discogs.com` succeeds;
 - rate-limit and provider-error responses are reported without leaking the
   token;
-- unrelated Cratebase catalog workflows still work if Discogs is unavailable.
+- unrelated DiscWeave catalog workflows still work if Discogs is unavailable.
 
 Do not paste real tokens into shell history, logs, or issue comments.
 

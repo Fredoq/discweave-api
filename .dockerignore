@@ -11,7 +11,7 @@ obj
 **/bin
 **/obj
 **/TestResults
-src/Cratebase.Api/var
+src/DiscWeave.Api/var
 *.binlog
 *.user
 *.suo

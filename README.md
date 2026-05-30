@@ -1,10 +1,10 @@
-# cratebase-api
+# discweave-api
 
-Backend API for Cratebase, a personal music archive for cataloging releases,
+Backend API for DiscWeave, a personal music archive for cataloging releases,
 tracks, media, owned items, credits, artist relations, imports, playlists,
 search, graph navigation, and exports.
 
-Cratebase is an archive, not a music player. The API is shaped around the
+DiscWeave is an archive, not a music player. The API is shaped around the
 collection domain and the question: what is in the collection, and how is it
 connected?
 
@@ -28,29 +28,29 @@ The repository pins the SDK in `global.json`.
 
 ## Solution Layout
 
-- `src/Cratebase.Domain` - domain entities, value objects, enums, and invariants.
-- `src/Cratebase.Application` - application services and use-case contracts.
-- `src/Cratebase.Infrastructure` - EF Core persistence, identity, search, files, and queries.
-- `src/Cratebase.Importing` - folder scan parsing and import grouping primitives.
-- `src/Cratebase.Api` - ASP.NET Core composition root and HTTP endpoints.
-- `tests/Cratebase.Domain.Tests` - domain behavior tests.
-- `tests/Cratebase.Infrastructure.Tests` - persistence and collection-boundary tests.
-- `tests/Cratebase.Api.Tests` - API contract and workflow tests.
+- `src/DiscWeave.Domain` - domain entities, value objects, enums, and invariants.
+- `src/DiscWeave.Application` - application services and use-case contracts.
+- `src/DiscWeave.Infrastructure` - EF Core persistence, identity, search, files, and queries.
+- `src/DiscWeave.Importing` - folder scan parsing and import grouping primitives.
+- `src/DiscWeave.Api` - ASP.NET Core composition root and HTTP endpoints.
+- `tests/DiscWeave.Domain.Tests` - domain behavior tests.
+- `tests/DiscWeave.Infrastructure.Tests` - persistence and collection-boundary tests.
+- `tests/DiscWeave.Api.Tests` - API contract and workflow tests.
 
 ## Local API Setup
 
 Restore and build:
 
 ```bash
-dotnet restore Cratebase.slnx
-dotnet build Cratebase.slnx
+dotnet restore DiscWeave.slnx
+dotnet build DiscWeave.slnx
 ```
 
 Run the API against a local PostgreSQL database:
 
 ```bash
-ConnectionStrings__Cratebase="Host=localhost;Port=5432;Database=cratebase;Username=<postgres-user>;Password=<postgres-password>" \
-  dotnet run --project src/Cratebase.Api/Cratebase.Api.csproj --launch-profile http
+ConnectionStrings__DiscWeave="Host=localhost;Port=5432;Database=discweave;Username=<postgres-user>;Password=<postgres-password>" \
+  dotnet run --project src/DiscWeave.Api/DiscWeave.Api.csproj --launch-profile http
 ```
 
 The HTTP launch profile listens on `http://localhost:5094`.
@@ -65,7 +65,7 @@ Expected response:
 
 ```json
 {
-  "service": "cratebase-api",
+  "service": "discweave-api",
   "status": "ok"
 }
 ```
@@ -79,7 +79,7 @@ the user's default collection.
 
 The v1 private beta deployment baseline is vendor-neutral and same-origin:
 
-- the public placeholder origin is `https://cratebase.example.com`;
+- the public placeholder origin is `https://discweave.example.com`;
 - `/api/*` and `/health` route to the API container;
 - `/web-health` and browser web routes go to the React static web container;
 - PostgreSQL is managed service data;
@@ -91,18 +91,18 @@ configuration from environment variables:
 ```sh
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://+:8080
-ConnectionStrings__Cratebase=<managed-postgresql-connection-string>
-ReleaseCovers__StorageRoot=/var/lib/cratebase/release-covers
-DesktopDownloads__MacOsInstallerPath=/var/lib/cratebase/desktop/Cratebase.dmg
+ConnectionStrings__DiscWeave=<managed-postgresql-connection-string>
+ReleaseCovers__StorageRoot=/var/lib/discweave/release-covers
+DesktopDownloads__MacOsInstallerPath=/var/lib/discweave/desktop/DiscWeave.dmg
 Discogs__Enabled=false
 Discogs__BaseUrl=https://api.discogs.com
-Discogs__UserAgent="Cratebase/0.1 (+https://cratebase.example.com)"
+Discogs__UserAgent="DiscWeave/0.1 (+https://discweave.example.com)"
 Discogs__TimeoutSeconds=10
 ```
 
 `Discogs__AccessToken` is required only when Discogs autocomplete is enabled.
 Store it in the hosted secret manager or a local developer secret store; never
-commit it or expose it to `cratebase-web`. See
+commit it or expose it to `discweave-web`. See
 [docs/integrations/discogs-credentials-setup.md](docs/integrations/discogs-credentials-setup.md)
 for the credential setup contract.
 
@@ -122,8 +122,8 @@ and
 ## Verification
 
 ```bash
-dotnet test Cratebase.slnx
-dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+dotnet test DiscWeave.slnx
+dotnet format DiscWeave.slnx --verify-no-changes --verbosity diagnostic
 bash deploy/hosted-restore-drill.sh
 ```
 
@@ -159,7 +159,7 @@ large-collection performance smoke probes.
 
 ## Large Collection Seed
 
-Use `Cratebase.Seeding` to create a synthetic collection for search, graph,
+Use `DiscWeave.Seeding` to create a synthetic collection for search, graph,
 export, and UI load testing. The command creates a separate local account and
 default collection, applies migrations, and refuses to add duplicate seed data
 when that seed collection already contains catalog records.
@@ -168,20 +168,20 @@ Default scale: 1,200 artists, 120 labels, 1,500 releases, 12,000 tracks, owned
 items, credits, relations, playlists, and rebuilt search documents.
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres"
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres"
 ```
 
 Sign in with:
 
-- email: `seed@cratebase.local`
+- email: `seed@discweave.local`
 - password: `SeedPassword1!`
 
 Custom scale:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
   --artists 3000 \
   --labels 250 \
   --releases 5000 \
@@ -191,8 +191,8 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
 Run the search v1 smoke probes after seeding:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
   --verify-search \
   --search-budget-ms 250
 ```
@@ -200,8 +200,8 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
 Run the large-collection performance smoke probes after seeding:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
-  --connection-string "Host=localhost;Port=5432;Database=cratebase;Username=postgres;Password=postgres" \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
+  --connection-string "Host=localhost;Port=5432;Database=discweave;Username=postgres;Password=postgres" \
   --verify-performance \
   --performance-budget-ms 250
 ```
@@ -231,7 +231,7 @@ Actions workflow through `dotnet format`.
 - `Check` verifies formatting and style.
 - `Build` restores and builds the solution in Release configuration.
 - `Test` restores, builds, and runs the xUnit test projects.
-- `SonarQube` runs SonarQube Cloud analysis for `Fredoq_cratebase-api`.
+- `SonarQube` runs SonarQube Cloud analysis for `Fredoq_discweave-api`.
 
 ## Engineering Notes
 

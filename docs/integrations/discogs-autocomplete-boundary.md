@@ -1,12 +1,12 @@
 # Discogs Autocomplete Boundary
 
 Roadmap 24 defines the product, data, and compliance boundary for
-Discogs-assisted autocomplete in Cratebase v1.1. This document is a decision
+Discogs-assisted autocomplete in DiscWeave v1.1. This document is a decision
 record for later API and web implementation issues. It does not introduce
 runtime endpoints, database schema, or Discogs API calls by itself.
 
-Cratebase remains the user's private music archive. Discogs can help reduce
-manual entry effort, but Cratebase catalog records stay editable local data and
+DiscWeave remains the user's private music archive. Discogs can help reduce
+manual entry effort, but DiscWeave catalog records stay editable local data and
 remain the source of truth for the user's collection.
 
 ## V1.1 Scope
@@ -19,14 +19,14 @@ The v1.1 Discogs integration is limited to autocomplete and review workflows:
   release context.
 
 Discogs data must be presented as candidate metadata. The user must review the
-candidate before Cratebase applies any field to an artist, release, track,
+candidate before DiscWeave applies any field to an artist, release, track,
 medium, credit, relation, label, or owned item.
 
 ## Explicit Exclusions
 
 The autocomplete slice must not include:
 
-- importing, storing, proxying, or displaying Discogs images as Cratebase cover
+- importing, storing, proxying, or displaying Discogs images as DiscWeave cover
   art or artist media;
 - marketplace data, inventory, pricing suggestions, orders, sales history, or
   seller workflows;
@@ -35,7 +35,7 @@ The autocomplete slice must not include:
 - user Discogs OAuth, linked Discogs accounts, or user-authorized Discogs
   collection import;
 - public profiles, sharing, social behavior, recommendation behavior, or any
-  workflow that turns Cratebase into a Discogs replacement;
+  workflow that turns DiscWeave into a Discogs replacement;
 - automatic catalog writes, silent overwrites, or automatic merge decisions
   based only on Discogs identifiers.
 
@@ -45,26 +45,26 @@ server-held provider credentials used for autocomplete.
 
 ## Source Of Truth
 
-Accepted Discogs-assisted data becomes ordinary editable Cratebase catalog
-data. Cratebase must not require a Discogs identifier for artist, release,
+Accepted Discogs-assisted data becomes ordinary editable DiscWeave catalog
+data. DiscWeave must not require a Discogs identifier for artist, release,
 track, label, credit, relation, medium, or owned-item identity.
 
 Discogs identifiers and source URLs may be persisted only as optional external
 source provenance. Provenance is useful for traceability, but it is not a
-canonical identity system and must not replace Cratebase's collection-scoped
+canonical identity system and must not replace DiscWeave's collection-scoped
 domain identifiers.
 
 Update flows must use review/apply semantics:
 
 - candidate search returns selectable summaries and source links;
-- candidate detail maps provider data into Cratebase-friendly draft fields;
+- candidate detail maps provider data into DiscWeave-friendly draft fields;
 - the UI shows attribution and differences before applying fields;
 - applying a candidate updates only fields the user explicitly accepts;
-- local Cratebase edits remain valid even when provider data later changes.
+- local DiscWeave edits remain valid even when provider data later changes.
 
 ## API And Web Boundary
 
-All Discogs calls must go through `cratebase-api`. `cratebase-web` must not
+All Discogs calls must go through `discweave-api`. `discweave-web` must not
 call Discogs directly, embed Discogs credentials, or depend on Discogs response
 shapes.
 
@@ -72,7 +72,7 @@ Backend integration work must keep these rules:
 
 - Discogs credentials, API base URL, user agent, timeout, and feature enablement
   are backend configuration only;
-- external metadata endpoints require the authenticated Cratebase cookie and
+- external metadata endpoints require the authenticated DiscWeave cookie and
   current collection access;
 - clients must not pass `collectionId` for autocomplete operations;
 - normal user-facing responses must not expose `collectionId`;
@@ -114,13 +114,13 @@ The attribution must link to the relevant `discogs.com` source page for the
 candidate data. Candidate source links must be ordinary links and must not be
 hidden behind tracking, blocking, or link-credit suppression behavior.
 
-Cratebase must not name any app, feature, or integration in a way that implies
+DiscWeave must not name any app, feature, or integration in a way that implies
 Discogs partnership, sponsorship, endorsement, or ownership. Use phrasing such
 as "Discogs-assisted autocomplete", "Search Discogs candidates", or "Update via
 Discogs" only as descriptive integration copy.
 
 Discogs may apply rate limits and may change API availability or data fields.
-Cratebase must treat Discogs as an optional external provider: when Discogs is
+DiscWeave must treat Discogs as an optional external provider: when Discogs is
 disabled, unavailable, timed out, or rate-limited, ordinary catalog create,
 edit, search, import, export, and restore workflows must continue to work.
 

@@ -1,0 +1,21 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/DiscWeave.Api/DiscWeave.Api.csproj" />
+    <Project Path="src/DiscWeave.Application/DiscWeave.Application.csproj" />
+    <Project Path="src/DiscWeave.Domain/DiscWeave.Domain.csproj" />
+    <Project Path="src/DiscWeave.Infrastructure/DiscWeave.Infrastructure.csproj" />
+    <Project Path="src/DiscWeave.Importing/DiscWeave.Importing.csproj" />
+    <Project Path="src/DiscWeave.Seeding/DiscWeave.Seeding.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DiscWeave.Api.Tests/DiscWeave.Api.Tests.csproj" />
+    <Project Path="tests/DiscWeave.Domain.Tests/DiscWeave.Domain.Tests.csproj" />
+    <Project Path="tests/DiscWeave.Infrastructure.Tests/DiscWeave.Infrastructure.Tests.csproj" />
+    <Project Path="tests/DiscWeave.Seeding.Tests/DiscWeave.Seeding.Tests.csproj" />
+  </Folder>
+</Solution>

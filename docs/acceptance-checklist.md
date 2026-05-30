@@ -1,13 +1,13 @@
-# Cratebase Acceptance Checklist
+# DiscWeave Acceptance Checklist
 
-This checklist describes the shared product acceptance path for `cratebase-api`
-and `cratebase-web`.
+This checklist describes the shared product acceptance path for `discweave-api`
+and `discweave-web`.
 
 ## Local Setup
 
-- Run PostgreSQL and start the API with `ConnectionStrings__Cratebase`.
+- Run PostgreSQL and start the API with `ConnectionStrings__DiscWeave`.
 - Start the web app with the Vite proxy pointed at the API.
-- Start the desktop app with `CRATEBASE_API_BASE_URL` pointed at the API.
+- Start the desktop app with `DISCWEAVE_API_BASE_URL` pointed at the API.
 - Bootstrap the first admin user when the database is empty.
 - Sign in and confirm catalog routes use the authenticated cookie.
 
@@ -17,7 +17,7 @@ and `cratebase-web`.
 - Route `/api/*` and `/health` to the API container.
 - Route `/web-health` and every other path to the web static container.
 - Keep browser API calls relative to `/api`.
-- Confirm private beta desktop packages target `https://cratebase.example.com` by default, with `CRATEBASE_API_BASE_URL` available as a runtime override.
+- Confirm private beta desktop packages target `https://discweave.example.com` by default, with `DISCWEAVE_API_BASE_URL` available as a runtime override.
 - Apply EF Core migrations as an explicit release step before routing production traffic to a new API build.
 - Store release covers and desktop installer artifacts on persistent service storage.
 - Keep managed PostgreSQL, service storage, secrets, invite data and user accounts separate between staging and production.
@@ -43,7 +43,7 @@ and `cratebase-web`.
 13. Add a partial duplicate folder and verify existing tracks are preselected while missing catalog data can still be created.
 14. Use saved search views for `remixes`, `productions`, `labels`, `physicalWithoutDigital`, `lossyWithoutLossless`, `wantedNotOwned` and `needsDigitization`.
 15. Open `GET /api/catalog-quality` and verify duplicate candidates, missing metadata and format gap sections are scoped to the signed-in collection.
-16. Verify rating value and import pattern deletes reject missing or mismatched `X-Cratebase-Confirm-Delete` tokens.
+16. Verify rating value and import pattern deletes reject missing or mismatched `X-DiscWeave-Confirm-Delete` tokens.
 17. Export JSON and CSV and verify core catalog data, import-created data, playlists and playlist entries are present.
 18. Restore a JSON export into an empty collection and verify restored search, graph context, playlists and exports.
 
@@ -52,14 +52,14 @@ and `cratebase-web`.
 Backend:
 
 ```bash
-dotnet test Cratebase.slnx
-dotnet format Cratebase.slnx --verify-no-changes --verbosity diagnostic
+dotnet test DiscWeave.slnx
+dotnet format DiscWeave.slnx --verify-no-changes --verbosity diagnostic
 ```
 
 Search v1 large-seed smoke:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-search \
   --search-budget-ms 250
@@ -68,7 +68,7 @@ dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
 Large-collection performance smoke:
 
 ```bash
-dotnet run --project src/Cratebase.Seeding/Cratebase.Seeding.csproj -- \
+dotnet run --project src/DiscWeave.Seeding/DiscWeave.Seeding.csproj -- \
   --connection-string "<postgres>" \
   --verify-performance \
   --performance-budget-ms 250

@@ -1,0 +1,27 @@
+using Microsoft.Extensions.Primitives;
+
+namespace DiscWeave.Api.Http;
+
+public static class DeleteConfirmation
+{
+    public const string HeaderName = "X-DiscWeave-Confirm-Delete";
+
+    public static bool Matches(HttpRequest request, string resource, Guid resourceId)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string expectedConfirmation = $"{resource}:{resourceId}";
+
+        return Matches(request, expectedConfirmation);
+    }
+
+    public static bool Matches(HttpRequest request, string expectedConfirmation)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedConfirmation);
+
+        return request.Headers.TryGetValue(HeaderName, out StringValues confirmationValues) &&
+            confirmationValues.Count == 1 &&
+            string.Equals(confirmationValues[0], expectedConfirmation, StringComparison.Ordinal);
+    }
+}

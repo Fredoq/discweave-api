@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <ProjectReference Include="..\DiscWeave.Application\DiscWeave.Application.csproj" />
+    <ProjectReference Include="..\DiscWeave.Infrastructure\DiscWeave.Infrastructure.csproj" />
+    <ProjectReference Include="..\DiscWeave.Domain\DiscWeave.Domain.csproj" />
+    <ProjectReference Include="..\DiscWeave.Importing\DiscWeave.Importing.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

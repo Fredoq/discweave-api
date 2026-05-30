@@ -1,6 +1,6 @@
 # Hosted Backup And Restore Baseline
 
-Cratebase private beta recovery is an operator-managed service responsibility.
+DiscWeave private beta recovery is an operator-managed service responsibility.
 User exports through JSON and CSV remain portability tools and personal
 backups, but they are not the only hosted recovery path.
 
@@ -16,7 +16,7 @@ Hosted backups must include:
 - deployment configuration needed to reconnect API, web, database and storage
   in the same environment.
 
-Backups must not include third-party audio files because Cratebase v1 does not
+Backups must not include third-party audio files because DiscWeave v1 does not
 upload or store audio files.
 
 ## Retention

@@ -62,11 +62,11 @@ jobs:
           set -euo pipefail
 
           # Coverage exclusions are limited to application bootstrap and generated EF Core migrations.
-          coverageExclusions="**/Cratebase.Api/Program.cs,**/Cratebase.Seeding/Program.cs,**/Persistence/Migrations/**"
+          coverageExclusions="**/DiscWeave.Api/Program.cs,**/DiscWeave.Seeding/Program.cs,**/Persistence/Migrations/**"
           duplicationExclusions="**/Persistence/Migrations/**"
 
-          "$RUNNER_TEMP/scanner/dotnet-sonarscanner" begin /k:"Fredoq_cratebase-api" /o:"fredoq" /d:sonar.token="$SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="$coverageExclusions" /d:sonar.cpd.exclusions="$duplicationExclusions"
-          dotnet restore Cratebase.slnx
-          dotnet build Cratebase.slnx --configuration Release --no-restore
-          dotnet test Cratebase.slnx --configuration Release --no-build --logger trx --results-directory artifacts/test-results --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+          "$RUNNER_TEMP/scanner/dotnet-sonarscanner" begin /k:"Fredoq_discweave-api" /o:"fredoq" /d:sonar.token="$SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="artifacts/test-results/**/coverage.opencover.xml" /d:sonar.coverage.exclusions="$coverageExclusions" /d:sonar.cpd.exclusions="$duplicationExclusions"
+          dotnet restore DiscWeave.slnx
+          dotnet build DiscWeave.slnx --configuration Release --no-restore
+          dotnet test DiscWeave.slnx --configuration Release --no-build --logger trx --results-directory artifacts/test-results --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           "$RUNNER_TEMP/scanner/dotnet-sonarscanner" end /d:sonar.token="$SONAR_TOKEN"

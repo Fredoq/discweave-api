@@ -7,7 +7,7 @@ itself.
 ## Release Checklist
 
 - API image is built from the intended commit.
-- Web image is built from the matching `cratebase-web` commit.
+- Web image is built from the matching `discweave-web` commit.
 - EF Core migrations are applied as an explicit release step.
 - Managed PostgreSQL backup exists before migrations.
 - Release cover storage and desktop artifact storage are persistent.
@@ -16,7 +16,7 @@ itself.
 - Browser origin routes `/api/*`, `/health`, `/web-health` and web fallback
   through the reverse proxy.
 - macOS desktop DMG is built, published to service storage and points at the
-  private beta origin or a documented `CRATEBASE_API_BASE_URL` override.
+  private beta origin or a documented `DISCWEAVE_API_BASE_URL` override.
 - API, web, import, export, restore, search, playlist and catalog quality
   acceptance checks pass in staging.
 - Data-handling and onboarding trust copy is visible before users import real

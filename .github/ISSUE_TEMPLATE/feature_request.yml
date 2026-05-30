@@ -15,7 +15,7 @@ body:
       options:
         - label: I searched existing issues and did not find a duplicate.
           required: true
-        - label: This request fits Cratebase as a music archive, not a music player.
+        - label: This request fits DiscWeave as a music archive, not a music player.
           required: true
   - type: textarea
     id: problem
