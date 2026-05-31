@@ -6,6 +6,8 @@ namespace DiscWeave.Domain.Catalog;
 
 public abstract class Artist : IEntity<ArtistId>, INamedEntity
 {
+    private readonly List<ExternalSourceReference> _externalSources = [];
+
     protected Artist(CollectionId collectionId, ArtistId id, string name)
     {
         CollectionId = collectionId;
@@ -19,9 +21,16 @@ public abstract class Artist : IEntity<ArtistId>, INamedEntity
 
     public string Name { get; private set; }
 
+    public IReadOnlyList<ExternalSourceReference> ExternalSources => _externalSources.AsReadOnly();
+
     public void Rename(string name)
     {
         Name = ValidateName(name);
+    }
+
+    public void ReplaceExternalSources(IReadOnlyList<ExternalSourceReference> externalSources)
+    {
+        ExternalSourceReferences.Replace(_externalSources, externalSources);
     }
 
     private static string ValidateName(string name)

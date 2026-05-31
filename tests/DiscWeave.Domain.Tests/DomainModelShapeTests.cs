@@ -33,7 +33,6 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
-
     [Fact]
     public void Domain_public_api_does_not_use_nullable_contracts()
     {
@@ -92,6 +91,7 @@ public sealed class DomainModelShapeTests
         [
             typeof(ArtistRelation).FullName!,
             typeof(Credit).FullName!,
+            typeof(ExternalSourceReference).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Playlist).FullName!,
             typeof(PlaylistEntry).FullName!,
@@ -121,7 +121,6 @@ public sealed class DomainModelShapeTests
 
         Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
     }
-
     [Fact]
     public void Private_setters_are_limited_to_EF_materialization_shapes()
     {
@@ -130,6 +129,7 @@ public sealed class DomainModelShapeTests
             typeof(Artist).FullName!,
             typeof(ArtistRelation).FullName!,
             typeof(Credit).FullName!,
+            typeof(ExternalSourceReference).FullName!,
             typeof(Label).FullName!,
             typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
@@ -204,11 +204,12 @@ public sealed class DomainModelShapeTests
             ? 9
             : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
-            ? 9
+            ? 10
             : type == typeof(Playlist)
             ? 7
-            : type == typeof(Track) ||
-            type == typeof(ArtistRelation) ||
+            : type == typeof(Track)
+            ? 7
+            : type == typeof(ArtistRelation) ||
             type == typeof(SmartPlaylistRules)
             ? 6
             : 5;
@@ -224,7 +225,7 @@ public sealed class DomainModelShapeTests
             : type == typeof(ReleaseMetadata)
                 ? 7
                 : type == typeof(Release)
-            ? 10
+            ? 11
             : type == typeof(Track)
                 ? 8
                 : 5;

@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -80,6 +81,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             release.IsVariousArtists,
             release.IsNotOnLabel,
             ToCoverImageResponse(release),
+            ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToTracklistItemResponse(track, tracksById, trackCredits, artistsById))]);

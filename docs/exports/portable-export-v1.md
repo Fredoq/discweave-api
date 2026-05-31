@@ -50,8 +50,9 @@ shapes rather than persistence models. The top-level sections are:
 The snapshot intentionally includes convenience read fields that help users
 inspect the archive outside DiscWeave: track release appearances, owned item
 targets, inventory signals, playlist results, release labels, tracklists,
-credit names, tags, genres, and release cover metadata. These fields are part
-of JSON export v1 and must remain restore-compatible for `formatVersion: 1`.
+credit names, tags, genres, external source provenance, and release cover
+metadata. These fields are part of JSON export v1 and must remain
+restore-compatible for `formatVersion: 1`.
 
 The snapshot must not include user account data, collection ids, internal
 database-only fields, import review sessions or drafts, raw cover image bytes,
@@ -86,6 +87,9 @@ The v1 archive entries and headers are:
 
 Multi-value fields such as `genres`, `tags`, `target_types`, and smart
 playlist rule arrays are joined with `|`.
+
+External source provenance is JSON-only in v1. CSV exports intentionally omit
+`externalSources`.
 
 ## Cover And Import Boundaries
 

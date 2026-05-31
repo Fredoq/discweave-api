@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.OwnedItems;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Application.Errors;
 using DiscWeave.Domain.Catalog;
@@ -40,6 +41,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         IReadOnlyList<ReleaseLabel> labels = await ResolveLabelsAsync(request, context, collectionId, cancellationToken);
         release.UpdateLabels(request.NotOnLabel, labels);
+        release.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
         _ = context.Releases.Add(release);
 
         foreach (ResolvedCredit credit in releaseCredits)
@@ -69,6 +71,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             Track track;
             if (trackRequest.TrackId is { } trackId)
             {
+                EnsureExistingTrackRequestHasNoExternalSources(trackRequest);
                 EnsureExistingTrackRequestHasNoCanonicalMetadata(trackRequest);
 
                 track = await context.Tracks.SingleOrDefaultAsync(
@@ -92,6 +95,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 }
 
                 track.UpdateDetails(details);
+                track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(trackRequest.ExternalSources, DateTimeOffset.UtcNow));
                 _ = context.Tracks.Add(track);
 
                 IReadOnlyList<ResolvedCredit> trackCredits = await ResolveTrackCreditsAsync(
@@ -129,6 +133,16 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             throw new DomainException(
                 "release_track.shape_invalid",
                 "Release track with trackId must not include title, durationSeconds, or artistCredits");
+        }
+    }
+
+    private static void EnsureExistingTrackRequestHasNoExternalSources(ReleaseTrackRequest trackRequest)
+    {
+        if (trackRequest.ExternalSources is { Count: > 0 })
+        {
+            throw new DomainException(
+                "release_track.external_sources_shape_invalid",
+                "Release track with trackId must not include externalSources");
         }
     }
 

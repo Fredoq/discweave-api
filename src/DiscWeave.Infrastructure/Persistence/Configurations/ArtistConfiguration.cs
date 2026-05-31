@@ -7,6 +7,8 @@ namespace DiscWeave.Infrastructure.Persistence.Configurations;
 
 internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
 {
+    private const string ArtistIdColumn = "artist_id";
+
     public void Configure(EntityTypeBuilder<Artist> builder)
     {
         _ = builder.ToTable("artists");
@@ -18,7 +20,7 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         _ = builder.HasKey("id");
 
         _ = builder.Property(artist => artist.Id)
-            .HasColumnName("artist_id")
+            .HasColumnName(ArtistIdColumn)
             .HasConversion(PersistenceValueConverters.ArtistId)
             .ValueGeneratedNever();
 
@@ -35,9 +37,13 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
             .HasMaxLength(512)
             .IsRequired();
 
+        _ = builder.Ignore(artist => artist.ExternalSources);
+
         _ = builder.HasDiscriminator<string>("artist_type")
             .HasValue<Person>("person")
             .HasValue<Group>("group");
+
+        ExternalSourceReferenceConfiguration.ConfigureArtist(builder);
 
         _ = builder.HasIndex(artist => artist.CollectionId);
 
@@ -47,4 +53,5 @@ internal sealed class ArtistConfiguration : IEntityTypeConfiguration<Artist>
             .HasPrincipalKey(collection => collection.Id)
             .OnDelete(DeleteBehavior.Cascade);
     }
+
 }

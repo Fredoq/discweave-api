@@ -10,7 +10,7 @@ public sealed class ArtistQueryContractTests
     {
         var artistId = ArtistId.New();
         var query = new ArtistListQuery("sumner", "person", 25, 50);
-        var artist = new ArtistReadModel(artistId, "person", "Bernard Sumner");
+        var artist = new ArtistReadModel(artistId, "person", "Bernard Sumner", []);
 
         var result = new ArtistListResult([artist], query.Limit, query.Offset, 1);
 
@@ -23,5 +23,6 @@ public sealed class ArtistQueryContractTests
         Assert.Equal(artistId, result.Items[0].Id);
         Assert.Equal("person", result.Items[0].Type);
         Assert.Equal("Bernard Sumner", result.Items[0].Name);
+        Assert.Empty(result.Items[0].ExternalSources);
     }
 }

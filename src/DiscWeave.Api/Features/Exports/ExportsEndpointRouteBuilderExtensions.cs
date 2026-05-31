@@ -1,6 +1,7 @@
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features.Artists;
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Tracks;
@@ -121,7 +122,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             _ => throw new InvalidOperationException("Artist type is not supported")
         };
 
-        return new ArtistResponse(artist.Id.Value, type, artist.Name);
+        return new ArtistResponse(
+            artist.Id.Value,
+            type,
+            artist.Name,
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
     }
 
     private static ReleaseResponse ToReleaseResponse(
@@ -147,6 +152,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             release.IsVariousArtists,
             release.IsNotOnLabel,
             ToCoverImageResponse(release),
+            ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. releaseCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToReleaseTracklistItemResponse(track, trackCreditsByTrackId, artistsById, tracksById))]);
@@ -169,6 +175,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ToDurationSeconds(track),
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
+            ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),
             [.. trackCredits.Select(credit => ToTrackCreditResponse(credit, artistsById))],
             [.. appearances
                 .Select(appearance => ToTrackReleaseAppearanceResponse(

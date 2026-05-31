@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -171,6 +172,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ToDurationSeconds(track),
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
+            ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),
             [.. trackCredits.Select(credit => ToTrackCreditResponse(credit, artistsById))],
             [.. appearanceReleases
                 .SelectMany(release => release.Tracklist

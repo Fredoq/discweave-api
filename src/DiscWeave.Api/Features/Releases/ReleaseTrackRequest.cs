@@ -1,3 +1,5 @@
+using DiscWeave.Api.Features.ExternalSources;
+
 namespace DiscWeave.Api.Features.Releases;
 
 public sealed record ReleaseTrackRequest
@@ -11,6 +13,8 @@ public sealed record ReleaseTrackRequest
     public int? DurationSeconds { get; init; }
 
     public IReadOnlyList<ReleaseArtistCreditRequest>? ArtistCredits { get; init; }
+
+    public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
 
     public string? VersionNote { get; init; }
 }

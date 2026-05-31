@@ -455,6 +455,29 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "artist_external_sources",
+                columns: table => new
+                {
+                    provider_name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    resource_type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    external_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    artist_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_url = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
+                    applied_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_artist_external_sources", x => new { x.collection_id, x.artist_id, x.provider_name, x.resource_type, x.external_id });
+                    table.ForeignKey(
+                        name: "FK_artist_external_sources_artists_collection_id_artist_id",
+                        columns: x => new { x.collection_id, x.artist_id },
+                        principalTable: "artists",
+                        principalColumns: new[] { "collection_id", "artist_id" },
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "artist_relations",
                 columns: table => new
                 {
@@ -645,6 +668,29 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "release_external_sources",
+                columns: table => new
+                {
+                    provider_name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    resource_type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    external_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    release_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_url = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
+                    applied_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_release_external_sources", x => new { x.collection_id, x.release_id, x.provider_name, x.resource_type, x.external_id });
+                    table.ForeignKey(
+                        name: "FK_release_external_sources_releases_collection_id_release_id",
+                        columns: x => new { x.collection_id, x.release_id },
+                        principalTable: "releases",
+                        principalColumns: new[] { "collection_id", "release_id" },
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "release_genres",
                 columns: table => new
                 {
@@ -703,9 +749,9 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     release_id = table.Column<Guid>(type: "uuid", nullable: false),
                     naming_profile_id = table.Column<Guid>(type: "uuid", nullable: true),
                     release_folder_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
+                    source = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
                     track_file_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
-                    track_file_with_artist_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
-                    source = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true)
+                    track_file_with_artist_template = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -976,6 +1022,29 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "track_external_sources",
+                columns: table => new
+                {
+                    provider_name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    resource_type = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    external_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    collection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    track_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_url = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
+                    applied_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_track_external_sources", x => new { x.collection_id, x.track_id, x.provider_name, x.resource_type, x.external_id });
+                    table.ForeignKey(
+                        name: "FK_track_external_sources_tracks_collection_id_track_id",
+                        columns: x => new { x.collection_id, x.track_id },
+                        principalTable: "tracks",
+                        principalColumns: new[] { "collection_id", "track_id" },
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "track_genres",
                 columns: table => new
                 {
@@ -1085,6 +1154,11 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         principalColumns: new[] { "collection_id", "release_import_draft_id" },
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_artist_external_sources_collection_id",
+                table: "artist_external_sources",
+                column: "collection_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_artist_relations_collection_id",
@@ -1251,17 +1325,17 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 columns: new[] { "collection_id", "sort_order" });
 
             migrationBuilder.CreateIndex(
-                name: "ux_naming_profiles_collection_name",
-                table: "naming_profiles",
-                columns: new[] { "collection_id", "name" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "ux_naming_profiles_collection_default",
                 table: "naming_profiles",
                 column: "collection_id",
                 unique: true,
                 filter: "is_default = TRUE");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_naming_profiles_collection_name",
+                table: "naming_profiles",
+                columns: new[] { "collection_id", "name" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_owned_items_collection_condition",
@@ -1457,6 +1531,11 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 column: "target_track_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_release_external_sources_collection_id",
+                table: "release_external_sources",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_release_import_draft_tracks_collection_id",
                 table: "release_import_draft_tracks",
                 column: "collection_id");
@@ -1644,6 +1723,11 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_track_external_sources_collection_id",
+                table: "track_external_sources",
+                column: "collection_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_track_relations_collection_id",
                 table: "track_relations",
                 column: "collection_id");
@@ -1677,6 +1761,13 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections");
+
+            migrationBuilder.DropTable(
+                name: "artist_external_sources");
+
             migrationBuilder.DropTable(
                 name: "artist_relations");
 
@@ -1720,6 +1811,9 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 name: "rating_values");
 
             migrationBuilder.DropTable(
+                name: "release_external_sources");
+
+            migrationBuilder.DropTable(
                 name: "release_genres");
 
             migrationBuilder.DropTable(
@@ -1742,6 +1836,9 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "tag_role_mappings");
+
+            migrationBuilder.DropTable(
+                name: "track_external_sources");
 
             migrationBuilder.DropTable(
                 name: "track_genres");

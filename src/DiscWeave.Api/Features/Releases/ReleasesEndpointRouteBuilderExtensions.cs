@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Errors;
@@ -157,6 +158,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
             IReadOnlyList<ReleaseLabel> labels = await ResolveLabelsAsync(request, context, currentCollection.CollectionId, cancellationToken);
             release.UpdateLabels(request.NotOnLabel, labels);
+            if (request.ExternalSources is not null)
+            {
+                release.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            }
+
             await ReplaceReleaseCreditsAsync(release, releaseCredits, context, currentCollection.CollectionId, cancellationToken);
             if (request.Tracklist is not null)
             {

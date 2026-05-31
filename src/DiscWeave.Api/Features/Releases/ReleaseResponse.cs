@@ -1,3 +1,5 @@
+using DiscWeave.Api.Features.ExternalSources;
+
 namespace DiscWeave.Api.Features.Releases;
 
 public sealed record ReleaseResponse(
@@ -12,6 +14,7 @@ public sealed record ReleaseResponse(
     bool IsVariousArtists,
     bool NotOnLabel,
     CoverImageResponse? CoverImage,
+    IReadOnlyList<ExternalSourceReferenceResponse>? ExternalSources,
     IReadOnlyList<ReleaseArtistCreditResponse> ArtistCredits,
     IReadOnlyList<ReleaseLabelResponse> Labels,
     IReadOnlyList<ReleaseTracklistItemResponse> Tracklist);

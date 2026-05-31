@@ -22,10 +22,11 @@ public sealed class ArtistQueries : IArtistQueries
 
     public async Task<ArtistReadModel?> TryGetAsync(ArtistId artistId, CancellationToken cancellationToken = default)
     {
-        return await ApplyCollectionFilter(_context.Artists.AsNoTracking())
+        Artist? artist = await ApplyCollectionFilter(_context.Artists.AsNoTracking())
             .Where(artist => artist.Id == artistId)
-            .Select(artist => new ArtistReadModel(artist.Id, EF.Property<string>(artist, ArtistTypePropertyName), artist.Name))
             .SingleOrDefaultAsync(cancellationToken);
+
+        return artist is null ? null : ToReadModel(artist);
     }
 
     public async Task<ArtistListResult> ListAsync(ArtistListQuery query, CancellationToken cancellationToken = default)
@@ -46,15 +47,14 @@ public sealed class ArtistQueries : IArtistQueries
         }
 
         int total = await artists.CountAsync(cancellationToken);
-        ArtistReadModel[] items = await artists
+        Artist[] items = await artists
             .OrderBy(artist => artist.Name)
             .ThenBy(artist => artist.Id)
             .Skip(query.Offset)
             .Take(query.Limit)
-            .Select(artist => new ArtistReadModel(artist.Id, EF.Property<string>(artist, ArtistTypePropertyName), artist.Name))
             .ToArrayAsync(cancellationToken);
 
-        return new ArtistListResult(items, query.Limit, query.Offset, total);
+        return new ArtistListResult([.. items.Select(ToReadModel)], query.Limit, query.Offset, total);
     }
 
     private IQueryable<Artist> ApplyCollectionFilter(IQueryable<Artist> artists)
@@ -62,5 +62,17 @@ public sealed class ArtistQueries : IArtistQueries
         return _hasCollection
             ? artists.Where(artist => artist.CollectionId == _collectionId)
             : artists;
+    }
+
+    private static ArtistReadModel ToReadModel(Artist artist)
+    {
+        string type = artist switch
+        {
+            Person => "person",
+            Group => "group",
+            _ => throw new InvalidOperationException("Artist type is not supported")
+        };
+
+        return new ArtistReadModel(artist.Id, type, artist.Name, artist.ExternalSources);
     }
 }

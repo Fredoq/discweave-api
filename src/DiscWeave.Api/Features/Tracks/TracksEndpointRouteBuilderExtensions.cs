@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Settings;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Errors;
@@ -48,6 +49,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
+            track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
             _ = context.Tracks.Add(track);
             await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
             await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
@@ -141,6 +143,11 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
+            if (request.ExternalSources is not null)
+            {
+                track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            }
+
             await ReplaceTrackCreditsAsync(track, request.Credits, context, currentCollection.CollectionId, cancellationToken);
             await ReplaceTrackAppearancesAsync(track, request.ReleaseAppearances, context, currentCollection.CollectionId, cancellationToken);
 
