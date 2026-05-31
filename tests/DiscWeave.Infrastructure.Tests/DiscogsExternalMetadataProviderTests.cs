@@ -64,7 +64,12 @@ public sealed class DiscogsExternalMetadataProviderTests
 
         ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
             await provider.SearchReleasesAsync(
-                new ExternalMetadataReleaseSearchQuery(Artist: "New Order", Title: "Blue Monday", Year: 1983, CatalogNumber: "FAC 73"),
+                new ExternalMetadataReleaseSearchQuery(
+                    Artist: "New Order",
+                    Title: "Blue Monday",
+                    Year: 1983,
+                    Barcode: "5016839200371",
+                    CatalogNumber: "FAC 73"),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -75,6 +80,7 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Contains("artist=New%20Order", request.RequestUri?.Query);
         Assert.Contains("release_title=Blue%20Monday", request.RequestUri?.Query);
         Assert.Contains("year=1983", request.RequestUri?.Query);
+        Assert.Contains("barcode=5016839200371", request.RequestUri?.Query);
         Assert.Contains("catno=FAC%2073", request.RequestUri?.Query);
         Assert.Equal("DiscWeave.Tests/1.0", request.Headers.UserAgent.ToString());
         Assert.Equal("Discogs token=test-token", request.Headers.Authorization?.ToString());

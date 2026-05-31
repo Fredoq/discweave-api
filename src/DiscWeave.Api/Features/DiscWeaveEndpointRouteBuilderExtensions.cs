@@ -7,6 +7,7 @@ using DiscWeave.Api.Features.CatalogLinks;
 using DiscWeave.Api.Features.CatalogQuality;
 using DiscWeave.Api.Features.Credits;
 using DiscWeave.Api.Features.Exports;
+using DiscWeave.Api.Features.ExternalMetadata;
 using DiscWeave.Api.Features.Imports;
 using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.OwnedItems;
@@ -43,6 +44,7 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         _ = endpoints.MapCatalogLinksEndpoints();
         _ = endpoints.MapCatalogQualityEndpoints();
         _ = endpoints.MapExportsEndpoints();
+        _ = endpoints.MapExternalMetadataReleaseEndpoints();
         _ = endpoints.MapReleaseImportsEndpoints();
         _ = endpoints.MapSettingsDictionariesEndpoints();
         _ = endpoints.MapSettingsImportPatternsEndpoints();

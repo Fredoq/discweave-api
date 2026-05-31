@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
 
 public sealed partial class DiscogsExternalMetadataProvider
@@ -29,7 +31,9 @@ public sealed partial class DiscogsExternalMetadataProvider
         DiscogsLabelResource[]? Labels,
         DiscogsFormatResource[]? Formats,
         DiscogsTrackResponse[]? Tracklist,
-        DiscogsIdentifierResponse[]? Identifiers);
+        DiscogsIdentifierResponse[]? Identifiers,
+        [property: JsonPropertyName("extraartists")]
+        DiscogsNamedResource[]? ExtraArtists);
 
     private sealed record DiscogsArtistDetailResponse(
         long Id,
@@ -44,11 +48,13 @@ public sealed partial class DiscogsExternalMetadataProvider
         string? Title,
         string? Position,
         string? Duration,
-        DiscogsNamedResource[]? Artists);
+        DiscogsNamedResource[]? Artists,
+        [property: JsonPropertyName("extraartists")]
+        DiscogsNamedResource[]? ExtraArtists);
 
-    private sealed record DiscogsNamedResource(string? Name);
+    private sealed record DiscogsNamedResource(string? Name, string? Role);
 
-    private sealed record DiscogsLabelResource(string? Name, string? CatalogNumber);
+    private sealed record DiscogsLabelResource(string? Name, [property: JsonPropertyName("catno")] string? CatalogNumber);
 
     private sealed record DiscogsFormatResource(string? Name);
 

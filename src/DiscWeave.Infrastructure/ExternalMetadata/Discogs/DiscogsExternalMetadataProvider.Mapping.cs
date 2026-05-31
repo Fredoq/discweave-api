@@ -54,7 +54,9 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Formats?.Select(format => format.Name).WhereNotBlank() ?? [],
             response.Tracklist?.Select(MapReleaseTrack).ToArray() ?? [],
             response.Identifiers?.Select(ToIdentifier).ToArray() ?? [],
-            response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)));
+            response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
+            response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
+            ReleaseCredits(response));
     }
 
     private static ExternalMetadataReleaseTrack MapReleaseTrack(DiscogsTrackResponse track)
@@ -80,6 +82,30 @@ public sealed partial class DiscogsExternalMetadataProvider
     private static ExternalMetadataIdentifier ToIdentifier(DiscogsIdentifierResponse identifier)
     {
         return new ExternalMetadataIdentifier(identifier.Type ?? string.Empty, identifier.Value ?? string.Empty);
+    }
+
+    private static ExternalMetadataReleaseLabel ToReleaseLabel(DiscogsLabelResource label)
+    {
+        return new ExternalMetadataReleaseLabel(label.Name?.Trim() ?? string.Empty, EmptyToNull(label.CatalogNumber));
+    }
+
+    private static ExternalMetadataReleaseCredit[] ReleaseCredits(DiscogsReleaseDetailResponse response)
+    {
+        IEnumerable<ExternalMetadataReleaseCredit> releaseCredits = response.ExtraArtists
+            ?.Select(artist => ToReleaseCredit(artist, null, null)) ?? [];
+        IEnumerable<ExternalMetadataReleaseCredit> trackCredits = response.Tracklist
+            ?.SelectMany(track => track.ExtraArtists?.Select(artist => ToReleaseCredit(artist, track.Title, track.Position)) ?? []) ?? [];
+
+        return [.. releaseCredits.Concat(trackCredits).Where(credit => !string.IsNullOrWhiteSpace(credit.Name))];
+    }
+
+    private static ExternalMetadataReleaseCredit ToReleaseCredit(DiscogsNamedResource artist, string? trackTitle, string? trackPosition)
+    {
+        return new ExternalMetadataReleaseCredit(
+            artist.Name?.Trim() ?? string.Empty,
+            artist.Role?.Trim() ?? string.Empty,
+            EmptyToNull(trackTitle),
+            EmptyToNull(trackPosition));
     }
 
     private static ExternalMetadataSource Source(DiscogsSearchResult result, string resourceType)

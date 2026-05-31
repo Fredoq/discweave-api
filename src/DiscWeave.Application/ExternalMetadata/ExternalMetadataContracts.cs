@@ -123,7 +123,19 @@ public sealed record ExternalMetadataReleaseDetail(
     IReadOnlyList<string> Formats,
     IReadOnlyList<ExternalMetadataReleaseTrack> Tracklist,
     IReadOnlyList<ExternalMetadataIdentifier> Identifiers,
+    string? CatalogNumber,
+    IReadOnlyList<ExternalMetadataReleaseLabel> LabelDetails,
+    IReadOnlyList<ExternalMetadataReleaseCredit> Credits);
+
+public sealed record ExternalMetadataReleaseLabel(
+    string Name,
     string? CatalogNumber);
+
+public sealed record ExternalMetadataReleaseCredit(
+    string Name,
+    string Role,
+    string? TrackTitle,
+    string? TrackPosition);
 
 public sealed record ExternalMetadataReleaseTrack(
     string Title,

@@ -30,20 +30,29 @@ internal sealed class ApiTestHost : IAsyncDisposable
 
     public static async Task<ApiTestHost> CreateAsync(
         PostgresFixture postgres,
+        Action<IServiceCollection> configureServices,
+        CancellationToken cancellationToken = default)
+    {
+        return await CreateAsync(postgres, new Dictionary<string, string?>(), configureServices: configureServices, cancellationToken: cancellationToken);
+    }
+
+    public static async Task<ApiTestHost> CreateAsync(
+        PostgresFixture postgres,
         string environmentName,
         CancellationToken cancellationToken = default)
     {
-        return await CreateAsync(postgres, new Dictionary<string, string?>(), environmentName, cancellationToken);
+        return await CreateAsync(postgres, new Dictionary<string, string?>(), environmentName, cancellationToken: cancellationToken);
     }
 
     public static async Task<ApiTestHost> CreateAsync(
         PostgresFixture postgres,
         IReadOnlyDictionary<string, string?> settings,
         string environmentName = "Development",
+        Action<IServiceCollection>? configureServices = null,
         CancellationToken cancellationToken = default)
     {
         string connectionString = await postgres.CreateDatabaseAsync(cancellationToken);
-        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings, environmentName);
+        WebApplicationFactory<Program> factory = new ConfiguredApiFactory(connectionString, settings, environmentName, configureServices);
 
         var host = new ApiTestHost(factory);
         await host.MigrateAsync(cancellationToken);
@@ -229,7 +238,8 @@ internal sealed class ApiTestHost : IAsyncDisposable
     private sealed class ConfiguredApiFactory(
         string connectionString,
         IReadOnlyDictionary<string, string?> settings,
-        string environmentName)
+        string environmentName,
+        Action<IServiceCollection>? configureServices)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -244,6 +254,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
                     _ = configuration.AddInMemoryCollection(settings);
                 }
             });
+            _ = builder.ConfigureServices(services => configureServices?.Invoke(services));
         }
     }
 
