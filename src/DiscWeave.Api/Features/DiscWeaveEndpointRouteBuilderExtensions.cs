@@ -45,6 +45,8 @@ public static class DiscWeaveEndpointRouteBuilderExtensions
         _ = endpoints.MapCatalogQualityEndpoints();
         _ = endpoints.MapExportsEndpoints();
         _ = endpoints.MapExternalMetadataReleaseEndpoints();
+        _ = endpoints.MapExternalMetadataArtistEndpoints();
+        _ = endpoints.MapExternalMetadataTrackEndpoints();
         _ = endpoints.MapReleaseImportsEndpoints();
         _ = endpoints.MapSettingsDictionariesEndpoints();
         _ = endpoints.MapSettingsImportPatternsEndpoints();

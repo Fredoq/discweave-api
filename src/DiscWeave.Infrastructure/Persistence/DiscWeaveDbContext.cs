@@ -190,6 +190,7 @@ public partial class DiscWeaveDbContext : IdentityDbContext<DiscWeaveUser, Ident
                 .HasPrincipalKey(collection => collection.Id)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+
     }
 
     private void ConfigureCollectionFilters(ModelBuilder modelBuilder)

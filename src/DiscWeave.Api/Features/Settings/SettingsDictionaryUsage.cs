@@ -21,7 +21,10 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         return entry.Kind switch
         {
             DictionaryKind.ReleaseType => await context.Releases.AnyAsync(release => release.CollectionId == entry.CollectionId && release.Summary.Metadata.Type == entry.Code, cancellationToken),
-            DictionaryKind.CreditRole => await context.Credits.AnyAsync(credit => credit.CollectionId == entry.CollectionId && credit.Role == entry.Code, cancellationToken),
+            DictionaryKind.CreditRole => await context.Credits.AnyAsync(
+                credit => credit.CollectionId == entry.CollectionId &&
+                    (credit.Role == entry.Code || EF.Property<string>(credit, "_rolesJson").Contains($"\"{entry.Code}\"")),
+                cancellationToken),
             DictionaryKind.MediaType => await context.OwnedItems.AnyAsync(item => item.CollectionId == entry.CollectionId && EF.Property<string>(item, "_mediumType") == entry.Code, cancellationToken),
             DictionaryKind.ArtistRelationType => await context.ArtistRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.Type == entry.Code, cancellationToken),
             DictionaryKind.TrackRelationType => await context.TrackRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.RelationType == entry.Code, cancellationToken),
@@ -105,11 +108,13 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Credit[] credits = await context.Credits
-            .Where(credit => credit.CollectionId == entry.CollectionId && credit.Role == entry.Code)
+            .Where(credit =>
+                credit.CollectionId == entry.CollectionId &&
+                (credit.Role == entry.Code || EF.Property<string>(credit, "_rolesJson").Contains($"\"{entry.Code}\"")))
             .ToArrayAsync(cancellationToken);
         foreach (Credit credit in credits)
         {
-            credit.Update(credit.Contributor, credit.Target, replacementCode);
+            credit.ReplaceRole(entry.Code, replacementCode);
         }
     }
 

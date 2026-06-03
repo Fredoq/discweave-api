@@ -63,7 +63,7 @@ internal static partial class SearchDocumentBuilder
     {
         Credit[] credits = [.. data.Credits.Where(credit => credit.Contributor.ArtistId == artist.Id)];
         ArtistRelation[] relations = [.. data.ArtistRelations.Where(relation => relation.SourceArtistId == artist.Id || relation.TargetArtistId == artist.Id)];
-        string[] roles = [.. credits.Select(credit => credit.Role).Distinct(StringComparer.OrdinalIgnoreCase)];
+        string[] roles = [.. credits.SelectMany(credit => credit.Roles).Distinct(StringComparer.OrdinalIgnoreCase)];
         string[] relationTypes = [.. relations.Select(relation => relation.Type).Distinct(StringComparer.OrdinalIgnoreCase)];
         string[] targets = [.. credits.Select(credit => CreditTargetTitle(credit, data)).Where(value => value.Length > 0)];
 
@@ -104,7 +104,7 @@ internal static partial class SearchDocumentBuilder
         string[] labelNames = [.. labelIds.Select(id => data.Labels.GetValueOrDefault(id)?.Name).Where(value => value is not null).Select(value => value!)];
         Credit[] credits = [.. data.Credits.Where(credit => credit.Target is ReleaseCreditTarget target && target.ReleaseId == release.Id)];
         OwnedItem[] ownedItems = [.. data.OwnedItems.Where(item => item.Target is ReleaseOwnedItemTarget target && target.ReleaseId == release.Id)];
-        string[] roles = [.. credits.Select(credit => credit.Role).Distinct(StringComparer.OrdinalIgnoreCase)];
+        string[] roles = [.. credits.SelectMany(credit => credit.Roles).Distinct(StringComparer.OrdinalIgnoreCase)];
         string[] tags = [.. release.Cataloging.Tags.Select(tag => tag.Name).Concat(release.Cataloging.Genres.Select(genre => genre.Name)).Distinct(StringComparer.OrdinalIgnoreCase)];
         Guid? primaryLabelId = labelIds.Length == 0 ? null : labelIds[0].Value;
 
@@ -114,7 +114,7 @@ internal static partial class SearchDocumentBuilder
                 Subtitle = labelNames.FirstOrDefault() ?? "release",
                 Summary = string.Join(", ", tags),
                 MatchedFields = ["title", "release.type", "label", "genre", "tag", "credit.role", "credit.contributor", MediumMatchedField, OwnershipStatusMatchedField],
-                SearchParts = [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
+                SearchParts = [release.Summary.Title, release.Summary.Metadata.Type, Label(data, DictionaryKind.ReleaseType, release.Summary.Metadata.Type), .. labelNames, .. tags, .. credits.SelectMany(credit => credit.Roles.SelectMany(role => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, role), role })), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
                 Statuses = [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],
@@ -131,7 +131,7 @@ internal static partial class SearchDocumentBuilder
         OwnedItem[] ownedItems = [.. data.OwnedItems.Where(item => item.Target is TrackOwnedItemTarget target && target.TrackId == track.Id)];
         TrackRelation[] relations = [.. data.TrackRelations.Where(relation => relation.SourceTrackId == track.Id || relation.TargetTrackId == track.Id)];
         Release[] releases = [.. data.Releases.Values.Where(release => release.Tracklist.Any(item => item.TrackId == track.Id))];
-        string[] roles = [.. credits.Select(credit => credit.Role).Distinct(StringComparer.OrdinalIgnoreCase)];
+        string[] roles = [.. credits.SelectMany(credit => credit.Roles).Distinct(StringComparer.OrdinalIgnoreCase)];
         string[] tags = [.. track.Cataloging.Tags.Select(tag => tag.Name).Concat(track.Cataloging.Genres.Select(genre => genre.Name)).Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return ToDocument(
@@ -140,7 +140,7 @@ internal static partial class SearchDocumentBuilder
                 Subtitle = releases.FirstOrDefault()?.Summary.Title,
                 Summary = string.Join(", ", tags),
                 MatchedFields = ["title", "genre", "tag", "credit.role", "credit.contributor", "relation.type", MediumMatchedField, OwnershipStatusMatchedField],
-                SearchParts = [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, credit.Role), credit.Role }), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
+                SearchParts = [track.Title, .. tags, .. releases.Select(release => release.Summary.Title), .. credits.SelectMany(credit => credit.Roles.SelectMany(role => new[] { credit.Contributor.Name, Label(data, DictionaryKind.CreditRole, role), role })), .. relations.Select(relation => Label(data, DictionaryKind.TrackRelationType, relation.RelationType)), .. ownedItems.SelectMany(item => OwnedItemSearchParts(item, data))],
                 Roles = roles,
                 Media = [.. ownedItems.Select(item => item.Holding.Medium.Code).Distinct(StringComparer.OrdinalIgnoreCase)],
                 Statuses = [.. ownedItems.Select(item => StatusCode(item.Holding.Status)).Distinct(StringComparer.OrdinalIgnoreCase)],

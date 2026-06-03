@@ -10,10 +10,42 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
 
     public ExternalMetadataLookupQuery? LastReleaseLookupQuery { get; private set; }
 
+    public ExternalMetadataArtistSearchQuery? LastArtistSearchQuery { get; private set; }
+
+    public ExternalMetadataLookupQuery? LastArtistLookupQuery { get; private set; }
+
+    public ExternalMetadataTrackSearchQuery? LastTrackSearchQuery { get; private set; }
+
+    public ExternalMetadataLookupQuery? LastTrackLookupQuery { get; private set; }
+
     public ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> ReleaseSearchResult { get; set; } =
         new(new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>([], 0));
 
     public ExternalMetadataResult<ExternalMetadataReleaseDetail> ReleaseDetailResult { get; set; } =
+        new(new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            "external_metadata.unavailable",
+            "External metadata provider is unavailable"));
+
+    public ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>> ArtistSearchResult { get; set; } =
+        new(new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            "external_metadata.unavailable",
+            "External metadata provider is unavailable"));
+
+    public ExternalMetadataResult<ExternalMetadataArtistDetail> ArtistDetailResult { get; set; } =
+        new(new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            "external_metadata.unavailable",
+            "External metadata provider is unavailable"));
+
+    public ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>> TrackSearchResult { get; set; } =
+        new(new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            "external_metadata.unavailable",
+            "External metadata provider is unavailable"));
+
+    public ExternalMetadataResult<ExternalMetadataTrackDetail> TrackDetailResult { get; set; } =
         new(new ExternalMetadataError(
             ExternalMetadataErrorKind.Unavailable,
             "external_metadata.unavailable",
@@ -43,41 +75,39 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
         ExternalMetadataArtistSearchQuery query,
         CancellationToken cancellationToken)
     {
-        _ = query;
         _ = cancellationToken;
+        LastArtistSearchQuery = query;
 
-        return Task.FromResult(new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataArtistCandidate>>(
-            new ExternalMetadataError(
-                ExternalMetadataErrorKind.Unavailable,
-                "external_metadata.unavailable",
-                "External metadata provider is unavailable")));
+        return Task.FromResult(ArtistSearchResult);
     }
 
     public Task<ExternalMetadataResult<ExternalMetadataArtistDetail>> GetArtistAsync(
         ExternalMetadataLookupQuery query,
         CancellationToken cancellationToken)
     {
-        _ = query;
         _ = cancellationToken;
+        LastArtistLookupQuery = query;
 
-        return Task.FromResult(new ExternalMetadataResult<ExternalMetadataArtistDetail>(
-            new ExternalMetadataError(
-                ExternalMetadataErrorKind.Unavailable,
-                "external_metadata.unavailable",
-                "External metadata provider is unavailable")));
+        return Task.FromResult(ArtistDetailResult);
     }
 
     public Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>> SearchTracksAsync(
         ExternalMetadataTrackSearchQuery query,
         CancellationToken cancellationToken)
     {
-        _ = query;
         _ = cancellationToken;
+        LastTrackSearchQuery = query;
 
-        return Task.FromResult(new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(
-            new ExternalMetadataError(
-                ExternalMetadataErrorKind.Unavailable,
-                "external_metadata.unavailable",
-                "External metadata provider is unavailable")));
+        return Task.FromResult(TrackSearchResult);
+    }
+
+    public Task<ExternalMetadataResult<ExternalMetadataTrackDetail>> GetTrackAsync(
+        ExternalMetadataLookupQuery query,
+        CancellationToken cancellationToken)
+    {
+        _ = cancellationToken;
+        LastTrackLookupQuery = query;
+
+        return Task.FromResult(TrackDetailResult);
     }
 }

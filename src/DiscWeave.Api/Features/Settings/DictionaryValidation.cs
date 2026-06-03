@@ -29,6 +29,67 @@ internal static class DictionaryValidation
         return entry.Code;
     }
 
+    public static async Task<string> ResolveOrCreateActiveCodeAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        DictionaryKind kind,
+        string code,
+        string errorCode,
+        string errorMessage,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new DomainException(errorCode, errorMessage);
+        }
+
+        string normalizedCode = code.Trim();
+        CollectionDictionaryEntry? trackedEntry = context.CollectionDictionaryEntries.Local
+            .FirstOrDefault(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode);
+        if (trackedEntry is not null)
+        {
+            return trackedEntry.IsActive
+                ? trackedEntry.Code
+                : throw new DomainException(errorCode, errorMessage);
+        }
+
+        CollectionDictionaryEntry? existing = await context.CollectionDictionaryEntries
+            .SingleOrDefaultAsync(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode,
+                cancellationToken);
+        if (existing is not null)
+        {
+            return existing.IsActive
+                ? existing.Code
+                : throw new DomainException(errorCode, errorMessage);
+        }
+
+        int persistedSortOrder = await context.CollectionDictionaryEntries
+            .Where(entry => entry.CollectionId == collectionId && entry.Kind == kind)
+            .Select(entry => (int?)entry.SortOrder)
+            .MaxAsync(cancellationToken) ?? 0;
+        int trackedSortOrder = context.CollectionDictionaryEntries.Local
+            .Where(entry => entry.CollectionId == collectionId && entry.Kind == kind)
+            .Max(entry => (int?)entry.SortOrder) ?? 0;
+        int nextSortOrder = Math.Max(persistedSortOrder, trackedSortOrder);
+        var entry = CollectionDictionaryEntry.Create(
+            CollectionDictionaryEntryId.New(),
+            collectionId,
+            kind,
+            normalizedCode,
+            normalizedCode,
+            nextSortOrder + 10,
+            isBuiltin: false);
+        _ = context.CollectionDictionaryEntries.Add(entry);
+
+        return entry.Code;
+    }
+
     public static async Task<string> RequireCodeAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,

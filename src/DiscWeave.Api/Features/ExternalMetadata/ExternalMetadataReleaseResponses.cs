@@ -49,7 +49,10 @@ public sealed record ExternalMetadataReleaseCreditResponse(
 
 public sealed record ExternalMetadataReleaseDraftResponse(
     string Title,
+    string? Type,
+    IReadOnlyList<string> Genres,
     int? Year,
+    string? ReleaseDate,
     IReadOnlyList<ExternalMetadataReleaseDraftArtistCreditResponse> ArtistCredits,
     IReadOnlyList<ExternalMetadataReleaseDraftLabelResponse> Labels,
     IReadOnlyList<ExternalMetadataReleaseDraftTrackResponse> Tracklist,

@@ -38,7 +38,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         return isVariousArtists
             ? throw new DomainException("track.artist_required", "Track artist is required for Various Artists releases")
-            : [.. releaseCredits.Where(credit => credit.Role == MainArtistRoleCode)];
+            : [.. releaseCredits.Where(credit => credit.Roles.Contains(MainArtistRoleCode, StringComparer.Ordinal))];
     }
 
     private static async Task<IReadOnlyList<ResolvedCredit>> ResolveCreditsAsync(
@@ -62,19 +62,78 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 collectionId,
                 ReleaseCreditArtistErrors,
                 cancellationToken);
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(creditRequest.Role, creditRequest.Roles, MainArtistRoleCode, context, collectionId, cancellationToken);
+            resolved.Add(new ResolvedCredit(artist, roles));
+        }
+
+        return MergeCredits(resolved);
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string? legacyRole,
+        IReadOnlyList<string>? roles,
+        string defaultRole,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        string[] requestedRoles = NormalizeRequestedRoles(legacyRole, roles, defaultRole);
+        var resolved = new List<string>(requestedRoles.Length);
+        foreach (string requestedRole in requestedRoles)
+        {
+            string role = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? MainArtistRoleCode : creditRequest.Role),
+                CreditMapper.ParseRole(requestedRole),
                 "credit.role_invalid",
                 "Credit role is invalid",
                 cancellationToken);
-            resolved.Add(new ResolvedCredit(artist, role));
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
         }
 
-        return resolved;
+        return [.. resolved];
     }
 
-    private sealed record ResolvedCredit(Artist Artist, string Role);
+    private static string[] NormalizeRequestedRoles(string? legacyRole, IReadOnlyList<string>? roles, string defaultRole)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 }
+            ? roles
+            : [legacyRole ?? defaultRole];
+
+        return
+        [
+            .. requested
+                .SelectMany(SplitRoleLabel)
+                .Select(role => string.IsNullOrWhiteSpace(role) ? defaultRole : role.Trim())
+                .Distinct(StringComparer.Ordinal)
+        ];
+    }
+
+    private static IEnumerable<string> SplitRoleLabel(string? role)
+    {
+        return string.IsNullOrWhiteSpace(role)
+            ? []
+            : role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static IReadOnlyList<ResolvedCredit> MergeCredits(IReadOnlyList<ResolvedCredit> credits)
+    {
+        return
+        [
+            .. credits
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private sealed record ResolvedCredit(Artist Artist, IReadOnlyList<string> Roles)
+    {
+        public string Role => Roles[0];
+    }
 }

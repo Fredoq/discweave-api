@@ -27,22 +27,6 @@ public sealed partial class DiscogsExternalMetadataProvider
             []);
     }
 
-    private static ExternalMetadataTrackCandidate MapTrackCandidate(DiscogsSearchResult result, string? requestedTitle)
-    {
-        ExternalMetadataSource source = Source(result, "release");
-        return new ExternalMetadataTrackCandidate(
-            new ExternalMetadataSource(source.ProviderName, "track", source.ExternalId, source.SourceUrl, source.Attribution),
-            string.IsNullOrWhiteSpace(requestedTitle) ? result.Title ?? string.Empty : requestedTitle.Trim(),
-            null,
-            null,
-            ArtistNamesFromTitle(result.Title),
-            new ExternalMetadataReleaseContext(
-                source,
-                result.Title ?? string.Empty,
-                result.Year,
-                ArtistNamesFromTitle(result.Title)));
-    }
-
     private static ExternalMetadataReleaseDetail MapReleaseDetail(DiscogsReleaseDetailResponse response)
     {
         return new ExternalMetadataReleaseDetail(
@@ -50,9 +34,12 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Title ?? string.Empty,
             response.Artists?.Select(artist => artist.Name).WhereNotBlank() ?? [],
             response.Year,
+            ParseReleaseDate(response.Released),
             response.Labels?.Select(label => label.Name).WhereNotBlank() ?? [],
             response.Formats?.Select(format => format.Name).WhereNotBlank() ?? [],
-            response.Tracklist?.Select(MapReleaseTrack).ToArray() ?? [],
+            ReleaseTypeCode(response.Formats),
+            GenreCodes(response),
+            response.Tracklist?.Where(IsTrackRow).Select(MapReleaseTrack).ToArray() ?? [],
             response.Identifiers?.Select(ToIdentifier).ToArray() ?? [],
             response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
             response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
@@ -94,9 +81,63 @@ public sealed partial class DiscogsExternalMetadataProvider
         IEnumerable<ExternalMetadataReleaseCredit> releaseCredits = response.ExtraArtists
             ?.Select(artist => ToReleaseCredit(artist, null, null)) ?? [];
         IEnumerable<ExternalMetadataReleaseCredit> trackCredits = response.Tracklist
+            ?.Where(IsTrackRow)
             ?.SelectMany(track => track.ExtraArtists?.Select(artist => ToReleaseCredit(artist, track.Title, track.Position)) ?? []) ?? [];
 
         return [.. releaseCredits.Concat(trackCredits).Where(credit => !string.IsNullOrWhiteSpace(credit.Name))];
+    }
+
+    private static string? ReleaseTypeCode(IReadOnlyList<DiscogsFormatResource>? formats)
+    {
+        return formats?
+            .SelectMany(format => format.Descriptions ?? [])
+            .Where(IsReleaseTypeDescription)
+            .Select(ToDictionaryCode)
+            .FirstOrDefault(code => code.Length > 0);
+    }
+
+    private static string[] GenreCodes(DiscogsReleaseDetailResponse response)
+    {
+        return
+        [
+            .. (response.Genres ?? [])
+                .Concat(response.Styles ?? [])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.Ordinal)
+        ];
+    }
+
+    private static bool IsReleaseTypeDescription(string? value)
+    {
+        return value?.Trim() is { Length: > 0 } description &&
+            DiscogsReleaseTypeDescriptions.Contains(description);
+    }
+
+    private static string ToDictionaryCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        string[] words = value
+            .Trim()
+            .Split([' ', '_', '-', '/', '\\', '.', ',', ':', ';', '(', ')', '[', ']'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (words.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        string first = words[0].ToLowerInvariant();
+        return first + string.Concat(words.Skip(1).Select(word => string.Concat(
+            word[..1].ToUpperInvariant(),
+            word[1..].ToLowerInvariant())));
+    }
+
+    private static bool IsTrackRow(DiscogsTrackResponse track)
+    {
+        return !string.Equals(track.Type, "heading", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ExternalMetadataReleaseCredit ToReleaseCredit(DiscogsNamedResource artist, string? trackTitle, string? trackPosition)
@@ -165,6 +206,18 @@ public sealed partial class DiscogsExternalMetadataProvider
                 : null;
     }
 
+    private static DateOnly? ParseReleaseDate(string? released)
+    {
+        return DateOnly.TryParseExact(
+            released?.Trim(),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateOnly releaseDate)
+                ? releaseDate
+                : null;
+    }
+
     private static string? EmptyToNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -176,5 +229,29 @@ file static class DiscogsEnumerableExtensions
     public static string[] WhereNotBlank(this IEnumerable<string?> values)
     {
         return [.. values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!.Trim())];
+    }
+}
+
+file static class DiscogsReleaseTypeDescriptions
+{
+    private static readonly HashSet<string> Values = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Album",
+        "Compilation",
+        "EP",
+        "Maxi-Single",
+        "Mini-Album",
+        "Mixtape",
+        "Mixed",
+        "Partially Unofficial",
+        "Promo",
+        "Sampler",
+        "Single",
+        "Unofficial Release"
+    };
+
+    public static bool Contains(string value)
+    {
+        return Values.Contains(value);
     }
 }

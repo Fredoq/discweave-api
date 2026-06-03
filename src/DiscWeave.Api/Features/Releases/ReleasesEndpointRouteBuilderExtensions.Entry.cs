@@ -34,7 +34,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             collectionId,
             cancellationToken);
 
-        if (!request.IsVariousArtists && releaseCredits.All(credit => credit.Role != "mainArtist"))
+        if (!request.IsVariousArtists && releaseCredits.All(credit => !credit.Roles.Contains("mainArtist", StringComparer.Ordinal)))
         {
             throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
         }
@@ -46,7 +46,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         foreach (ResolvedCredit credit in releaseCredits)
         {
-            _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForRelease(release.Id), credit.Role));
+            _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForRelease(release.Id), credit.Roles));
         }
 
         await ReplaceReleaseTracklistAsync(request, release, releaseCredits, context, collectionId, cancellationToken);
@@ -107,7 +107,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                     cancellationToken);
                 foreach (ResolvedCredit credit in trackCredits)
                 {
-                    _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Role));
+                    _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForTrack(track.Id), credit.Roles));
                 }
             }
 
@@ -283,7 +283,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
 
         foreach (ResolvedCredit credit in releaseCredits)
         {
-            _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForRelease(release.Id), credit.Role));
+            _ = context.Credits.Add(Credit.Create(collectionId, CreditId.New(), CreditContributor.FromArtist(credit.Artist), CreditTarget.ForRelease(release.Id), credit.Roles));
         }
     }
 }

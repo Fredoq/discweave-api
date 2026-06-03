@@ -17,10 +17,13 @@ public sealed class DiscogsReleaseDetailMappingTests
               "id": 249504,
               "title": "Blue Monday",
               "year": 1983,
+              "released": "1983-03-07",
               "uri": "/release/249504-New-Order-Blue-Monday",
               "artists": [ { "name": "New Order" } ],
+              "genres": [ "Electronic" ],
+              "styles": [ "Synth-pop", "Leftfield" ],
               "labels": [ { "name": "Factory", "catno": "FAC 73" } ],
-              "formats": [ { "name": "Vinyl" }, { "name": "12\"" } ],
+              "formats": [ { "name": "Vinyl", "descriptions": [ "12\"", "Single" ] } ],
               "identifiers": [
                 { "type": "Barcode", "value": "5016839200371" },
                 { "type": "Matrix / Runout", "value": "FAC 73 A" }
@@ -28,6 +31,14 @@ public sealed class DiscogsReleaseDetailMappingTests
               "extraartists": [ { "name": "Producer Name", "role": "Producer" } ],
               "tracklist": [
                 {
+                  "type_": "heading",
+                  "position": "",
+                  "title": "Orbit Compact Disc",
+                  "duration": "53:14",
+                  "extraartists": [ { "name": "Heading Credit", "role": "Design" } ]
+                },
+                {
+                  "type_": "track",
                   "position": "A",
                   "title": "Blue Monday",
                   "duration": "7:29",
@@ -47,9 +58,12 @@ public sealed class DiscogsReleaseDetailMappingTests
         Assert.Equal("/releases/249504", request.RequestUri?.AbsolutePath);
         Assert.Equal("Blue Monday", result.Value.Title);
         Assert.Equal(1983, result.Value.Year);
+        Assert.Equal(new DateOnly(1983, 3, 7), result.Value.ReleaseDate);
         Assert.Contains("New Order", result.Value.Artists);
+        Assert.Equal(["Electronic", "Synth-pop", "Leftfield"], result.Value.Genres);
         Assert.Contains("Factory", result.Value.Labels);
         Assert.Contains("Vinyl", result.Value.Formats);
+        Assert.Equal("single", result.Value.Type);
         Assert.Equal("FAC 73", result.Value.CatalogNumber);
         ExternalMetadataReleaseLabel label = Assert.Single(result.Value.LabelDetails);
         Assert.Equal("Factory", label.Name);
@@ -61,6 +75,7 @@ public sealed class DiscogsReleaseDetailMappingTests
         Assert.Contains("New Order", track.Artists);
         Assert.Contains(result.Value.Credits, credit => credit.Name == "Producer Name" && credit.Role == "Producer" && credit.TrackTitle is null);
         Assert.Contains(result.Value.Credits, credit => credit.Name == "Remixer Name" && credit.Role == "Remix" && credit.TrackTitle == "Blue Monday");
+        Assert.DoesNotContain(result.Value.Credits, credit => credit.Name == "Heading Credit");
     }
 
     private static DiscogsExternalMetadataProvider CreateProvider(RecordingHttpMessageHandler handler)

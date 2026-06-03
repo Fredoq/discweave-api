@@ -23,6 +23,10 @@ public interface IExternalMetadataProvider
     Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>> SearchTracksAsync(
         ExternalMetadataTrackSearchQuery query,
         CancellationToken cancellationToken);
+
+    Task<ExternalMetadataResult<ExternalMetadataTrackDetail>> GetTrackAsync(
+        ExternalMetadataLookupQuery query,
+        CancellationToken cancellationToken);
 }
 
 public sealed class ExternalMetadataResult<T>
@@ -119,8 +123,11 @@ public sealed record ExternalMetadataReleaseDetail(
     string Title,
     IReadOnlyList<string> Artists,
     int? Year,
+    DateOnly? ReleaseDate,
     IReadOnlyList<string> Labels,
     IReadOnlyList<string> Formats,
+    string? Type,
+    IReadOnlyList<string> Genres,
     IReadOnlyList<ExternalMetadataReleaseTrack> Tracklist,
     IReadOnlyList<ExternalMetadataIdentifier> Identifiers,
     string? CatalogNumber,
@@ -174,3 +181,16 @@ public sealed record ExternalMetadataTrackCandidate(
     TimeSpan? Duration,
     IReadOnlyList<string> Artists,
     ExternalMetadataReleaseContext Release);
+
+public sealed record ExternalMetadataTrackDetail(
+    ExternalMetadataSource Source,
+    string Title,
+    string? Position,
+    TimeSpan? Duration,
+    IReadOnlyList<string> Artists,
+    IReadOnlyList<ExternalMetadataTrackCredit> Credits,
+    ExternalMetadataReleaseContext Release);
+
+public sealed record ExternalMetadataTrackCredit(
+    string Name,
+    string Role);

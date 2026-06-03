@@ -129,46 +129,6 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Contains("A. Baker", result.Value.NameVariations);
     }
 
-    [Fact(DisplayName = "Release-backed track search uses release context and maps track candidates")]
-    public async Task Release_backed_track_search_uses_release_context_and_maps_track_candidates()
-    {
-        RecordingHttpMessageHandler handler = JsonHandler(
-            // lang=json
-            """
-            {
-              "pagination": { "items": 1 },
-              "results": [
-                {
-                  "type": "release",
-                  "id": 249504,
-                  "title": "New Order - Blue Monday",
-                  "year": 1983,
-                  "label": [ "Factory" ],
-                  "format": [ "Vinyl", "12\"" ],
-                  "catno": "FAC 73",
-                  "uri": "/release/249504-New-Order-Blue-Monday"
-                }
-              ]
-            }
-            """);
-        DiscogsExternalMetadataProvider provider = CreateProvider(handler);
-
-        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>> result =
-            await provider.SearchTracksAsync(
-                new ExternalMetadataTrackSearchQuery(Title: "Blue Monday", Artist: "New Order", ReleaseTitle: "Blue Monday"),
-                CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        HttpRequestMessage request = Assert.Single(handler.Requests);
-        Assert.Contains("track=Blue%20Monday", request.RequestUri?.Query);
-        Assert.Contains("artist=New%20Order", request.RequestUri?.Query);
-        Assert.Contains("release_title=Blue%20Monday", request.RequestUri?.Query);
-        ExternalMetadataTrackCandidate candidate = Assert.Single(result.Value.Items);
-        Assert.Equal("Blue Monday", candidate.Title);
-        Assert.Equal("New Order - Blue Monday", candidate.Release.Title);
-        Assert.Equal("249504", candidate.Release.Source.ExternalId);
-    }
-
     [Fact(DisplayName = "Discogs rate limits map to deterministic provider errors with retry-after")]
     public async Task Discogs_rate_limits_map_to_deterministic_provider_errors_with_retry_after()
     {

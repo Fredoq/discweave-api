@@ -62,8 +62,11 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
                     "Blue Monday",
                     ["New Order"],
                     1983,
+                    new DateOnly(1983, 3, 7),
                     ["Factory"],
                     ["Vinyl", "12\""],
+                    "single",
+                    ["Electronic", "Leftfield"],
                     [new ExternalMetadataReleaseTrack("Blue Monday", "A", TimeSpan.FromSeconds(449), ["New Order"])],
                     [
                         new ExternalMetadataIdentifier("Barcode", "5016839200371"),
@@ -94,7 +97,11 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
 
         JsonElement draft = root.GetProperty("draft");
         Assert.Equal("Blue Monday", draft.GetProperty("title").GetString());
+        Assert.Equal("single", draft.GetProperty("type").GetString());
+        Assert.Equal("Electronic", draft.GetProperty("genres")[0].GetString());
+        Assert.Equal("Leftfield", draft.GetProperty("genres")[1].GetString());
         Assert.Equal(1983, draft.GetProperty("year").GetInt32());
+        Assert.Equal("1983-03-07", draft.GetProperty("releaseDate").GetString());
         Assert.Equal("New Order", draft.GetProperty("artistCredits")[0].GetProperty("name").GetString());
         Assert.Equal("mainArtist", draft.GetProperty("artistCredits")[0].GetProperty("role").GetString());
         Assert.Equal("Factory", draft.GetProperty("labels")[0].GetProperty("name").GetString());
@@ -102,6 +109,10 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
         Assert.False(draft.GetProperty("labels")[0].GetProperty("hasNoCatalogNumber").GetBoolean());
         Assert.Equal(1, draft.GetProperty("tracklist")[0].GetProperty("position").GetInt32());
         Assert.Equal(449, draft.GetProperty("tracklist")[0].GetProperty("durationSeconds").GetInt32());
+        Assert.Equal("New Order", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[0].GetProperty("name").GetString());
+        Assert.Equal("mainArtist", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[0].GetProperty("role").GetString());
+        Assert.Equal("Remixer Name", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[1].GetProperty("name").GetString());
+        Assert.Equal("Remix", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[1].GetProperty("role").GetString());
         Assert.Equal("release", draft.GetProperty("externalSources")[0].GetProperty("resourceType").GetString());
         Assert.DoesNotContain("collectionId", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);

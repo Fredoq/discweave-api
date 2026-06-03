@@ -89,9 +89,7 @@ public sealed class DomainModelShapeTests
     {
         string[] expectedTypes =
         [
-            typeof(ArtistRelation).FullName!,
-            typeof(Credit).FullName!,
-            typeof(ExternalSourceReference).FullName!,
+            typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Playlist).FullName!,
             typeof(PlaylistEntry).FullName!,
@@ -99,9 +97,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
-            typeof(RatingCriterion).FullName!,
-            typeof(RatingCriterionTarget).FullName!,
-            typeof(RatingValue).FullName!,
+            typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -127,9 +123,7 @@ public sealed class DomainModelShapeTests
         string[] expectedTypes =
         [
             typeof(Artist).FullName!,
-            typeof(ArtistRelation).FullName!,
-            typeof(Credit).FullName!,
-            typeof(ExternalSourceReference).FullName!,
+            typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
             typeof(Label).FullName!,
             typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
@@ -138,9 +132,7 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!,
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
-            typeof(RatingCriterion).FullName!,
-            typeof(RatingCriterionTarget).FullName!,
-            typeof(RatingValue).FullName!,
+            typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -199,6 +191,7 @@ public sealed class DomainModelShapeTests
     {
         return type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
             ? 10
+            : type == typeof(Credit) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
@@ -220,6 +213,7 @@ public sealed class DomainModelShapeTests
         return type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
+            : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
             ? 6
             : type == typeof(ReleaseMetadata)

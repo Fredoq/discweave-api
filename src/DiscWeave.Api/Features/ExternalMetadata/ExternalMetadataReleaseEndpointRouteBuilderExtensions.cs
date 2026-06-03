@@ -1,3 +1,4 @@
+using System.Globalization;
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.ExternalMetadata;
@@ -166,10 +167,13 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
     {
         return new ExternalMetadataReleaseDraftResponse(
             detail.Title,
-            detail.Year,
+            detail.Type,
+            detail.Genres,
+            detail.Year ?? detail.ReleaseDate?.Year,
+            detail.ReleaseDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             [.. detail.Artists.Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"))],
             DraftLabels(detail),
-            [.. detail.Tracklist.Select((track, index) => ToDraftTrackResponse(track, index + 1))],
+            [.. detail.Tracklist.Select((track, index) => ToDraftTrackResponse(detail, track, index + 1))],
             [new ExternalMetadataDraftExternalSourceResponse(
                 detail.Source.ProviderName,
                 detail.Source.ResourceType,
@@ -190,13 +194,37 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
                 index != 0 || string.IsNullOrWhiteSpace(detail.CatalogNumber)))];
     }
 
-    private static ExternalMetadataReleaseDraftTrackResponse ToDraftTrackResponse(ExternalMetadataReleaseTrack track, int position)
+    private static ExternalMetadataReleaseDraftTrackResponse ToDraftTrackResponse(
+        ExternalMetadataReleaseDetail detail,
+        ExternalMetadataReleaseTrack track,
+        int position)
     {
         return new ExternalMetadataReleaseDraftTrackResponse(
             track.Title,
             position,
             ToDurationSeconds(track.Duration),
-            [.. track.Artists.Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"))]);
+            DraftTrackCredits(detail, track));
+    }
+
+    private static ExternalMetadataReleaseDraftArtistCreditResponse[] DraftTrackCredits(
+        ExternalMetadataReleaseDetail detail,
+        ExternalMetadataReleaseTrack track)
+    {
+        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> mainArtists = track.Artists
+            .Where(artist => !string.IsNullOrWhiteSpace(artist))
+            .Select(artist => new ExternalMetadataReleaseDraftArtistCreditResponse(artist, "mainArtist"));
+        IEnumerable<ExternalMetadataReleaseDraftArtistCreditResponse> trackCredits = detail.Credits
+            .Where(credit => TrackCreditMatches(credit, track))
+            .Where(credit => !string.IsNullOrWhiteSpace(credit.Name))
+            .Select(credit => new ExternalMetadataReleaseDraftArtistCreditResponse(credit.Name, credit.Role));
+
+        return [.. mainArtists.Concat(trackCredits)];
+    }
+
+    private static bool TrackCreditMatches(ExternalMetadataReleaseCredit credit, ExternalMetadataReleaseTrack track)
+    {
+        return string.Equals(credit.TrackPosition, track.Position, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(credit.TrackTitle, track.Title, StringComparison.OrdinalIgnoreCase);
     }
 
     private static int? ToDurationSeconds(TimeSpan? duration)
@@ -224,7 +252,7 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
             return true;
         }
 
-        bool parsed = int.TryParse(raw, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int result);
+        bool parsed = int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out int result);
         value = parsed ? result : null;
 
         return parsed;

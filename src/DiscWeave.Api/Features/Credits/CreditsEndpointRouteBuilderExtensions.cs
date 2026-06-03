@@ -58,15 +58,13 @@ public static partial class CreditsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("credit.target_conflict", "Credit target does not exist");
             }
 
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(
+                request.Role,
+                request.Roles,
                 context,
                 currentCollection.CollectionId,
-                DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(request.Role),
-                "credit.role_invalid",
-                "Credit role is invalid",
                 cancellationToken);
-            var credit = Credit.Create(currentCollection.CollectionId, CreditId.New(), CreditContributor.FromArtist(contributor), target, role);
+            var credit = Credit.Create(currentCollection.CollectionId, CreditId.New(), CreditContributor.FromArtist(contributor), target, roles);
             unitOfWork.GetRepository<Credit, CreditId>().Add(credit);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -175,15 +173,13 @@ public static partial class CreditsEndpointRouteBuilderExtensions
                 return EndpointErrors.Conflict("credit.target_conflict", "Credit target does not exist");
             }
 
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(
+                request.Role,
+                request.Roles,
                 context,
                 currentCollection.CollectionId,
-                DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(request.Role),
-                "credit.role_invalid",
-                "Credit role is invalid",
                 cancellationToken);
-            credit.Update(CreditContributor.FromArtist(contributor), target, role);
+            credit.Update(CreditContributor.FromArtist(contributor), target, roles);
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(await ToResponseAsync(credit, context, cancellationToken));
@@ -234,7 +230,7 @@ public static partial class CreditsEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(role))
         {
-            credits = credits.Where(credit => credit.Role == role);
+            credits = credits.Where(credit => credit.Role == role || EF.Property<string>(credit, "_rolesJson").Contains($"\"{role}\""));
         }
 
         if (!string.IsNullOrWhiteSpace(targetType))
@@ -262,5 +258,33 @@ public static partial class CreditsEndpointRouteBuilderExtensions
             TrackCreditTarget trackTarget => await context.Tracks.AnyAsync(track => track.CollectionId == collectionId && track.Id == trackTarget.TrackId, cancellationToken),
             _ => false
         };
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string legacyRole,
+        IReadOnlyList<string>? roles,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 } ? roles : [legacyRole];
+        var resolved = new List<string>();
+        foreach (string requestedRole in requested.Select(CreditMapper.ParseRole))
+        {
+            string role = await DictionaryValidation.RequireActiveCodeAsync(
+                context,
+                collectionId,
+                DictionaryKind.CreditRole,
+                requestedRole,
+                "credit.role_invalid",
+                "Credit role is invalid",
+                cancellationToken);
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
+        }
+
+        return [.. resolved];
     }
 }

@@ -26,8 +26,11 @@ public sealed partial class DiscogsExternalMetadataProvider
         long Id,
         string? Title,
         int? Year,
+        string? Released,
         string? Uri,
         DiscogsNamedResource[]? Artists,
+        string[]? Genres,
+        string[]? Styles,
         DiscogsLabelResource[]? Labels,
         DiscogsFormatResource[]? Formats,
         DiscogsTrackResponse[]? Tracklist,
@@ -45,6 +48,8 @@ public sealed partial class DiscogsExternalMetadataProvider
         string[]? NameVariations);
 
     private sealed record DiscogsTrackResponse(
+        [property: JsonPropertyName("type_")]
+        string? Type,
         string? Title,
         string? Position,
         string? Duration,
@@ -56,7 +61,7 @@ public sealed partial class DiscogsExternalMetadataProvider
 
     private sealed record DiscogsLabelResource(string? Name, [property: JsonPropertyName("catno")] string? CatalogNumber);
 
-    private sealed record DiscogsFormatResource(string? Name);
+    private sealed record DiscogsFormatResource(string? Name, string[]? Descriptions);
 
     private sealed record DiscogsIdentifierResponse(string? Type, string? Value);
 #pragma warning restore CA1812

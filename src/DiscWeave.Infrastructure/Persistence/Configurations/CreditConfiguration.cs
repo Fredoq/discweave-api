@@ -70,6 +70,13 @@ internal sealed class CreditConfiguration : IEntityTypeConfiguration<Credit>
             .HasMaxLength(64)
             .IsRequired();
 
+        _ = builder.Property<string>("_rolesJson")
+            .HasColumnName("roles_json")
+            .HasMaxLength(2048)
+            .IsRequired();
+
+        _ = builder.Ignore(credit => credit.Roles);
+
         _ = builder.HasOne<Artist>()
             .WithMany()
             .HasForeignKey(nameof(Credit.CollectionId), "_contributorArtistId")

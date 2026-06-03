@@ -12,7 +12,7 @@ public sealed record TrackResponse(
     IReadOnlyList<TrackCreditResponse> Credits,
     IReadOnlyList<TrackReleaseAppearanceResponse> ReleaseAppearances);
 
-public sealed record TrackCreditResponse(Guid ArtistId, string ArtistName, string Role);
+public sealed record TrackCreditResponse(Guid ArtistId, string ArtistName, string Role, IReadOnlyList<string> Roles);
 
 public sealed record TrackReleaseAppearanceResponse(
     Guid ReleaseId,

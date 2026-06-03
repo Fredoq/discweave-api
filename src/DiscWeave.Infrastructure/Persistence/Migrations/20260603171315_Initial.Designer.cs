@@ -10,16 +10,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
 
 #nullable disable
-#pragma warning disable IDE0005
-#pragma warning disable IDE0058
-#pragma warning disable IDE0161
-#pragma warning disable IDE0300
-#pragma warning disable CA1861
 
 namespace DiscWeave.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DiscWeaveDbContext))]
-    [Migration("20260531162845_Initial")]
+    [Migration("20260603171315_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -444,6 +439,12 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)")
                         .HasColumnName("contributor_name");
+
+                    b.Property<string>("_rolesJson")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("roles_json");
 
                     b.Property<Guid?>("_targetReleaseId")
                         .HasColumnType("uuid")

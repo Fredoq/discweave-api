@@ -19,6 +19,6 @@ public sealed record TrackRequest
     public IReadOnlyList<TrackReleaseAppearanceRequest> ReleaseAppearances { get; init; } = [];
 }
 
-public sealed record TrackCreditRequest(Guid? ArtistId, string? Name, string? Role);
+public sealed record TrackCreditRequest(Guid? ArtistId, string? Name, string? Role, IReadOnlyList<string>? Roles = null);
 
 public sealed record TrackReleaseAppearanceRequest(Guid ReleaseId, int Position, string? VersionNote);

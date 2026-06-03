@@ -1,7 +1,9 @@
 using System.Globalization;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using DiscWeave.Application.ExternalMetadata;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DiscWeave.Infrastructure.ExternalMetadata.Discogs;
@@ -13,14 +15,26 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     private static readonly Dictionary<string, string> EmptyParameters = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
+    private readonly ILogger<DiscogsExternalMetadataProvider> _logger;
     private readonly DiscogsOptions _options;
 
     public DiscogsExternalMetadataProvider(HttpClient httpClient, IOptions<DiscogsOptions> options)
+        : this(httpClient, options, NullLogger<DiscogsExternalMetadataProvider>.Instance)
+    {
+    }
+
+    [ActivatorUtilitiesConstructor]
+    public DiscogsExternalMetadataProvider(
+        HttpClient httpClient,
+        IOptions<DiscogsOptions> options,
+        ILogger<DiscogsExternalMetadataProvider> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _httpClient = httpClient;
+        _logger = logger;
         _options = options.Value;
     }
 
@@ -143,88 +157,6 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
         return response.IsSuccess
             ? new ExternalMetadataResult<ExternalMetadataArtistDetail>(MapArtistDetail(response.Value))
             : new ExternalMetadataResult<ExternalMetadataArtistDetail>(response.Error);
-    }
-
-    public async Task<ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>> SearchTracksAsync(
-        ExternalMetadataTrackSearchQuery query,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-
-        ExternalMetadataError? configurationError = TryValidateConfiguration();
-        if (configurationError is not null)
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(configurationError);
-        }
-
-        Dictionary<string, string> parameters = SearchParameters(query.Limit, "release");
-        Add(parameters, "track", query.Title);
-        Add(parameters, "artist", query.Artist);
-        Add(parameters, "release_title", query.ReleaseTitle);
-        Add(parameters, "year", query.Year?.ToString(CultureInfo.InvariantCulture));
-        Add(parameters, "barcode", query.Barcode);
-        Add(parameters, "catno", query.CatalogNumber);
-
-        ExternalMetadataResult<DiscogsSearchResponse> response = await SendAsync<DiscogsSearchResponse>(
-            "/database/search",
-            parameters,
-            cancellationToken);
-        if (!response.IsSuccess)
-        {
-            return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(response.Error);
-        }
-
-        ExternalMetadataTrackCandidate[] candidates =
-        [
-            .. response.Value.Results
-                .Where(result => string.Equals(result.Type, "release", StringComparison.OrdinalIgnoreCase))
-                .Select(result => MapTrackCandidate(result, query.Title))
-        ];
-
-        return new ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>>(
-            new ExternalMetadataSearchResult<ExternalMetadataTrackCandidate>(candidates, response.Value.Pagination?.Items));
-    }
-
-    private async Task<ExternalMetadataResult<T>> SendAsync<T>(
-        string path,
-        Dictionary<string, string> parameters,
-        CancellationToken cancellationToken)
-        where T : class
-    {
-        using HttpRequestMessage request = new(HttpMethod.Get, BuildUri(path, parameters));
-        request.Headers.UserAgent.Clear();
-        _ = request.Headers.UserAgent.TryParseAdd(_options.UserAgent);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Discogs", $"token={_options.AccessToken}");
-
-        try
-        {
-            using HttpResponseMessage response = await _httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return new ExternalMetadataResult<T>(MapFailure(response));
-            }
-
-            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            T? value = await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
-            return value is null
-                ? new ExternalMetadataResult<T>(InvalidResponse())
-                : new ExternalMetadataResult<T>(value);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new ExternalMetadataResult<T>(Timeout());
-        }
-        catch (JsonException)
-        {
-            return new ExternalMetadataResult<T>(InvalidResponse());
-        }
-        catch (HttpRequestException)
-        {
-            return new ExternalMetadataResult<T>(Unavailable());
-        }
     }
 
     private ExternalMetadataError? TryValidateConfiguration()

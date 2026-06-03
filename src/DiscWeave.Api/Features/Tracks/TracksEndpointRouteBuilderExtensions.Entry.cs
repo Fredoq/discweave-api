@@ -40,7 +40,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 CreditId.New(),
                 CreditContributor.FromArtist(resolved.Artist),
                 CreditTarget.ForTrack(track.Id),
-                resolved.Role));
+                resolved.Roles));
         }
     }
 
@@ -113,18 +113,68 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 collectionId,
                 TrackCreditArtistErrors,
                 cancellationToken);
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(creditRequest.Role, creditRequest.Roles, context, collectionId, cancellationToken);
+            resolved.Add(new ResolvedTrackCredit(artist, roles));
+        }
+
+        return
+        [
+            .. resolved
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedTrackCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string? legacyRole,
+        IReadOnlyList<string>? roles,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        string[] requestedRoles = NormalizeRequestedRoles(legacyRole, roles);
+        var resolved = new List<string>(requestedRoles.Length);
+        foreach (string requestedRole in requestedRoles)
+        {
+            string role = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role),
+                CreditMapper.ParseRole(requestedRole),
                 "credit.role_invalid",
                 "Credit role is invalid",
                 cancellationToken);
-            resolved.Add(new ResolvedTrackCredit(artist, role));
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
         }
 
-        return resolved;
+        return [.. resolved];
+    }
+
+    private static string[] NormalizeRequestedRoles(string? legacyRole, IReadOnlyList<string>? roles)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 }
+            ? roles
+            : [legacyRole ?? "mainArtist"];
+
+        return
+        [
+            .. requested
+                .SelectMany(SplitRoleLabel)
+                .Select(role => string.IsNullOrWhiteSpace(role) ? "mainArtist" : role.Trim())
+                .Distinct(StringComparer.Ordinal)
+        ];
+    }
+
+    private static IEnumerable<string> SplitRoleLabel(string? role)
+    {
+        return string.IsNullOrWhiteSpace(role)
+            ? []
+            : role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static IOptionalValue<string> ToOptionalString(string? value)
@@ -134,5 +184,5 @@ public static partial class TracksEndpointRouteBuilderExtensions
             : Optional.From(value.Trim());
     }
 
-    private sealed record ResolvedTrackCredit(Artist Artist, string Role);
+    private sealed record ResolvedTrackCredit(Artist Artist, IReadOnlyList<string> Roles);
 }

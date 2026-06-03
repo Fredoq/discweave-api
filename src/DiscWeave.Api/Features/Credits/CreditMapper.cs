@@ -40,6 +40,7 @@ internal static class CreditMapper
             targetType,
             targetId,
             ToRoleCode(credit.Role),
+            [.. credit.Roles.Select(ToRoleCode)],
             targetTitle);
     }
 

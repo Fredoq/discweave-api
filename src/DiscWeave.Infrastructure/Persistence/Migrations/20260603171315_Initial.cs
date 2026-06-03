@@ -4,11 +4,6 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
 
 #nullable disable
-#pragma warning disable IDE0005
-#pragma warning disable IDE0058
-#pragma warning disable IDE0161
-#pragma warning disable IDE0300
-#pragma warning disable CA1861
 
 namespace DiscWeave.Infrastructure.Persistence.Migrations
 {
@@ -600,6 +595,14 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.AddForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections",
+                column: "owner_user_id",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
             migrationBuilder.CreateTable(
                 name: "rating_criterion_targets",
                 columns: table => new
@@ -807,6 +810,7 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     role = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     contributor_artist_id = table.Column<Guid>(type: "uuid", nullable: false),
                     contributor_name = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
+                    roles_json = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
                     target_release_id = table.Column<Guid>(type: "uuid", nullable: true),
                     target_track_id = table.Column<Guid>(type: "uuid", nullable: true),
                     target_type = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false)
@@ -1248,14 +1252,6 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                 table: "collections",
                 column: "owner_user_id",
                 unique: true);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections",
-                column: "owner_user_id",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.CreateIndex(
                 name: "IX_credits_collection_id",
@@ -1761,10 +1757,6 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_collections_AspNetUsers_owner_user_id",
-                table: "collections");
-
             migrationBuilder.DropTable(
                 name: "artist_external_sources");
 
@@ -1848,6 +1840,10 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "track_tags");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_collections_AspNetUsers_owner_user_id",
+                table: "collections");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

@@ -7,4 +7,6 @@ public sealed record ReleaseArtistCreditRequest
     public string? Name { get; init; }
 
     public string? Role { get; init; }
+
+    public IReadOnlyList<string>? Roles { get; init; }
 }

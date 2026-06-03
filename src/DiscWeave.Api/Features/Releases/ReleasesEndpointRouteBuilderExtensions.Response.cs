@@ -232,7 +232,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         return new ReleaseArtistCreditResponse(
             artistId.Value,
             artistsById.TryGetValue(artistId, out Artist? artist) ? artist.Name : credit.Contributor.Name,
-            CreditMapper.ToRoleCode(credit.Role));
+            CreditMapper.ToRoleCode(credit.Role),
+            [.. credit.Roles.Select(CreditMapper.ToRoleCode)]);
     }
 
     private static ReleaseLabelResponse ToReleaseLabelResponse(ReleaseLabel releaseLabel, Dictionary<LabelId, Label> labelsById)
