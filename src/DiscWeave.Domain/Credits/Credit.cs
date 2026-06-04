@@ -22,7 +22,7 @@ public sealed class Credit : IEntity<CreditId>
     {
     }
 
-    private Credit(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, IReadOnlyCollection<string> roles)
+    private Credit(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, IReadOnlyList<string> roles)
     {
         CollectionId = collectionId;
         Id = id;
@@ -63,7 +63,7 @@ public sealed class Credit : IEntity<CreditId>
         return Create(collectionId, id, contributor, target, [role]);
     }
 
-    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, IReadOnlyCollection<string> roles)
+    public static Credit Create(CollectionId collectionId, CreditId id, CreditContributor contributor, CreditTarget target, IReadOnlyList<string> roles)
     {
         ArgumentNullException.ThrowIfNull(contributor);
         ArgumentNullException.ThrowIfNull(target);
@@ -81,7 +81,7 @@ public sealed class Credit : IEntity<CreditId>
         Update(contributor, target, [role]);
     }
 
-    public void Update(CreditContributor contributor, CreditTarget target, IReadOnlyCollection<string> roles)
+    public void Update(CreditContributor contributor, CreditTarget target, IReadOnlyList<string> roles)
     {
         ArgumentNullException.ThrowIfNull(contributor);
         ArgumentNullException.ThrowIfNull(target);
@@ -130,7 +130,7 @@ public sealed class Credit : IEntity<CreditId>
         _contributorName = contributor.Name;
     }
 
-    private void SetRoles(IReadOnlyCollection<string> roles)
+    private void SetRoles(IReadOnlyList<string> roles)
     {
         ArgumentNullException.ThrowIfNull(roles);
         string[] normalized =

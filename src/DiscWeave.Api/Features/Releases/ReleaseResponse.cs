@@ -26,7 +26,7 @@ public sealed record CoverImageResponse(
     long SizeBytes,
     string SourceType);
 
-public sealed record ReleaseArtistCreditResponse(Guid ArtistId, string ArtistName, string Role, IReadOnlyList<string> Roles);
+public sealed record ReleaseArtistCreditResponse(Guid ArtistId, string ArtistName, string PrimaryRole, IReadOnlyList<string> Roles);
 
 public sealed record ReleaseLabelResponse(Guid? LabelId, string Name, string? CatalogNumber, bool HasNoCatalogNumber);
 

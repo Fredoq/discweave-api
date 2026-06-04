@@ -19,7 +19,10 @@ internal sealed class FakeExternalMetadataProvider : IExternalMetadataProvider
     public ExternalMetadataLookupQuery? LastTrackLookupQuery { get; private set; }
 
     public ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> ReleaseSearchResult { get; set; } =
-        new(new ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>([], 0));
+        new(new ExternalMetadataError(
+            ExternalMetadataErrorKind.Unavailable,
+            "external_metadata.unavailable",
+            "External metadata provider is unavailable"));
 
     public ExternalMetadataResult<ExternalMetadataReleaseDetail> ReleaseDetailResult { get; set; } =
         new(new ExternalMetadataError(

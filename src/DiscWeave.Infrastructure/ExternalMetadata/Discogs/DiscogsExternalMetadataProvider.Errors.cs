@@ -15,7 +15,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             case HttpStatusCode.Forbidden:
                 return Unauthorized();
             case HttpStatusCode.TooManyRequests:
-                return RateLimited(response.Headers.RetryAfter?.Delta);
+                return RateLimited(RetryAfter(response));
             case HttpStatusCode.RequestTimeout:
             case HttpStatusCode.GatewayTimeout:
                 return Timeout();
@@ -26,6 +26,23 @@ public sealed partial class DiscogsExternalMetadataProvider
         }
 #pragma warning restore IDE0010
 #pragma warning restore IDE0066
+    }
+
+    private static TimeSpan? RetryAfter(HttpResponseMessage response)
+    {
+        TimeSpan? retryAfter = response.Headers.RetryAfter?.Delta;
+        if (retryAfter is not null)
+        {
+            return retryAfter;
+        }
+
+        if (response.Headers.RetryAfter?.Date is not DateTimeOffset retryAt)
+        {
+            return null;
+        }
+
+        TimeSpan computedDelay = retryAt - DateTimeOffset.UtcNow;
+        return computedDelay > TimeSpan.Zero ? computedDelay : TimeSpan.Zero;
     }
 
     private static ExternalMetadataError Disabled()

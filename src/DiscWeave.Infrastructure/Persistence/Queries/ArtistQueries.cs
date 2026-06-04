@@ -9,6 +9,7 @@ namespace DiscWeave.Infrastructure.Persistence.Queries;
 public sealed class ArtistQueries : IArtistQueries
 {
     private const string ArtistTypePropertyName = "artist_type";
+    private const string ExternalSourcesNavigation = "_externalSources";
     private readonly DiscWeaveDbContext _context;
     private readonly CollectionId _collectionId;
     private readonly bool _hasCollection;
@@ -22,7 +23,7 @@ public sealed class ArtistQueries : IArtistQueries
 
     public async Task<ArtistReadModel?> TryGetAsync(ArtistId artistId, CancellationToken cancellationToken = default)
     {
-        Artist? artist = await ApplyCollectionFilter(_context.Artists.AsNoTracking())
+        Artist? artist = await ApplyCollectionFilter(_context.Artists.AsNoTracking().Include(ExternalSourcesNavigation))
             .Where(artist => artist.Id == artistId)
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -33,7 +34,7 @@ public sealed class ArtistQueries : IArtistQueries
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        IQueryable<Artist> artists = ApplyCollectionFilter(_context.Artists.AsNoTracking());
+        IQueryable<Artist> artists = ApplyCollectionFilter(_context.Artists.AsNoTracking().Include(ExternalSourcesNavigation));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {

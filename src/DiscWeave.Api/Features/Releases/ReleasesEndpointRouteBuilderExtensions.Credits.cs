@@ -104,20 +104,58 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             ? roles
             : [legacyRole ?? defaultRole];
 
-        return
+        string[] normalized =
         [
             .. requested
                 .SelectMany(SplitRoleLabel)
-                .Select(role => string.IsNullOrWhiteSpace(role) ? defaultRole : role.Trim())
+                .Select(role => role.Trim())
+                .Where(role => role.Length > 0)
                 .Distinct(StringComparer.Ordinal)
         ];
+
+        return normalized.Length > 0 ? normalized : [defaultRole];
     }
 
     private static IEnumerable<string> SplitRoleLabel(string? role)
     {
-        return string.IsNullOrWhiteSpace(role)
-            ? []
-            : role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return [];
+        }
+
+        var values = new List<string>();
+        int bracketDepth = 0;
+        int segmentStart = 0;
+        for (int index = 0; index < role.Length; index++)
+        {
+            char value = role[index];
+            bracketDepth += value switch
+            {
+                '[' => 1,
+                ']' when bracketDepth > 0 => -1,
+                _ => 0
+            };
+
+            if (value != ',' || bracketDepth > 0)
+            {
+                continue;
+            }
+
+            AddSegment(role, segmentStart, index, values);
+            segmentStart = index + 1;
+        }
+
+        AddSegment(role, segmentStart, role.Length, values);
+        return values;
+    }
+
+    private static void AddSegment(string role, int start, int end, List<string> values)
+    {
+        string segment = role[start..end].Trim();
+        if (segment.Length > 0)
+        {
+            values.Add(segment);
+        }
     }
 
     private static IReadOnlyList<ResolvedCredit> MergeCredits(IReadOnlyList<ResolvedCredit> credits)

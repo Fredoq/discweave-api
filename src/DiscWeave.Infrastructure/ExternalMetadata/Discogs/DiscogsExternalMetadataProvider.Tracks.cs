@@ -133,8 +133,19 @@ public sealed partial class DiscogsExternalMetadataProvider
 
     private static bool TrackCreditMatches(ExternalMetadataReleaseCredit credit, ExternalMetadataReleaseTrack track)
     {
-        return string.Equals(credit.TrackPosition, track.Position, StringComparison.OrdinalIgnoreCase) ||
+        bool hasPosition = !string.IsNullOrWhiteSpace(credit.TrackPosition);
+        bool hasTitle = !string.IsNullOrWhiteSpace(credit.TrackTitle);
+        if (!hasPosition && !hasTitle)
+        {
+            return false;
+        }
+
+        bool positionMatches = !hasPosition ||
+            string.Equals(credit.TrackPosition, track.Position, StringComparison.OrdinalIgnoreCase);
+        bool titleMatches = !hasTitle ||
             string.Equals(credit.TrackTitle, track.Title, StringComparison.OrdinalIgnoreCase);
+
+        return positionMatches && titleMatches;
     }
 
     private static bool TextMatches(string value, string? query)

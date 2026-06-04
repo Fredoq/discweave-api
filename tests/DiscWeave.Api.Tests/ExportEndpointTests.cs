@@ -9,6 +9,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
 {
     private static readonly string[] PostPunkGenres = ["Post-punk"];
     private static readonly string[] FactoryTags = ["factory", "classic"];
+    private static readonly string[] MainArtistRoles = ["mainArtist"];
     private readonly PostgresFixture _postgres;
 
     public ExportEndpointTests(PostgresFixture postgres)
@@ -53,7 +54,8 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
         AssertStringArray(FactoryTags, release.GetProperty("tags"));
         JsonElement releaseCredit = Assert.Single(release.GetProperty("artistCredits").EnumerateArray());
         Assert.Equal(artistId, releaseCredit.GetProperty("artistId").GetGuid());
-        Assert.Equal("mainArtist", releaseCredit.GetProperty("role").GetString());
+        Assert.Equal("mainArtist", releaseCredit.GetProperty("primaryRole").GetString());
+        AssertStringArray(MainArtistRoles, releaseCredit.GetProperty("roles"));
         JsonElement tracklistItem = Assert.Single(release.GetProperty("tracklist").EnumerateArray());
         Assert.Equal("Age of Consent", tracklistItem.GetProperty("title").GetString());
 

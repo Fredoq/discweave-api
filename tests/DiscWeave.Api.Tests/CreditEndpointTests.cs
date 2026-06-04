@@ -24,7 +24,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role = "producer" });
+            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, roles = Roles("producer") });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
         Guid creditId = createDocument.RootElement.GetProperty("id").GetGuid();
@@ -34,7 +34,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/credits/{creditId}",
-            new { contributorArtistId = artistId, targetType = "track", targetId = trackId, role = "remixer" });
+            new { contributorArtistId = artistId, targetType = "track", targetId = trackId, roles = Roles("remixer") });
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
 
         using HttpResponseMessage listResponse = await client.GetAsync(
@@ -83,7 +83,6 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
                 contributorArtistId = artistId,
                 targetType = "track",
                 targetId = trackId,
-                role = "engineer",
                 roles = requestedRoles
             });
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
@@ -109,6 +108,11 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
             role => Assert.Equal("composer", role));
     }
 
+    private static string[] Roles(string role)
+    {
+        return [role];
+    }
+
     [Fact(DisplayName = "Creating a credit for a missing target returns a conflict")]
     public async Task Creating_a_credit_for_a_missing_target_returns_a_conflict()
     {
@@ -118,7 +122,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = artistId, targetType = "release", targetId = Guid.CreateVersion7(), role = "producer" });
+            new { contributorArtistId = artistId, targetType = "release", targetId = Guid.CreateVersion7(), roles = Roles("producer") });
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal("credit.target_conflict", document.RootElement.GetProperty("code").GetString());
@@ -135,17 +139,17 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
 
         using HttpResponseMessage missingContributorResponse = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = missingArtistId, targetType = "release", targetId = releaseId, role = "producer" });
+            new { contributorArtistId = missingArtistId, targetType = "release", targetId = releaseId, roles = Roles("producer") });
         using JsonDocument missingContributorDocument = await ReadJsonAsync(missingContributorResponse);
 
         using HttpResponseMessage invalidTargetResponse = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = artistId, targetType = "video", targetId = releaseId, role = "producer" });
+            new { contributorArtistId = artistId, targetType = "video", targetId = releaseId, roles = Roles("producer") });
         using JsonDocument invalidTargetDocument = await ReadJsonAsync(invalidTargetResponse);
 
         using HttpResponseMessage invalidRoleResponse = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role = "sleeveDesigner" });
+            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, roles = Roles("sleeveDesigner") });
         using JsonDocument invalidRoleDocument = await ReadJsonAsync(invalidRoleResponse);
 
         Assert.Equal(HttpStatusCode.Conflict, missingContributorResponse.StatusCode);
@@ -182,7 +186,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
         {
             using HttpResponseMessage response = await client.PostAsJsonAsync(
                 "/api/credits",
-                new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role });
+                new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, roles = Roles(role) });
             using JsonDocument document = await ReadJsonAsync(response);
 
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);

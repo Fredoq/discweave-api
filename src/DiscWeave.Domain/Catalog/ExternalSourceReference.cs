@@ -53,7 +53,7 @@ public sealed class ExternalSourceReference
 
         return string.Equals(ProviderName, other.ProviderName, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(ResourceType, other.ResourceType, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(ExternalId, other.ExternalId, StringComparison.OrdinalIgnoreCase);
+            string.Equals(ExternalId, other.ExternalId, StringComparison.Ordinal);
     }
 
     private static string ValidateRequired(string value, string fieldName, string code)

@@ -38,7 +38,10 @@ public static class DependencyInjection
         _ = services.AddScoped<ICollectionSearchQueries, CollectionSearchQueries>();
         _ = services.Configure<ReleaseCoverStorageOptions>(configuration.GetSection("ReleaseCovers"));
         _ = services.AddSingleton<IReleaseCoverStorage, FileSystemReleaseCoverStorage>();
-        _ = services.Configure<DiscogsOptions>(configuration.GetSection("Discogs"));
+        _ = services.AddOptions<DiscogsOptions>()
+            .Bind(configuration.GetSection("Discogs"))
+            .Validate(DiscogsOptionsValidator.IsValid, "Discogs options are invalid")
+            .ValidateOnStart();
         _ = services.AddHttpClient<DiscogsExternalMetadataProvider>((provider, client) =>
         {
             DiscogsOptions options = provider.GetRequiredService<IOptions<DiscogsOptions>>().Value;

@@ -11,19 +11,20 @@ internal static class ExternalSourceReferences
         ArgumentNullException.ThrowIfNull(current);
         ArgumentNullException.ThrowIfNull(replacement);
 
-        for (int index = 0; index < replacement.Count; index++)
+        ExternalSourceReference[] replacementSnapshot = [.. replacement];
+        for (int index = 0; index < replacementSnapshot.Length; index++)
         {
-            ExternalSourceReference source = replacement[index] ?? throw new DomainException(
+            ExternalSourceReference source = replacementSnapshot[index] ?? throw new DomainException(
                 "external_source.required",
                 "External source reference is required");
 
-            if (replacement.Take(index).Any(source.HasSameIdentity))
+            if (replacementSnapshot.Take(index).Any(source.HasSameIdentity))
             {
                 throw new DomainException("external_source.duplicate", "External source reference already exists");
             }
         }
 
         current.Clear();
-        current.AddRange(replacement);
+        current.AddRange(replacementSnapshot);
     }
 }

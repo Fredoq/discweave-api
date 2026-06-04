@@ -76,7 +76,11 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         HttpRequestMessage request = new(HttpMethod.Get, BuildUri(path, parameters));
         request.Headers.UserAgent.Clear();
-        _ = request.Headers.UserAgent.TryParseAdd(_options.UserAgent);
+        if (!request.Headers.UserAgent.TryParseAdd(_options.UserAgent))
+        {
+            throw new InvalidOperationException("Discogs user agent is invalid");
+        }
+
         request.Headers.Authorization = new AuthenticationHeaderValue("Discogs", $"token={_options.AccessToken}");
 
         return request;

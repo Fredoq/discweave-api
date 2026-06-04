@@ -55,23 +55,27 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return [];
         }
 
+        string[] requestedCodes =
+        [
+            .. genres
+                .Select(genre => string.IsNullOrWhiteSpace(genre)
+                    ? throw new DomainException("release.genre_invalid", "Release genre is invalid")
+                    : genre.Trim())
+                .Distinct(StringComparer.Ordinal)
+        ];
+
         int nextSortOrder = await context.CollectionDictionaryEntries
             .Where(entry => entry.CollectionId == collectionId && entry.Kind == DictionaryKind.Genre)
             .Select(entry => (int?)entry.SortOrder)
             .MaxAsync(cancellationToken) ?? 0;
-        var resolved = new List<string>(genres.Count);
+        Dictionary<string, CollectionDictionaryEntry> existingByCode = await context.CollectionDictionaryEntries
+            .Where(entry => entry.CollectionId == collectionId && entry.Kind == DictionaryKind.Genre)
+            .ToDictionaryAsync(entry => entry.Code, StringComparer.Ordinal, cancellationToken);
+        var resolved = new List<string>(requestedCodes.Length);
 
-        foreach (string genre in genres)
+        foreach (string code in requestedCodes)
         {
-            string code = string.IsNullOrWhiteSpace(genre)
-                ? throw new DomainException("release.genre_invalid", "Release genre is invalid")
-                : genre.Trim();
-            CollectionDictionaryEntry? existing = await context.CollectionDictionaryEntries.SingleOrDefaultAsync(
-                entry => entry.CollectionId == collectionId &&
-                    entry.Kind == DictionaryKind.Genre &&
-                    entry.Code == code,
-                cancellationToken);
-            if (existing is not null)
+            if (existingByCode.TryGetValue(code, out CollectionDictionaryEntry? existing))
             {
                 if (!existing.IsActive)
                 {
@@ -92,9 +96,10 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 nextSortOrder,
                 isBuiltin: false);
             _ = context.CollectionDictionaryEntries.Add(entry);
+            existingByCode.Add(entry.Code, entry);
             resolved.Add(entry.Code);
         }
 
-        return [.. resolved.Distinct(StringComparer.Ordinal)];
+        return resolved;
     }
 }

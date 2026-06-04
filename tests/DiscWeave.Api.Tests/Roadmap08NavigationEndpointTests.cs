@@ -25,7 +25,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFix
 
         using HttpResponseMessage createResponse = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, role = "producer" });
+            new { contributorArtistId = artistId, targetType = "release", targetId = releaseId, roles = Roles("producer") });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         using JsonDocument createDocument = await ReadJsonAsync(createResponse);
         Guid creditId = createDocument.RootElement.GetProperty("id").GetGuid();
@@ -33,7 +33,7 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFix
 
         using HttpResponseMessage updateResponse = await client.PutAsJsonAsync(
             $"/api/credits/{creditId}",
-            new { contributorArtistId = artistId, targetType = "track", targetId = trackId, role = "remixer" });
+            new { contributorArtistId = artistId, targetType = "track", targetId = trackId, roles = Roles("remixer") });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         using JsonDocument updateDocument = await ReadJsonAsync(updateResponse);
         Assert.Equal("Confusion (Instrumental)", updateDocument.RootElement.GetProperty("targetTitle").GetString());
@@ -168,10 +168,17 @@ public sealed class Roadmap08NavigationEndpointTests : IClassFixture<PostgresFix
 
     private static async Task<Guid> CreateCreditAsync(HttpClient client, Guid contributorArtistId, string targetType, Guid targetId, string role)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/credits", new { contributorArtistId, targetType, targetId, role });
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId, targetType, targetId, roles = Roles(role) });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static string[] Roles(string role)
+    {
+        return [role];
     }
 
     private static async Task<Guid> CreateArtistRelationAsync(HttpClient client, Guid sourceArtistId, Guid targetArtistId, string type)

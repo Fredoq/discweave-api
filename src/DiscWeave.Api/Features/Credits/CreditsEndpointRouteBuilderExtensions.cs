@@ -59,7 +59,6 @@ public static partial class CreditsEndpointRouteBuilderExtensions
             }
 
             string[] roles = await ResolveRoleCodesAsync(
-                request.Role,
                 request.Roles,
                 context,
                 currentCollection.CollectionId,
@@ -174,7 +173,6 @@ public static partial class CreditsEndpointRouteBuilderExtensions
             }
 
             string[] roles = await ResolveRoleCodesAsync(
-                request.Role,
                 request.Roles,
                 context,
                 currentCollection.CollectionId,
@@ -261,15 +259,18 @@ public static partial class CreditsEndpointRouteBuilderExtensions
     }
 
     private static async Task<string[]> ResolveRoleCodesAsync(
-        string legacyRole,
-        IReadOnlyList<string>? roles,
+        IReadOnlyList<string> roles,
         DiscWeaveDbContext context,
         CollectionId collectionId,
         CancellationToken cancellationToken)
     {
-        IEnumerable<string> requested = roles is { Count: > 0 } ? roles : [legacyRole];
+        if (roles.Count == 0)
+        {
+            throw new DomainException("credit.role_invalid", "Credit role is invalid");
+        }
+
         var resolved = new List<string>();
-        foreach (string requestedRole in requested.Select(CreditMapper.ParseRole))
+        foreach (string requestedRole in roles.Select(CreditMapper.ParseRole))
         {
             string role = await DictionaryValidation.RequireActiveCodeAsync(
                 context,

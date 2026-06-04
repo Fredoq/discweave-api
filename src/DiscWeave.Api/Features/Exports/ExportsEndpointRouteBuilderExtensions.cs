@@ -256,7 +256,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         string[] artistNames =
         [
             .. credits
-                .Where(credit => credit.Role == "mainArtist")
+                .Where(credit => credit.Roles.Contains("mainArtist", StringComparer.Ordinal))
                 .OrderBy(credit => credit.Contributor.ArtistId.Value)
                 .Select(credit => artistsById.TryGetValue(credit.Contributor.ArtistId, out Artist? artist) ? artist.Name : credit.Contributor.Name)
         ];
