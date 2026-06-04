@@ -257,6 +257,15 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     b.ToTable("collections", (string)null);
                 });
 
+            modelBuilder.Entity("DiscWeave.Domain.Collection.MusicCollection", b =>
+                {
+                    b.HasOne("DiscWeave.Infrastructure.Identity.DiscWeaveUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DiscWeave.Domain.Collection.OwnedItem", b =>
                 {
                     b.Property<long>("id")

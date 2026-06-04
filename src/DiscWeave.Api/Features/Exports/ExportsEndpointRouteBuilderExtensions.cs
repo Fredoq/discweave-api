@@ -52,6 +52,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Artist[] artists = await context.Artists.AsNoTracking()
+            .Include("_externalSources")
             .Where(artist => artist.CollectionId == collectionId)
             .OrderBy(artist => artist.Name)
             .ToArrayAsync(cancellationToken);
@@ -60,12 +61,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             .OrderBy(label => label.Name)
             .ToArrayAsync(cancellationToken);
         Release[] releases = await context.Releases.AsNoTracking()
+            .Include("_externalSources")
             .Include("_genres")
             .Include("_tags")
             .Where(release => release.CollectionId == collectionId)
             .OrderBy(release => release.Summary.Title)
             .ToArrayAsync(cancellationToken);
         Track[] tracks = await context.Tracks.AsNoTracking()
+            .Include("_externalSources")
             .Include("_genres")
             .Include("_tags")
             .Where(track => track.CollectionId == collectionId)

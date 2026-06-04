@@ -50,7 +50,13 @@ public sealed class ExternalSourcePersistenceTests(PostgresFixture postgres) : I
         Release actualRelease = await context.Releases.SingleAsync(entity => entity.Id == release.Id);
         Track actualTrack = await context.Tracks.SingleAsync(entity => entity.Id == track.Id);
 
-        Assert.Equal("5876", Assert.Single(actualArtist.ExternalSources).ExternalId);
+        ExternalSourceReference actualArtistSource = Assert.Single(actualArtist.ExternalSources);
+        Assert.Equal("discogs", actualArtistSource.ProviderName);
+        Assert.Equal("artist", actualArtistSource.ResourceType);
+        Assert.Equal("5876", actualArtistSource.ExternalId);
+        Assert.Equal("https://www.discogs.com/artist/5876", actualArtistSource.SourceUrl);
+        Assert.Equal(new DateTimeOffset(2026, 5, 31, 12, 0, 0, TimeSpan.Zero), actualArtistSource.AppliedAt);
+
         Assert.Equal("249504", Assert.Single(actualRelease.ExternalSources).ExternalId);
         Assert.Equal("249504-A", Assert.Single(actualTrack.ExternalSources).ExternalId);
     }

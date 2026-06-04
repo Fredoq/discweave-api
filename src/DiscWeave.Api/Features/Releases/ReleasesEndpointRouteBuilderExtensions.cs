@@ -76,9 +76,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        Release? release = await context.Releases.AsNoTracking().SingleOrDefaultAsync(
-            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
-            cancellationToken);
+        Release? release = await context.Releases.AsNoTracking()
+            .Include("_externalSources")
+            .SingleOrDefaultAsync(
+                entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
+                cancellationToken);
 
         return release is null
             ? EndpointErrors.NotFound("release.not_found", "Release was not found")
@@ -98,7 +100,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Release> releases = context.Releases.AsNoTracking().Where(release => release.CollectionId == currentCollection.CollectionId);
+        IQueryable<Release> releases = context.Releases.AsNoTracking()
+            .Include("_externalSources")
+            .Where(release => release.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
@@ -149,7 +153,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
-            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Role == "mainArtist"))
+            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Roles.Contains("mainArtist", StringComparer.Ordinal)))
             {
                 throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
             }

@@ -163,10 +163,7 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
     {
         return !_options.Enabled
             ? Disabled()
-            : (string.IsNullOrWhiteSpace(_options.AccessToken) ||
-                string.IsNullOrWhiteSpace(_options.UserAgent) ||
-                !Uri.TryCreate(_options.BaseUrl, UriKind.Absolute, out _) ||
-                !DiscogsOptionsValidator.CanParseUserAgent(_options.UserAgent))
+            : !DiscogsOptionsValidator.IsValid(_options)
                 ? NotConfigured()
                 : null;
     }

@@ -37,6 +37,28 @@ public sealed class DiscogsExternalMetadataProviderTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact(DisplayName = "Enabled Discogs provider requires an HTTPS base URL before HTTP")]
+    public async Task Enabled_Discogs_provider_requires_an_Https_base_Url_before_Http()
+    {
+        RecordingHttpMessageHandler handler = new(_ => throw new InvalidOperationException("HTTP must not be called"));
+        DiscogsExternalMetadataProvider provider = CreateProvider(handler, new DiscogsOptions
+        {
+            Enabled = true,
+            AccessToken = "test-token",
+            UserAgent = "DiscWeave.Tests/1.0",
+            BaseUrl = "http://api.discogs.test",
+            TimeoutSeconds = 10
+        });
+
+        ExternalMetadataResult<ExternalMetadataSearchResult<ExternalMetadataReleaseCandidate>> result =
+            await provider.SearchReleasesAsync(new ExternalMetadataReleaseSearchQuery(Title: "Blue Monday"), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ExternalMetadataErrorKind.NotConfigured, result.Error.Kind);
+        Assert.Equal("external_metadata.not_configured", result.Error.Code);
+        Assert.Empty(handler.Requests);
+    }
+
     [Fact(DisplayName = "Release search sends Discogs query parameters and maps candidate summaries")]
     public async Task Release_search_sends_Discogs_query_parameters_and_maps_candidate_summaries()
     {

@@ -86,9 +86,9 @@ public sealed class Credit : IEntity<CreditId>
         ArgumentNullException.ThrowIfNull(contributor);
         ArgumentNullException.ThrowIfNull(target);
 
+        SetRoles(roles);
         SetContributor(contributor);
         SetTarget(target);
-        SetRoles(roles);
     }
 
     public void Update(CreditContributor contributor, CreditTarget target, CreditRole role)

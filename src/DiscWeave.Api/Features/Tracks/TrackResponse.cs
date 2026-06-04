@@ -8,7 +8,7 @@ public sealed record TrackResponse(
     int? DurationSeconds,
     IReadOnlyList<string> Genres,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<ExternalSourceReferenceResponse>? ExternalSources,
+    IReadOnlyList<ExternalSourceReferenceResponse> ExternalSources,
     IReadOnlyList<TrackCreditResponse> Credits,
     IReadOnlyList<TrackReleaseAppearanceResponse> ReleaseAppearances);
 

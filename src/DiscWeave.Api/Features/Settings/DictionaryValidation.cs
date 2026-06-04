@@ -56,7 +56,7 @@ internal static class DictionaryValidation
                 : throw new DomainException(errorCode, errorMessage);
         }
 
-        CollectionDictionaryEntry? existing = await context.CollectionDictionaryEntries
+        CollectionDictionaryEntry? existing = await context.CollectionDictionaryEntries.AsNoTracking()
             .SingleOrDefaultAsync(
                 item => item.CollectionId == collectionId &&
                     item.Kind == kind &&
@@ -77,17 +77,24 @@ internal static class DictionaryValidation
             .Where(entry => entry.CollectionId == collectionId && entry.Kind == kind)
             .Max(entry => (int?)entry.SortOrder) ?? 0;
         int nextSortOrder = Math.Max(persistedSortOrder, trackedSortOrder);
-        var entry = CollectionDictionaryEntry.Create(
-            CollectionDictionaryEntryId.New(),
+        await InsertDictionaryEntryIfMissingAsync(
+            context,
             collectionId,
             kind,
             normalizedCode,
-            normalizedCode,
             nextSortOrder + 10,
-            isBuiltin: false);
-        _ = context.CollectionDictionaryEntries.Add(entry);
+            cancellationToken);
 
-        return entry.Code;
+        CollectionDictionaryEntry insertedOrConcurrent = await context.CollectionDictionaryEntries.AsNoTracking()
+            .SingleAsync(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode,
+                cancellationToken);
+
+        return insertedOrConcurrent.IsActive
+            ? insertedOrConcurrent.Code
+            : throw new DomainException(errorCode, errorMessage);
     }
 
     public static async Task<string> RequireCodeAsync(
@@ -139,6 +146,39 @@ internal static class DictionaryValidation
                 cancellationToken);
 
         return entry ?? throw new DomainException(errorCode, errorMessage);
+    }
+
+    private static async Task InsertDictionaryEntryIfMissingAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        DictionaryKind kind,
+        string code,
+        int sortOrder,
+        CancellationToken cancellationToken)
+    {
+        _ = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO collection_dictionary_entries (
+                dictionary_entry_id,
+                collection_id,
+                kind,
+                code,
+                name,
+                sort_order,
+                is_active,
+                is_builtin)
+            VALUES (
+                {CollectionDictionaryEntryId.New().Value},
+                {collectionId.Value},
+                {kind.ToString()},
+                {code},
+                {code},
+                {sortOrder},
+                {true},
+                {false})
+            ON CONFLICT (collection_id, kind, code) DO NOTHING
+            """,
+            cancellationToken);
     }
 
     public static async Task<IReadOnlyList<string>> RequireActiveCodesAsync(
