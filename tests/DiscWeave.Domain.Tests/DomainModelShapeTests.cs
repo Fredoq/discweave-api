@@ -33,7 +33,6 @@ public sealed class DomainModelShapeTests
 
         Assert.Empty(violations);
     }
-
     [Fact]
     public void Domain_public_api_does_not_use_nullable_contracts()
     {
@@ -90,8 +89,7 @@ public sealed class DomainModelShapeTests
     {
         string[] expectedTypes =
         [
-            typeof(ArtistRelation).FullName!,
-            typeof(Credit).FullName!,
+            typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
             typeof(OwnedItem).FullName!,
             typeof(Playlist).FullName!,
             typeof(PlaylistEntry).FullName!,
@@ -99,9 +97,7 @@ public sealed class DomainModelShapeTests
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseSummary).FullName!,
             typeof(ReleaseTrack).FullName!,
-            typeof(RatingCriterion).FullName!,
-            typeof(RatingCriterionTarget).FullName!,
-            typeof(RatingValue).FullName!,
+            typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -121,15 +117,13 @@ public sealed class DomainModelShapeTests
 
         Assert.Equal(expectedTypes.Order(StringComparer.Ordinal), actualTypes);
     }
-
     [Fact]
     public void Private_setters_are_limited_to_EF_materialization_shapes()
     {
         string[] expectedTypes =
         [
             typeof(Artist).FullName!,
-            typeof(ArtistRelation).FullName!,
-            typeof(Credit).FullName!,
+            typeof(ArtistRelation).FullName!, typeof(Credit).FullName!, typeof(ExternalSourceReference).FullName!,
             typeof(Label).FullName!,
             typeof(MusicCollection).FullName!,
             typeof(OwnedItem).FullName!,
@@ -138,9 +132,7 @@ public sealed class DomainModelShapeTests
             typeof(Release).FullName!,
             typeof(ReleaseLabel).FullName!,
             typeof(ReleaseTrack).FullName!,
-            typeof(RatingCriterion).FullName!,
-            typeof(RatingCriterionTarget).FullName!,
-            typeof(RatingValue).FullName!,
+            typeof(RatingCriterion).FullName!, typeof(RatingCriterionTarget).FullName!, typeof(RatingValue).FullName!,
             typeof(NamingProfile).FullName!, typeof(ReleaseNamingOverride).FullName!, typeof(TagRoleMapping).FullName!,
             typeof(Track).FullName!,
             typeof(TrackRelation).FullName!,
@@ -199,16 +191,18 @@ public sealed class DomainModelShapeTests
     {
         return type == typeof(CollectionDictionaryEntry) || type == typeof(NamingProfile)
             ? 10
+            : type == typeof(Credit) ? 6
             : type == typeof(ReleaseNamingOverride) ? 8
             : type == typeof(RatingCriterion)
             ? 9
             : type == typeof(TagRoleMapping) ? 7
             : type == typeof(Release)
-            ? 9
+            ? 10
             : type == typeof(Playlist)
             ? 7
-            : type == typeof(Track) ||
-            type == typeof(ArtistRelation) ||
+            : type == typeof(Track)
+            ? 7
+            : type == typeof(ArtistRelation) ||
             type == typeof(SmartPlaylistRules)
             ? 6
             : 5;
@@ -219,12 +213,13 @@ public sealed class DomainModelShapeTests
         return type == typeof(CollectionDictionaryEntry) ||
             type == typeof(ArtistRelation)
             ? 8
+            : type == typeof(Credit) ? 8
             : type == typeof(RatingCriterion)
             ? 6
             : type == typeof(ReleaseMetadata)
                 ? 7
                 : type == typeof(Release)
-            ? 10
+            ? 11
             : type == typeof(Track)
                 ? 8
                 : 5;

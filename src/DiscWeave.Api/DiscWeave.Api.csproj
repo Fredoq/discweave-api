@@ -13,6 +13,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <UserSecretsId>0f318dbb-7422-4f4f-b93b-0b4637d6df80</UserSecretsId>
   </PropertyGroup>
 
 </Project>

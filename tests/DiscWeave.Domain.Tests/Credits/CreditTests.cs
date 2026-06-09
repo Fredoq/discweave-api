@@ -33,6 +33,39 @@ public sealed class CreditTests
         Assert.Equal(trackId, Assert.IsType<TrackCreditTarget>(trackCredit.Target).TrackId);
         Assert.Equal(person.Id, trackCredit.Contributor.ArtistId);
         Assert.Equal("producer", trackCredit.Role);
+        Assert.Equal("producer", Assert.Single(trackCredit.Roles));
+    }
+
+    [Fact]
+    public void Credit_can_store_multiple_roles_for_the_same_contributor_and_target()
+    {
+        var collectionId = CollectionId.New();
+        var artist = Person.Create(collectionId, ArtistId.New(), "Jimmy Cauty");
+        var trackId = TrackId.New();
+        var credit = Credit.Create(
+            collectionId,
+            CreditId.New(),
+            CreditContributor.FromArtist(artist),
+            CreditTarget.ForTrack(trackId),
+            ["producer", "engineer", "writtenBy"]);
+
+        Assert.Equal("producer", credit.Role);
+        Assert.Collection(
+            credit.Roles,
+            role => Assert.Equal("producer", role),
+            role => Assert.Equal("engineer", role),
+            role => Assert.Equal("writtenBy", role));
+        Assert.Contains("engineer", credit.Roles);
+
+        credit.ReplaceRole("engineer", "mixedBy");
+
+        Assert.Collection(
+            credit.Roles,
+            role => Assert.Equal("producer", role),
+            role => Assert.Equal("mixedBy", role),
+            role => Assert.Equal("writtenBy", role));
+        Assert.DoesNotContain("engineer", credit.Roles);
+        Assert.Contains("mixedBy", credit.Roles);
     }
 
     [Fact]

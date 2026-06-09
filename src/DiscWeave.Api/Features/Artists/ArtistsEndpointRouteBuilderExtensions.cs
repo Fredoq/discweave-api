@@ -1,4 +1,5 @@
 using DiscWeave.Api.Auth;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Catalog.Artists;
 using DiscWeave.Application.Errors;
@@ -51,6 +52,7 @@ public static class ArtistsEndpointRouteBuilderExtensions
         {
             string normalizedType = request.Type?.Trim() ?? string.Empty;
             Artist artist = CreateArtist(currentCollection.CollectionId, normalizedType, request.Name);
+            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
 
             IRepository<Artist, ArtistId> artists = unitOfWork.GetRepository<Artist, ArtistId>();
             artists.Add(artist);
@@ -127,6 +129,11 @@ public static class ArtistsEndpointRouteBuilderExtensions
         try
         {
             artist.Rename(request.Name);
+            if (request.ExternalSources is not null)
+            {
+                artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            }
+
             _ = await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Results.Ok(ToResponse(artist));
@@ -204,15 +211,19 @@ public static class ArtistsEndpointRouteBuilderExtensions
     {
         return artist switch
         {
-            Person => new ArtistResponse(artist.Id.Value, "person", artist.Name),
-            Group => new ArtistResponse(artist.Id.Value, "group", artist.Name),
+            Person => new ArtistResponse(artist.Id.Value, "person", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
+            Group => new ArtistResponse(artist.Id.Value, "group", artist.Name, ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources)),
             _ => throw new InvalidOperationException("Artist type is not supported")
         };
     }
 
     private static ArtistResponse ToResponse(ArtistReadModel artist)
     {
-        return new ArtistResponse(artist.Id.Value, artist.Type, artist.Name);
+        return new ArtistResponse(
+            artist.Id.Value,
+            artist.Type,
+            artist.Name,
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
     }
 
     private static bool IsKnownArtistType(string type)

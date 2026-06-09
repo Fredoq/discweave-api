@@ -6,6 +6,7 @@ namespace DiscWeave.Domain.Catalog;
 
 public sealed class Track : IEntity<TrackId>, ICreditTarget
 {
+    private readonly List<ExternalSourceReference> _externalSources = [];
     private readonly List<Genre> _genres = [];
     private readonly List<Tag> _tags = [];
 
@@ -20,12 +21,14 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         TrackId id,
         string title,
         TrackDetails details,
-        Cataloging cataloging)
+        Cataloging cataloging,
+        IReadOnlyList<ExternalSourceReference>? externalSources = null)
     {
         CollectionId = collectionId;
         Id = id;
         Title = title;
         Details = details;
+        _externalSources = [.. externalSources ?? []];
         _genres = [.. cataloging.Genres];
         _tags = [.. cataloging.Tags];
     }
@@ -39,6 +42,8 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     public string DisplayName => Title;
 
     public TrackDetails Details { get; private set; }
+
+    public IReadOnlyList<ExternalSourceReference> ExternalSources => _externalSources.AsReadOnly();
 
     public Cataloging Cataloging
     {
@@ -82,11 +87,16 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
         _tags.AddRange(cataloging.Tags);
     }
 
+    public void ReplaceExternalSources(IReadOnlyList<ExternalSourceReference> externalSources)
+    {
+        ExternalSourceReferences.Replace(_externalSources, externalSources);
+    }
+
     public Track WithDetails(TrackDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);
 
-        return new Track(CollectionId, Id, Title, details, Cataloging);
+        return new Track(CollectionId, Id, Title, details, Cataloging, _externalSources);
     }
 
     public Track WithDuration(TimeSpan duration)
@@ -98,6 +108,6 @@ public sealed class Track : IEntity<TrackId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Track(CollectionId, Id, Title, Details, cataloging);
+        return new Track(CollectionId, Id, Title, Details, cataloging, _externalSources);
     }
 }

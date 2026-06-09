@@ -40,7 +40,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 CreditId.New(),
                 CreditContributor.FromArtist(resolved.Artist),
                 CreditTarget.ForTrack(track.Id),
-                resolved.Role));
+                resolved.Roles));
         }
     }
 
@@ -113,18 +113,106 @@ public static partial class TracksEndpointRouteBuilderExtensions
                 collectionId,
                 TrackCreditArtistErrors,
                 cancellationToken);
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(creditRequest.Role, creditRequest.Roles, context, collectionId, cancellationToken);
+            resolved.Add(new ResolvedTrackCredit(artist, roles));
+        }
+
+        return
+        [
+            .. resolved
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedTrackCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string? legacyRole,
+        IReadOnlyList<string>? roles,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        string[] requestedRoles = NormalizeRequestedRoles(legacyRole, roles);
+        var resolved = new List<string>(requestedRoles.Length);
+        foreach (string requestedRole in requestedRoles)
+        {
+            string role = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? "mainArtist" : creditRequest.Role),
+                CreditMapper.ParseRole(requestedRole),
                 "credit.role_invalid",
                 "Credit role is invalid",
                 cancellationToken);
-            resolved.Add(new ResolvedTrackCredit(artist, role));
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
         }
 
-        return resolved;
+        return [.. resolved];
+    }
+
+    private static string[] NormalizeRequestedRoles(string? legacyRole, IReadOnlyList<string>? roles)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 }
+            ? roles
+            : [legacyRole ?? "mainArtist"];
+
+        string[] normalized =
+        [
+            .. requested
+                .SelectMany(SplitRoleLabel)
+                .Select(role => role.Trim())
+                .Where(role => role.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+        ];
+
+        return normalized.Length > 0 ? normalized : ["mainArtist"];
+    }
+
+    private static IEnumerable<string> SplitRoleLabel(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return [];
+        }
+
+        var values = new List<string>();
+        int bracketDepth = 0;
+        int segmentStart = 0;
+        for (int index = 0; index < role.Length; index++)
+        {
+            char value = role[index];
+            bracketDepth += value switch
+            {
+                '[' => 1,
+                ']' when bracketDepth > 0 => -1,
+                _ => 0
+            };
+
+            if (value != ',' || bracketDepth > 0)
+            {
+                continue;
+            }
+
+            AddSegment(role, segmentStart, index, values);
+            segmentStart = index + 1;
+        }
+
+        AddSegment(role, segmentStart, role.Length, values);
+        return values;
+    }
+
+    private static void AddSegment(string role, int start, int end, List<string> values)
+    {
+        string segment = role[start..end].Trim();
+        if (segment.Length > 0)
+        {
+            values.Add(segment);
+        }
     }
 
     private static IOptionalValue<string> ToOptionalString(string? value)
@@ -134,5 +222,5 @@ public static partial class TracksEndpointRouteBuilderExtensions
             : Optional.From(value.Trim());
     }
 
-    private sealed record ResolvedTrackCredit(Artist Artist, string Role);
+    private sealed record ResolvedTrackCredit(Artist Artist, IReadOnlyList<string> Roles);
 }

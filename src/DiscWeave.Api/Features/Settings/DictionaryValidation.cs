@@ -29,6 +29,74 @@ internal static class DictionaryValidation
         return entry.Code;
     }
 
+    public static async Task<string> ResolveOrCreateActiveCodeAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        DictionaryKind kind,
+        string code,
+        string errorCode,
+        string errorMessage,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new DomainException(errorCode, errorMessage);
+        }
+
+        string normalizedCode = code.Trim();
+        CollectionDictionaryEntry? trackedEntry = context.CollectionDictionaryEntries.Local
+            .FirstOrDefault(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode);
+        if (trackedEntry is not null)
+        {
+            return trackedEntry.IsActive
+                ? trackedEntry.Code
+                : throw new DomainException(errorCode, errorMessage);
+        }
+
+        CollectionDictionaryEntry? existing = await context.CollectionDictionaryEntries.AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode,
+                cancellationToken);
+        if (existing is not null)
+        {
+            return existing.IsActive
+                ? existing.Code
+                : throw new DomainException(errorCode, errorMessage);
+        }
+
+        int persistedSortOrder = await context.CollectionDictionaryEntries
+            .Where(entry => entry.CollectionId == collectionId && entry.Kind == kind)
+            .Select(entry => (int?)entry.SortOrder)
+            .MaxAsync(cancellationToken) ?? 0;
+        int trackedSortOrder = context.CollectionDictionaryEntries.Local
+            .Where(entry => entry.CollectionId == collectionId && entry.Kind == kind)
+            .Max(entry => (int?)entry.SortOrder) ?? 0;
+        int nextSortOrder = Math.Max(persistedSortOrder, trackedSortOrder);
+        await InsertDictionaryEntryIfMissingAsync(
+            context,
+            collectionId,
+            kind,
+            normalizedCode,
+            nextSortOrder + 10,
+            cancellationToken);
+
+        CollectionDictionaryEntry insertedOrConcurrent = await context.CollectionDictionaryEntries.AsNoTracking()
+            .SingleAsync(
+                item => item.CollectionId == collectionId &&
+                    item.Kind == kind &&
+                    item.Code == normalizedCode,
+                cancellationToken);
+
+        return insertedOrConcurrent.IsActive
+            ? insertedOrConcurrent.Code
+            : throw new DomainException(errorCode, errorMessage);
+    }
+
     public static async Task<string> RequireCodeAsync(
         DiscWeaveDbContext context,
         CollectionId collectionId,
@@ -78,6 +146,39 @@ internal static class DictionaryValidation
                 cancellationToken);
 
         return entry ?? throw new DomainException(errorCode, errorMessage);
+    }
+
+    private static async Task InsertDictionaryEntryIfMissingAsync(
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        DictionaryKind kind,
+        string code,
+        int sortOrder,
+        CancellationToken cancellationToken)
+    {
+        _ = await context.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO collection_dictionary_entries (
+                dictionary_entry_id,
+                collection_id,
+                kind,
+                code,
+                name,
+                sort_order,
+                is_active,
+                is_builtin)
+            VALUES (
+                {CollectionDictionaryEntryId.New().Value},
+                {collectionId.Value},
+                {kind.ToString()},
+                {code},
+                {code},
+                {sortOrder},
+                {true},
+                {false})
+            ON CONFLICT (collection_id, kind, code) DO NOTHING
+            """,
+            cancellationToken);
     }
 
     public static async Task<IReadOnlyList<string>> RequireActiveCodesAsync(

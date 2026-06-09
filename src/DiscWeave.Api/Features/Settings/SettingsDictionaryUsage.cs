@@ -21,13 +21,25 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         return entry.Kind switch
         {
             DictionaryKind.ReleaseType => await context.Releases.AnyAsync(release => release.CollectionId == entry.CollectionId && release.Summary.Metadata.Type == entry.Code, cancellationToken),
-            DictionaryKind.CreditRole => await context.Credits.AnyAsync(credit => credit.CollectionId == entry.CollectionId && credit.Role == entry.Code, cancellationToken),
+            DictionaryKind.CreditRole => await IsCreditRoleUsedAsync(context, entry, cancellationToken),
             DictionaryKind.MediaType => await context.OwnedItems.AnyAsync(item => item.CollectionId == entry.CollectionId && EF.Property<string>(item, "_mediumType") == entry.Code, cancellationToken),
             DictionaryKind.ArtistRelationType => await context.ArtistRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.Type == entry.Code, cancellationToken),
             DictionaryKind.TrackRelationType => await context.TrackRelations.AnyAsync(relation => relation.CollectionId == entry.CollectionId && relation.RelationType == entry.Code, cancellationToken),
             DictionaryKind.Genre => await IsGenreUsedAsync(context, entry, cancellationToken),
             _ => false
         };
+    }
+
+    private static async Task<bool> IsCreditRoleUsedAsync(
+        DiscWeaveDbContext context,
+        CollectionDictionaryEntry entry,
+        CancellationToken cancellationToken)
+    {
+        Credit[] credits = await context.Credits.AsNoTracking()
+            .Where(credit => credit.CollectionId == entry.CollectionId)
+            .ToArrayAsync(cancellationToken);
+
+        return credits.Any(credit => credit.Roles.Contains(entry.Code, StringComparer.Ordinal));
     }
 
     private static async Task<bool> IsGenreUsedAsync(
@@ -105,11 +117,11 @@ public static partial class SettingsDictionariesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Credit[] credits = await context.Credits
-            .Where(credit => credit.CollectionId == entry.CollectionId && credit.Role == entry.Code)
+            .Where(credit => credit.CollectionId == entry.CollectionId)
             .ToArrayAsync(cancellationToken);
-        foreach (Credit credit in credits)
+        foreach (Credit credit in credits.Where(credit => credit.Roles.Contains(entry.Code, StringComparer.Ordinal)))
         {
-            credit.Update(credit.Contributor, credit.Target, replacementCode);
+            credit.ReplaceRole(entry.Code, replacementCode);
         }
     }
 

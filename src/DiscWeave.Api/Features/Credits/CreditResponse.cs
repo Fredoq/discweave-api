@@ -7,4 +7,5 @@ public sealed record CreditResponse(
     string TargetType,
     Guid TargetId,
     string Role,
+    IReadOnlyList<string> Roles,
     string? TargetTitle = null);

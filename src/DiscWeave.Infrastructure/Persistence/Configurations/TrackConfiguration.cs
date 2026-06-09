@@ -42,9 +42,11 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
 
         _ = builder.Ignore(track => track.DisplayName);
         _ = builder.Ignore(track => track.Cataloging);
+        _ = builder.Ignore(track => track.ExternalSources);
 
         ConfigureDetails(builder);
         ConfigureCataloging(builder);
+        ExternalSourceReferenceConfiguration.ConfigureTrack(builder);
 
         _ = builder.HasIndex(track => track.CollectionId);
 
@@ -124,4 +126,5 @@ internal sealed class TrackConfiguration : IEntityTypeConfiguration<Track>
         _ = builder.Navigation("_tags")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
+
 }

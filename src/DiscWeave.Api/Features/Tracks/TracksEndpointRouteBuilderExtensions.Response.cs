@@ -1,4 +1,5 @@
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
@@ -171,6 +172,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ToDurationSeconds(track),
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
+            ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),
             [.. trackCredits.Select(credit => ToTrackCreditResponse(credit, artistsById))],
             [.. appearanceReleases
                 .SelectMany(release => release.Tracklist
@@ -215,7 +217,8 @@ public static partial class TracksEndpointRouteBuilderExtensions
         return new TrackCreditResponse(
             artistId.Value,
             artistsById.TryGetValue(artistId, out Artist? artist) ? artist.Name : credit.Contributor.Name,
-            CreditMapper.ToRoleCode(credit.Role));
+            CreditMapper.ToRoleCode(credit.Role),
+            [.. credit.Roles.Select(CreditMapper.ToRoleCode)]);
     }
 
     private static TrackReleaseAppearanceResponse ToReleaseAppearanceResponse(
@@ -248,7 +251,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
         string[] artistNames =
         [
             .. releaseCredits
-                .Where(credit => credit.Role == "mainArtist")
+                .Where(credit => credit.Roles.Contains("mainArtist", StringComparer.Ordinal))
                 .OrderBy(credit => credit.Contributor.ArtistId.Value)
                 .Select(credit => artistsById.TryGetValue(credit.Contributor.ArtistId, out Artist? artist) ? artist.Name : credit.Contributor.Name)
         ];

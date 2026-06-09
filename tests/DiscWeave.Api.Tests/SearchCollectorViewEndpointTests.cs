@@ -78,7 +78,9 @@ public sealed class SearchCollectorViewEndpointTests : IClassFixture<PostgresFix
 
     private static async Task<Guid> CreateCreditAsync(HttpClient client, Guid contributorArtistId, string targetType, Guid targetId, string role)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/credits", new { contributorArtistId, targetType, targetId, role });
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId, targetType, targetId, roles = new[] { role } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using JsonDocument document = await ReadJsonAsync(response);
 

@@ -1,10 +1,9 @@
 using DiscWeave.Api.Auth;
-using DiscWeave.Api.Features.Settings;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Http;
 using DiscWeave.Application.Errors;
 using DiscWeave.Application.Security;
 using DiscWeave.Domain.Catalog;
-using DiscWeave.Domain.Settings;
 using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Ids;
 using DiscWeave.Domain.SharedKernel.Optional;
@@ -77,9 +76,11 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ICurrentCollection currentCollection,
         CancellationToken cancellationToken)
     {
-        Release? release = await context.Releases.AsNoTracking().SingleOrDefaultAsync(
-            entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
-            cancellationToken);
+        Release? release = await context.Releases.AsNoTracking()
+            .Include("_externalSources")
+            .SingleOrDefaultAsync(
+                entity => entity.CollectionId == currentCollection.CollectionId && entity.Id == new ReleaseId(releaseId),
+                cancellationToken);
 
         return release is null
             ? EndpointErrors.NotFound("release.not_found", "Release was not found")
@@ -99,7 +100,9 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             return error;
         }
 
-        IQueryable<Release> releases = context.Releases.AsNoTracking().Where(release => release.CollectionId == currentCollection.CollectionId);
+        IQueryable<Release> releases = context.Releases.AsNoTracking()
+            .Include("_externalSources")
+            .Where(release => release.CollectionId == currentCollection.CollectionId);
         if (!string.IsNullOrWhiteSpace(search))
         {
             string pattern = $"%{search.Trim()}%";
@@ -150,13 +153,18 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 context,
                 currentCollection.CollectionId,
                 cancellationToken);
-            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Role == "mainArtist"))
+            if (!request.IsVariousArtists && !releaseCredits.Any(credit => credit.Roles.Contains("mainArtist", StringComparer.Ordinal)))
             {
                 throw new DomainException("release.artist_required", "Release artist is required unless the release is marked as Various Artists");
             }
 
             IReadOnlyList<ReleaseLabel> labels = await ResolveLabelsAsync(request, context, currentCollection.CollectionId, cancellationToken);
             release.UpdateLabels(request.NotOnLabel, labels);
+            if (request.ExternalSources is not null)
+            {
+                release.ReplaceExternalSources(ExternalSourceReferenceMapper.FromRequests(request.ExternalSources, DateTimeOffset.UtcNow));
+            }
+
             await ReplaceReleaseCreditsAsync(release, releaseCredits, context, currentCollection.CollectionId, cancellationToken);
             if (request.Tracklist is not null)
             {
@@ -191,13 +199,10 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         string releaseType = await ResolveReleaseTypeCodeAsync(context, collectionId, request.Type, cancellationToken);
-        IReadOnlyList<string> genres = await DictionaryValidation.RequireActiveCodesAsync(
+        IReadOnlyList<string> genres = await ResolveGenreCodesAsync(
             context,
             collectionId,
-            DictionaryKind.Genre,
             request.Genres,
-            "release.genre_invalid",
-            "Release genre is invalid",
             cancellationToken);
 
         ReleaseMetadata metadata = ReleaseMetadata.Empty.WithType(releaseType);
@@ -248,20 +253,4 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         return release;
     }
 
-    private static async Task<string> ResolveReleaseTypeCodeAsync(
-        DiscWeaveDbContext context,
-        CollectionId collectionId,
-        string? type,
-        CancellationToken cancellationToken)
-    {
-        string code = string.IsNullOrWhiteSpace(type) ? "unknown" : type.Trim();
-        return await DictionaryValidation.RequireActiveCodeAsync(
-            context,
-            collectionId,
-            DictionaryKind.ReleaseType,
-            code,
-            "release.type_invalid",
-            "Release type is invalid",
-            cancellationToken);
-    }
 }

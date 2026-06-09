@@ -1,6 +1,7 @@
 using DiscWeave.Api.Auth;
 using DiscWeave.Api.Features.Artists;
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.Releases;
 using DiscWeave.Api.Features.Tracks;
@@ -51,6 +52,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         Artist[] artists = await context.Artists.AsNoTracking()
+            .Include("_externalSources")
             .Where(artist => artist.CollectionId == collectionId)
             .OrderBy(artist => artist.Name)
             .ToArrayAsync(cancellationToken);
@@ -59,12 +61,14 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             .OrderBy(label => label.Name)
             .ToArrayAsync(cancellationToken);
         Release[] releases = await context.Releases.AsNoTracking()
+            .Include("_externalSources")
             .Include("_genres")
             .Include("_tags")
             .Where(release => release.CollectionId == collectionId)
             .OrderBy(release => release.Summary.Title)
             .ToArrayAsync(cancellationToken);
         Track[] tracks = await context.Tracks.AsNoTracking()
+            .Include("_externalSources")
             .Include("_genres")
             .Include("_tags")
             .Where(track => track.CollectionId == collectionId)
@@ -121,7 +125,11 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             _ => throw new InvalidOperationException("Artist type is not supported")
         };
 
-        return new ArtistResponse(artist.Id.Value, type, artist.Name);
+        return new ArtistResponse(
+            artist.Id.Value,
+            type,
+            artist.Name,
+            ExternalSourceReferenceMapper.ToResponses(artist.ExternalSources));
     }
 
     private static ReleaseResponse ToReleaseResponse(
@@ -147,6 +155,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             release.IsVariousArtists,
             release.IsNotOnLabel,
             ToCoverImageResponse(release),
+            ExternalSourceReferenceMapper.ToResponses(release.ExternalSources),
             [.. releaseCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
             [.. release.Labels.Select(label => ToReleaseLabelResponse(label, labelsById))],
             [.. release.Tracklist.OrderBy(track => track.Position.Number).Select(track => ToReleaseTracklistItemResponse(track, trackCreditsByTrackId, artistsById, tracksById))]);
@@ -169,6 +178,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             ToDurationSeconds(track),
             [.. track.Cataloging.Genres.Select(genre => genre.Name)],
             [.. track.Cataloging.Tags.Select(tag => tag.Name)],
+            ExternalSourceReferenceMapper.ToResponses(track.ExternalSources),
             [.. trackCredits.Select(credit => ToTrackCreditResponse(credit, artistsById))],
             [.. appearances
                 .Select(appearance => ToTrackReleaseAppearanceResponse(
@@ -188,7 +198,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         return new ReleaseArtistCreditResponse(
             artistId.Value,
             artistsById.TryGetValue(artistId, out Artist? artist) ? artist.Name : credit.Contributor.Name,
-            CreditMapper.ToRoleCode(credit.Role));
+            CreditMapper.ToRoleCode(credit.Role),
+            [.. credit.Roles.Select(CreditMapper.ToRoleCode)]);
     }
 
     private static TrackCreditResponse ToTrackCreditResponse(Credit credit, IReadOnlyDictionary<ArtistId, Artist> artistsById)
@@ -197,7 +208,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         return new TrackCreditResponse(
             artistId.Value,
             artistsById.TryGetValue(artistId, out Artist? artist) ? artist.Name : credit.Contributor.Name,
-            CreditMapper.ToRoleCode(credit.Role));
+            CreditMapper.ToRoleCode(credit.Role),
+            [.. credit.Roles.Select(CreditMapper.ToRoleCode)]);
     }
 
     private static ReleaseTracklistItemResponse ToReleaseTracklistItemResponse(
@@ -247,7 +259,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
         string[] artistNames =
         [
             .. credits
-                .Where(credit => credit.Role == "mainArtist")
+                .Where(credit => credit.Roles.Contains("mainArtist", StringComparer.Ordinal))
                 .OrderBy(credit => credit.Contributor.ArtistId.Value)
                 .Select(credit => artistsById.TryGetValue(credit.Contributor.ArtistId, out Artist? artist) ? artist.Name : credit.Contributor.Name)
         ];

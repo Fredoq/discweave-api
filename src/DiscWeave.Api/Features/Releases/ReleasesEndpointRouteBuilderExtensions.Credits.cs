@@ -38,7 +38,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
     {
         return isVariousArtists
             ? throw new DomainException("track.artist_required", "Track artist is required for Various Artists releases")
-            : [.. releaseCredits.Where(credit => credit.Role == MainArtistRoleCode)];
+            : [.. releaseCredits.Where(credit => credit.Roles.Contains(MainArtistRoleCode, StringComparer.Ordinal))];
     }
 
     private static async Task<IReadOnlyList<ResolvedCredit>> ResolveCreditsAsync(
@@ -62,19 +62,113 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
                 collectionId,
                 ReleaseCreditArtistErrors,
                 cancellationToken);
-            string role = await DictionaryValidation.RequireActiveCodeAsync(
+            string[] roles = await ResolveRoleCodesAsync(creditRequest.Role, creditRequest.Roles, MainArtistRoleCode, context, collectionId, cancellationToken);
+            resolved.Add(new ResolvedCredit(artist, roles));
+        }
+
+        return MergeCredits(resolved);
+    }
+
+    private static async Task<string[]> ResolveRoleCodesAsync(
+        string? legacyRole,
+        IReadOnlyList<string>? roles,
+        string defaultRole,
+        DiscWeaveDbContext context,
+        CollectionId collectionId,
+        CancellationToken cancellationToken)
+    {
+        string[] requestedRoles = NormalizeRequestedRoles(legacyRole, roles, defaultRole);
+        var resolved = new List<string>(requestedRoles.Length);
+        foreach (string requestedRole in requestedRoles)
+        {
+            string role = await DictionaryValidation.ResolveOrCreateActiveCodeAsync(
                 context,
                 collectionId,
                 DictionaryKind.CreditRole,
-                CreditMapper.ParseRole(string.IsNullOrWhiteSpace(creditRequest.Role) ? MainArtistRoleCode : creditRequest.Role),
+                CreditMapper.ParseRole(requestedRole),
                 "credit.role_invalid",
                 "Credit role is invalid",
                 cancellationToken);
-            resolved.Add(new ResolvedCredit(artist, role));
+            if (!resolved.Contains(role, StringComparer.Ordinal))
+            {
+                resolved.Add(role);
+            }
         }
 
-        return resolved;
+        return [.. resolved];
     }
 
-    private sealed record ResolvedCredit(Artist Artist, string Role);
+    private static string[] NormalizeRequestedRoles(string? legacyRole, IReadOnlyList<string>? roles, string defaultRole)
+    {
+        IEnumerable<string> requested = roles is { Count: > 0 }
+            ? roles
+            : [legacyRole ?? defaultRole];
+
+        string[] normalized =
+        [
+            .. requested
+                .SelectMany(SplitRoleLabel)
+                .Select(role => role.Trim())
+                .Where(role => role.Length > 0)
+                .Distinct(StringComparer.Ordinal)
+        ];
+
+        return normalized.Length > 0 ? normalized : [defaultRole];
+    }
+
+    private static IEnumerable<string> SplitRoleLabel(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            return [];
+        }
+
+        var values = new List<string>();
+        int bracketDepth = 0;
+        int segmentStart = 0;
+        for (int index = 0; index < role.Length; index++)
+        {
+            char value = role[index];
+            bracketDepth += value switch
+            {
+                '[' => 1,
+                ']' when bracketDepth > 0 => -1,
+                _ => 0
+            };
+
+            if (value != ',' || bracketDepth > 0)
+            {
+                continue;
+            }
+
+            AddSegment(role, segmentStart, index, values);
+            segmentStart = index + 1;
+        }
+
+        AddSegment(role, segmentStart, role.Length, values);
+        return values;
+    }
+
+    private static void AddSegment(string role, int start, int end, List<string> values)
+    {
+        string segment = role[start..end].Trim();
+        if (segment.Length > 0)
+        {
+            values.Add(segment);
+        }
+    }
+
+    private static IReadOnlyList<ResolvedCredit> MergeCredits(IReadOnlyList<ResolvedCredit> credits)
+    {
+        return
+        [
+            .. credits
+                .GroupBy(credit => credit.Artist.Id)
+                .Select(group => new ResolvedCredit(
+                    group.First().Artist,
+                    [.. group.SelectMany(credit => credit.Roles).Distinct(StringComparer.Ordinal)]))
+        ];
+    }
+
+    private sealed record ResolvedCredit(Artist Artist, IReadOnlyList<string> Roles);
 }

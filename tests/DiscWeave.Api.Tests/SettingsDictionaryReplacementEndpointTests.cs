@@ -115,7 +115,7 @@ public sealed class SettingsDictionaryReplacementEndpointTests : IClassFixture<P
     {
         using HttpResponseMessage response = await client.PostAsJsonAsync(
             "/api/credits",
-            new { contributorArtistId, targetType = "release", targetId = releaseId, role });
+            new { contributorArtistId, targetType = "release", targetId = releaseId, roles = new[] { role } });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

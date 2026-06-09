@@ -1,6 +1,7 @@
 using DiscWeave.Api.Features.ArtistRelations;
 using DiscWeave.Api.Features.Artists;
 using DiscWeave.Api.Features.Credits;
+using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Api.Features.Labels;
 using DiscWeave.Api.Features.OwnedItems;
 using DiscWeave.Api.Features.Ratings;
@@ -111,6 +112,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
                 "group" => Group.Create(collectionId, artistId, response.Name),
                 _ => throw new DomainException("artist.type_invalid", "Artist type is invalid")
             };
+            artist.ReplaceExternalSources(ExternalSourceReferenceMapper.FromResponses(response.ExternalSources));
             _ = context.Artists.Add(artist);
             restored.Add(artistId, artist);
         }
@@ -143,6 +145,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             }
 
             track.UpdateCataloging(ToCataloging(response.Genres, response.Tags));
+            track.ReplaceExternalSources(ExternalSourceReferenceMapper.FromResponses(response.ExternalSources));
             _ = context.Tracks.Add(track);
         }
     }
@@ -160,6 +163,7 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             release.UpdateArtistDisplay(response.IsVariousArtists);
             release.UpdateLabels(response.NotOnLabel, [.. response.Labels.Where(label => label.LabelId.HasValue).Select(ToReleaseLabel)]);
             release.ReplaceTracklist([.. response.Tracklist.Select(ToReleaseTrack)]);
+            release.ReplaceExternalSources(ExternalSourceReferenceMapper.FromResponses(response.ExternalSources));
             _ = context.Releases.Add(release);
         }
     }

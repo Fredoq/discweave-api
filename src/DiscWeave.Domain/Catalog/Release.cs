@@ -7,6 +7,7 @@ namespace DiscWeave.Domain.Catalog;
 public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 {
     private readonly List<Genre> _genres = [];
+    private readonly List<ExternalSourceReference> _externalSources = [];
     private readonly List<ReleaseLabel> _labels = [];
     private readonly List<Tag> _tags = [];
     private readonly List<ReleaseTrack> _tracklist = [];
@@ -20,13 +21,15 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         CollectionId collectionId,
         ReleaseId id,
         ReleaseState state,
-        Cataloging cataloging)
+        Cataloging cataloging,
+        IReadOnlyList<ExternalSourceReference>? externalSources = null)
     {
         CollectionId = collectionId;
         Id = id;
         Summary = state.Summary;
         IsVariousArtists = state.IsVariousArtists;
         IsNotOnLabel = state.IsNotOnLabel;
+        _externalSources = [.. externalSources ?? []];
         _labels = [.. state.Labels];
         _tracklist = [.. state.Tracklist];
         _genres = [.. cataloging.Genres];
@@ -44,6 +47,8 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     public bool IsNotOnLabel { get; private set; }
 
     public IReadOnlyList<ReleaseLabel> Labels => _labels.AsReadOnly();
+
+    public IReadOnlyList<ExternalSourceReference> ExternalSources => _externalSources.AsReadOnly();
 
     public IReadOnlyList<ReleaseTrack> Tracklist => _tracklist.AsReadOnly();
 
@@ -91,6 +96,11 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
         _tags.AddRange(cataloging.Tags);
     }
 
+    public void ReplaceExternalSources(IReadOnlyList<ExternalSourceReference> externalSources)
+    {
+        ExternalSourceReferences.Replace(_externalSources, externalSources);
+    }
+
     public void UpdateArtistDisplay(bool isVariousArtists)
     {
         IsVariousArtists = isVariousArtists;
@@ -126,7 +136,7 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
     {
         ArgumentNullException.ThrowIfNull(summary);
 
-        return new Release(CollectionId, Id, CurrentState() with { Summary = summary }, Cataloging);
+        return new Release(CollectionId, Id, CurrentState() with { Summary = summary }, Cataloging, _externalSources);
     }
 
     public Release WithTrack(ReleaseTrack releaseTrack)
@@ -135,14 +145,14 @@ public sealed class Release : IEntity<ReleaseId>, ICreditTarget
 
         EnsureTrackPositionIsUnique(releaseTrack.Position);
 
-        return new Release(CollectionId, Id, CurrentState() with { Tracklist = [.. _tracklist, releaseTrack] }, Cataloging);
+        return new Release(CollectionId, Id, CurrentState() with { Tracklist = [.. _tracklist, releaseTrack] }, Cataloging, _externalSources);
     }
 
     public Release WithCataloging(Cataloging cataloging)
     {
         ArgumentNullException.ThrowIfNull(cataloging);
 
-        return new Release(CollectionId, Id, CurrentState(), cataloging);
+        return new Release(CollectionId, Id, CurrentState(), cataloging, _externalSources);
     }
 
     private ReleaseState CurrentState()

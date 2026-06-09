@@ -42,7 +42,7 @@ public sealed class GraphCollectionIsolationApiTests : IClassFixture<PostgresFix
             "/api/credits",
             adminCreditId,
             userCreditId,
-            new { contributorArtistId = userArtistId, targetType = "release", targetId = userReleaseId, role = "producer" },
+            new { contributorArtistId = userArtistId, targetType = "release", targetId = userReleaseId, roles = Roles("producer") },
             "credit");
         await AssertGraphRecordIsIsolatedAsync(
             userClient,
@@ -128,11 +128,18 @@ public sealed class GraphCollectionIsolationApiTests : IClassFixture<PostgresFix
 
     private static async Task<Guid> CreateCreditAsync(HttpClient client, Guid contributorArtistId, string targetType, Guid targetId, string role)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync("/api/credits", new { contributorArtistId, targetType, targetId, role });
+        using HttpResponseMessage response = await client.PostAsJsonAsync(
+            "/api/credits",
+            new { contributorArtistId, targetType, targetId, roles = Roles(role) });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    private static string[] Roles(string role)
+    {
+        return [role];
     }
 
     private static async Task<Guid> CreateArtistRelationAsync(HttpClient client, Guid sourceArtistId, Guid targetArtistId)

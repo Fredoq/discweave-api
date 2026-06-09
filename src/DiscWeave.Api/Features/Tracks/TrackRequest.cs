@@ -1,3 +1,5 @@
+using DiscWeave.Api.Features.ExternalSources;
+
 namespace DiscWeave.Api.Features.Tracks;
 
 public sealed record TrackRequest
@@ -10,11 +12,11 @@ public sealed record TrackRequest
 
     public IReadOnlyList<string> Tags { get; init; } = [];
 
+    public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
+
     public IReadOnlyList<TrackCreditRequest> Credits { get; init; } = [];
 
     public IReadOnlyList<TrackReleaseAppearanceRequest> ReleaseAppearances { get; init; } = [];
 }
-
-public sealed record TrackCreditRequest(Guid? ArtistId, string? Name, string? Role);
 
 public sealed record TrackReleaseAppearanceRequest(Guid ReleaseId, int Position, string? VersionNote);

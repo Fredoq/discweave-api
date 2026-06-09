@@ -1,3 +1,5 @@
+using DiscWeave.Api.Features.ExternalSources;
+
 namespace DiscWeave.Api.Features.Releases;
 
 public sealed record ReleaseRequest
@@ -23,6 +25,8 @@ public sealed record ReleaseRequest
     public IReadOnlyList<string>? Genres { get; init; }
 
     public IReadOnlyList<string>? Tags { get; init; }
+
+    public IReadOnlyList<ExternalSourceReferenceRequest>? ExternalSources { get; init; }
 
     public IReadOnlyList<ReleaseTrackRequest>? Tracklist { get; init; }
 

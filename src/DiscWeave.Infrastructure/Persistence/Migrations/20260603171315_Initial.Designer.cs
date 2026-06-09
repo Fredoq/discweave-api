@@ -10,16 +10,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
 
 #nullable disable
-#pragma warning disable IDE0005
-#pragma warning disable IDE0058
-#pragma warning disable IDE0161
-#pragma warning disable IDE0300
-#pragma warning disable CA1861
 
 namespace DiscWeave.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DiscWeaveDbContext))]
-    [Migration("20260529194521_Initial")]
+    [Migration("20260603171315_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -262,6 +257,15 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     b.ToTable("collections", (string)null);
                 });
 
+            modelBuilder.Entity("DiscWeave.Domain.Collection.MusicCollection", b =>
+                {
+                    b.HasOne("DiscWeave.Infrastructure.Identity.DiscWeaveUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DiscWeave.Domain.Collection.OwnedItem", b =>
                 {
                     b.Property<long>("id")
@@ -444,6 +448,12 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)")
                         .HasColumnName("contributor_name");
+
+                    b.Property<string>("_rolesJson")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("roles_json");
 
                     b.Property<Guid?>("_targetReleaseId")
                         .HasColumnType("uuid")
@@ -1350,14 +1360,14 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     b.HasAlternateKey("CollectionId", "Id")
                         .HasName("ak_naming_profiles_collection_profile_id");
 
-                    b.HasIndex("CollectionId", "Name")
-                        .IsUnique()
-                        .HasDatabaseName("ux_naming_profiles_collection_name");
-
                     b.HasIndex("CollectionId")
                         .IsUnique()
                         .HasDatabaseName("ux_naming_profiles_collection_default")
                         .HasFilter("is_default = TRUE");
+
+                    b.HasIndex("CollectionId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_naming_profiles_collection_name");
 
                     b.HasIndex("CollectionId", "SortOrder");
 
@@ -1377,6 +1387,10 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("collection_id");
 
+                    b.Property<Guid>("ReleaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("release_id");
+
                     b.Property<Guid?>("_namingProfileId")
                         .HasColumnType("uuid")
                         .HasColumnName("naming_profile_id");
@@ -1385,10 +1399,6 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)")
                         .HasColumnName("release_folder_template");
-
-                    b.Property<Guid>("ReleaseId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("release_id");
 
                     b.Property<string>("_source")
                         .HasMaxLength(128)
@@ -1913,6 +1923,54 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsMany("DiscWeave.Domain.Catalog.ExternalSourceReference", "_externalSources", b1 =>
+                        {
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
+                            b1.Property<Guid>("artist_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("artist_id");
+
+                            b1.Property<string>("ProviderName")
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("provider_name");
+
+                            b1.Property<string>("ResourceType")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("resource_type");
+
+                            b1.Property<string>("ExternalId")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("external_id");
+
+                            b1.Property<DateTimeOffset>("AppliedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("applied_at");
+
+                            b1.Property<string>("SourceUrl")
+                                .IsRequired()
+                                .HasMaxLength(2048)
+                                .HasColumnType("character varying(2048)")
+                                .HasColumnName("source_url");
+
+                            b1.HasKey("CollectionId", "artist_id", "ProviderName", "ResourceType", "ExternalId");
+
+                            b1.HasIndex("CollectionId");
+
+                            b1.ToTable("artist_external_sources", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("CollectionId", "artist_id")
+                                .HasPrincipalKey("CollectionId", "Id");
+                        });
+
+                    b.Navigation("_externalSources");
                 });
 
             modelBuilder.Entity("DiscWeave.Domain.Catalog.Label", b =>
@@ -1933,6 +1991,52 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsMany("DiscWeave.Domain.Catalog.ExternalSourceReference", "_externalSources", b1 =>
+                        {
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
+                            b1.Property<Guid>("release_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("release_id");
+
+                            b1.Property<string>("ProviderName")
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("provider_name");
+
+                            b1.Property<string>("ResourceType")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("resource_type");
+
+                            b1.Property<string>("ExternalId")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("external_id");
+
+                            b1.Property<DateTimeOffset>("AppliedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("applied_at");
+
+                            b1.Property<string>("SourceUrl")
+                                .IsRequired()
+                                .HasMaxLength(2048)
+                                .HasColumnType("character varying(2048)")
+                                .HasColumnName("source_url");
+
+                            b1.HasKey("CollectionId", "release_id", "ProviderName", "ResourceType", "ExternalId");
+
+                            b1.HasIndex("CollectionId");
+
+                            b1.ToTable("release_external_sources", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("CollectionId", "release_id")
+                                .HasPrincipalKey("CollectionId", "Id");
+                        });
 
                     b.OwnsMany("DiscWeave.Domain.Catalog.Genre", "_genres", b1 =>
                         {
@@ -2132,6 +2236,8 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Tracklist");
 
+                    b.Navigation("_externalSources");
+
                     b.Navigation("_genres");
 
                     b.Navigation("_tags");
@@ -2145,6 +2251,52 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasPrincipalKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsMany("DiscWeave.Domain.Catalog.ExternalSourceReference", "_externalSources", b1 =>
+                        {
+                            b1.Property<Guid>("CollectionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("collection_id");
+
+                            b1.Property<Guid>("track_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("track_id");
+
+                            b1.Property<string>("ProviderName")
+                                .HasMaxLength(128)
+                                .HasColumnType("character varying(128)")
+                                .HasColumnName("provider_name");
+
+                            b1.Property<string>("ResourceType")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("resource_type");
+
+                            b1.Property<string>("ExternalId")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("external_id");
+
+                            b1.Property<DateTimeOffset>("AppliedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("applied_at");
+
+                            b1.Property<string>("SourceUrl")
+                                .IsRequired()
+                                .HasMaxLength(2048)
+                                .HasColumnType("character varying(2048)")
+                                .HasColumnName("source_url");
+
+                            b1.HasKey("CollectionId", "track_id", "ProviderName", "ResourceType", "ExternalId");
+
+                            b1.HasIndex("CollectionId");
+
+                            b1.ToTable("track_external_sources", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("CollectionId", "track_id")
+                                .HasPrincipalKey("CollectionId", "Id");
+                        });
 
                     b.OwnsMany("DiscWeave.Domain.Catalog.Genre", "_genres", b1 =>
                         {
@@ -2193,6 +2345,8 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                                 .HasForeignKey("CollectionId", "track_id")
                                 .HasPrincipalKey("CollectionId", "Id");
                         });
+
+                    b.Navigation("_externalSources");
 
                     b.Navigation("_genres");
 
@@ -2526,18 +2680,18 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DiscWeave.Domain.Settings.NamingProfile", null)
-                        .WithMany()
-                        .HasForeignKey("CollectionId", "_namingProfileId")
-                        .HasPrincipalKey("CollectionId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("DiscWeave.Domain.Catalog.Release", null)
                         .WithMany()
                         .HasForeignKey("CollectionId", "ReleaseId")
                         .HasPrincipalKey("CollectionId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("DiscWeave.Domain.Settings.NamingProfile", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId", "_namingProfileId")
+                        .HasPrincipalKey("CollectionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("DiscWeave.Domain.Settings.TagRoleMapping", b =>
