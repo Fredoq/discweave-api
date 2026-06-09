@@ -161,11 +161,12 @@ public sealed partial class DiscogsExternalMetadataProvider : IExternalMetadataP
 
     private ExternalMetadataError? TryValidateConfiguration()
     {
-        return !_options.Enabled
-            ? Disabled()
-            : !DiscogsOptionsValidator.IsValid(_options)
-                ? NotConfigured()
-                : null;
+        return (_options.Enabled, DiscogsOptionsValidator.IsValid(_options)) switch
+        {
+            (false, _) => Disabled(),
+            (true, false) => NotConfigured(),
+            _ => null
+        };
     }
 
     private static Uri BuildUri(string path, Dictionary<string, string> parameters)

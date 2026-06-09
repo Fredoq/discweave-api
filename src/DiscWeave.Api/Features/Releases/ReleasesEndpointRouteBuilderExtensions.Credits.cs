@@ -170,8 +170,5 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
         ];
     }
 
-    private sealed record ResolvedCredit(Artist Artist, IReadOnlyList<string> Roles)
-    {
-        public string Role => Roles[0];
-    }
+    private sealed record ResolvedCredit(Artist Artist, IReadOnlyList<string> Roles);
 }

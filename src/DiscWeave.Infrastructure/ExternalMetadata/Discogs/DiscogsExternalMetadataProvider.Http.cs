@@ -19,57 +19,100 @@ public sealed partial class DiscogsExternalMetadataProvider
     {
         for (int attempt = 1; attempt <= MaximumSendAttempts; attempt++)
         {
-            using HttpRequestMessage request = CreateRequest(path, parameters);
-            try
+            ExternalMetadataResult<T>? result = await TrySendAttemptAsync<T>(
+                path,
+                parameters,
+                attempt,
+                cancellationToken);
+            if (result is not null)
             {
-                using HttpResponseMessage response = await _httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken);
-                if (!response.IsSuccessStatusCode)
-                {
-                    if (attempt < MaximumSendAttempts && IsRetryable(response.StatusCode))
-                    {
-                        LogDiscogsRetry(path, attempt, (int)response.StatusCode);
-                        await Task.Delay(RetryDelay, cancellationToken);
-                        continue;
-                    }
-
-                    ExternalMetadataError error = MapFailure(response);
-                    LogDiscogsFailure(path, (int)response.StatusCode, error.Kind);
-                    return new ExternalMetadataResult<T>(error);
-                }
-
-                await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                T? value = await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
-                return value is null
-                    ? new ExternalMetadataResult<T>(InvalidResponse())
-                    : new ExternalMetadataResult<T>(value);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                LogDiscogsFailure(path, null, ExternalMetadataErrorKind.Timeout);
-                return new ExternalMetadataResult<T>(Timeout());
-            }
-            catch (JsonException)
-            {
-                LogDiscogsFailure(path, null, ExternalMetadataErrorKind.InvalidResponse);
-                return new ExternalMetadataResult<T>(InvalidResponse());
-            }
-            catch (HttpRequestException) when (attempt < MaximumSendAttempts)
-            {
-                LogDiscogsRetry(path, attempt, null);
-                await Task.Delay(RetryDelay, cancellationToken);
-            }
-            catch (HttpRequestException)
-            {
-                LogDiscogsFailure(path, null, ExternalMetadataErrorKind.Unavailable);
-                return new ExternalMetadataResult<T>(Unavailable());
+                return result;
             }
         }
 
         LogDiscogsFailure(path, null, ExternalMetadataErrorKind.Unavailable);
         return new ExternalMetadataResult<T>(Unavailable());
+    }
+
+    private async Task<ExternalMetadataResult<T>?> TrySendAttemptAsync<T>(
+        string path,
+        Dictionary<string, string> parameters,
+        int attempt,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        using HttpRequestMessage request = CreateRequest(path, parameters);
+        try
+        {
+            using HttpResponseMessage response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            return await MapResponseAsync<T>(path, response, attempt, cancellationToken);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogDiscogsFailure(path, null, ExternalMetadataErrorKind.Timeout);
+            return new ExternalMetadataResult<T>(Timeout());
+        }
+        catch (JsonException)
+        {
+            LogDiscogsFailure(path, null, ExternalMetadataErrorKind.InvalidResponse);
+            return new ExternalMetadataResult<T>(InvalidResponse());
+        }
+        catch (HttpRequestException) when (attempt < MaximumSendAttempts)
+        {
+            await DelayRetryAsync(path, attempt, null, cancellationToken);
+            return null;
+        }
+        catch (HttpRequestException)
+        {
+            LogDiscogsFailure(path, null, ExternalMetadataErrorKind.Unavailable);
+            return new ExternalMetadataResult<T>(Unavailable());
+        }
+    }
+
+    private async Task<ExternalMetadataResult<T>?> MapResponseAsync<T>(
+        string path,
+        HttpResponseMessage response,
+        int attempt,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return await ReadSuccessAsync<T>(response, cancellationToken);
+        }
+
+        if (attempt < MaximumSendAttempts && IsRetryable(response.StatusCode))
+        {
+            await DelayRetryAsync(path, attempt, (int)response.StatusCode, cancellationToken);
+            return null;
+        }
+
+        ExternalMetadataError error = MapFailure(response);
+        LogDiscogsFailure(path, (int)response.StatusCode, error.Kind);
+        return new ExternalMetadataResult<T>(error);
+    }
+
+    private static async Task<ExternalMetadataResult<T>> ReadSuccessAsync<T>(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        T? value = await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken);
+
+        return value is null
+            ? new ExternalMetadataResult<T>(InvalidResponse())
+            : new ExternalMetadataResult<T>(value);
+    }
+
+    private async Task DelayRetryAsync(string path, int attempt, int? statusCode, CancellationToken cancellationToken)
+    {
+        LogDiscogsRetry(path, attempt, statusCode);
+        await Task.Delay(RetryDelay, cancellationToken);
     }
 
     private HttpRequestMessage CreateRequest(string path, Dictionary<string, string> parameters)

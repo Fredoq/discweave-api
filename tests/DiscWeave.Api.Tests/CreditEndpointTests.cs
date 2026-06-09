@@ -46,9 +46,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
         using HttpResponseMessage deleteResponse = await client.SendAsync(deleteRequest);
 
         Assert.Equal("producer", createDocument.RootElement.GetProperty("role").GetString());
-        Assert.Collection(
-            createDocument.RootElement.GetProperty("roles").EnumerateArray().Select(role => role.GetString()),
-            role => Assert.Equal("producer", role));
+        Assert.Equal("producer", Assert.Single(createDocument.RootElement.GetProperty("roles").EnumerateArray()).GetString());
         Assert.Equal("release", createDocument.RootElement.GetProperty("targetType").GetString());
         Assert.Equal(artistId, createDocument.RootElement.GetProperty("contributorArtistId").GetGuid());
         Assert.Equal("Arthur Baker", createDocument.RootElement.GetProperty("contributorName").GetString());
@@ -58,9 +56,7 @@ public sealed class CreditEndpointTests : IClassFixture<PostgresFixture>
         Assert.Equal("track", updateDocument.RootElement.GetProperty("targetType").GetString());
         Assert.Equal(trackId, updateDocument.RootElement.GetProperty("targetId").GetGuid());
         Assert.Equal("remixer", updateDocument.RootElement.GetProperty("role").GetString());
-        Assert.Collection(
-            updateDocument.RootElement.GetProperty("roles").EnumerateArray().Select(role => role.GetString()),
-            role => Assert.Equal("remixer", role));
+        Assert.Equal("remixer", Assert.Single(updateDocument.RootElement.GetProperty("roles").EnumerateArray()).GetString());
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal(1, listDocument.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(creditId, listDocument.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid());

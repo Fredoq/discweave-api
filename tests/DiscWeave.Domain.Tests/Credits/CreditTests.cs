@@ -33,7 +33,7 @@ public sealed class CreditTests
         Assert.Equal(trackId, Assert.IsType<TrackCreditTarget>(trackCredit.Target).TrackId);
         Assert.Equal(person.Id, trackCredit.Contributor.ArtistId);
         Assert.Equal("producer", trackCredit.Role);
-        Assert.Collection(trackCredit.Roles, role => Assert.Equal("producer", role));
+        Assert.Equal("producer", Assert.Single(trackCredit.Roles));
     }
 
     [Fact]

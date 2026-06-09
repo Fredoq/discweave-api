@@ -82,7 +82,7 @@ public sealed partial class DiscogsExternalMetadataProvider
             ?.Select(artist => ToReleaseCredit(artist, null, null)) ?? [];
         IEnumerable<ExternalMetadataReleaseCredit> trackCredits = response.Tracklist
             ?.Where(IsTrackRow)
-            ?.SelectMany(track => track.ExtraArtists?.Select(artist => ToReleaseCredit(artist, track.Title, track.Position)) ?? []) ?? [];
+            .SelectMany(track => track.ExtraArtists?.Select(artist => ToReleaseCredit(artist, track.Title, track.Position)) ?? []) ?? [];
 
         return [.. releaseCredits.Concat(trackCredits).Where(credit => !string.IsNullOrWhiteSpace(credit.Name))];
     }
@@ -171,11 +171,12 @@ public sealed partial class DiscogsExternalMetadataProvider
     private static string ToDiscogsWebsiteUrl(string uri)
     {
         string trimmed = uri.Trim();
-        return trimmed.StartsWith('/')
-            ? $"https://www.discogs.com{trimmed}"
-            : Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? absolute)
-                ? absolute.ToString()
-                : $"https://www.discogs.com/{trimmed}";
+        return trimmed switch
+        {
+            _ when trimmed.StartsWith('/') => $"https://www.discogs.com{trimmed}",
+            _ when Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? absolute) => absolute.ToString(),
+            _ => $"https://www.discogs.com/{trimmed}"
+        };
     }
 
     private static IReadOnlyList<string> ArtistNamesFromTitle(string? title)

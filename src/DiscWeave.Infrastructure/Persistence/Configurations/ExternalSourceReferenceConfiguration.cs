@@ -9,11 +9,12 @@ internal static class ExternalSourceReferenceConfiguration
 {
     private const string CollectionIdProperty = "CollectionId";
     private const string CollectionIdColumn = "collection_id";
+    private const string ExternalSourcesNavigation = "_externalSources";
 
     public static void ConfigureArtist(EntityTypeBuilder<Artist> builder)
     {
         const string artistIdColumn = "artist_id";
-        _ = builder.OwnsMany<ExternalSourceReference>("_externalSources", source =>
+        _ = builder.OwnsMany<ExternalSourceReference>(ExternalSourcesNavigation, source =>
         {
             _ = source.ToTable("artist_external_sources");
             _ = source.Property<ArtistId>(artistIdColumn)
@@ -33,7 +34,7 @@ internal static class ExternalSourceReferenceConfiguration
     public static void ConfigureRelease(EntityTypeBuilder<Release> builder)
     {
         const string releaseIdColumn = "release_id";
-        _ = builder.OwnsMany<ExternalSourceReference>("_externalSources", source =>
+        _ = builder.OwnsMany<ExternalSourceReference>(ExternalSourcesNavigation, source =>
         {
             _ = source.ToTable("release_external_sources");
             _ = source.Property<ReleaseId>(releaseIdColumn)
@@ -53,7 +54,7 @@ internal static class ExternalSourceReferenceConfiguration
     public static void ConfigureTrack(EntityTypeBuilder<Track> builder)
     {
         const string trackIdColumn = "track_id";
-        _ = builder.OwnsMany<ExternalSourceReference>("_externalSources", source =>
+        _ = builder.OwnsMany<ExternalSourceReference>(ExternalSourcesNavigation, source =>
         {
             _ = source.ToTable("track_external_sources");
             _ = source.Property<TrackId>(trackIdColumn)
@@ -120,6 +121,6 @@ internal static class ExternalSourceReferenceConfiguration
     private static void UseFieldAccess<TOwner>(EntityTypeBuilder<TOwner> builder)
         where TOwner : class
     {
-        _ = builder.Navigation("_externalSources").UsePropertyAccessMode(PropertyAccessMode.Field);
+        _ = builder.Navigation(ExternalSourcesNavigation).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
