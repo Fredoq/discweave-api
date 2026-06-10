@@ -114,7 +114,7 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             releaseTracks.Add(
                 ReleaseTrack.Create(
                     track.Id,
-                    TrackPosition.FromNumber(trackRequest.Position),
+                    TrackPosition.FromNumber(trackRequest.Position, trackRequest.Disc ?? string.Empty, trackRequest.Side ?? string.Empty),
                     Optional.Missing<string>(),
                     ToOptionalString(trackRequest.VersionNote)));
         }

@@ -9,6 +9,8 @@ public sealed record ReleaseImportDraftTrackResponse(
     DateTimeOffset LastModifiedAt,
     int? DurationSeconds,
     int? Position,
+    string? Disc,
+    string? Side,
     string Title,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ReleaseImportArtistCreditResponse> ArtistCredits,

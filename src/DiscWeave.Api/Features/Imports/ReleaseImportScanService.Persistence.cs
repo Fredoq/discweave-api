@@ -71,6 +71,8 @@ public static partial class ReleaseImportScanService
 
         track.UpdateEditableFields(new DraftTrackEditableFields(
             scannedTrack.Position,
+            scannedTrack.Disc,
+            scannedTrack.Side,
             scannedTrack.Title,
             scannedTrack.Duration,
             scannedTrack.ArtistNames,

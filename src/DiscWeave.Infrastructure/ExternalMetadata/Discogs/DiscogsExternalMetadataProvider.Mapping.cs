@@ -39,20 +39,11 @@ public sealed partial class DiscogsExternalMetadataProvider
             response.Formats?.Select(format => format.Name).WhereNotBlank() ?? [],
             ReleaseTypeCode(response.Formats),
             GenreCodes(response),
-            response.Tracklist?.Where(IsTrackRow).Select(MapReleaseTrack).ToArray() ?? [],
+            MapReleaseTracklist(response.Tracklist),
             response.Identifiers?.Select(ToIdentifier).ToArray() ?? [],
             response.Labels?.Select(label => label.CatalogNumber).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
             response.Labels?.Select(ToReleaseLabel).Where(label => !string.IsNullOrWhiteSpace(label.Name)).ToArray() ?? [],
             ReleaseCredits(response));
-    }
-
-    private static ExternalMetadataReleaseTrack MapReleaseTrack(DiscogsTrackResponse track)
-    {
-        return new ExternalMetadataReleaseTrack(
-            track.Title ?? string.Empty,
-            EmptyToNull(track.Position),
-            ParseDuration(track.Duration),
-            track.Artists?.Select(artist => artist.Name).WhereNotBlank() ?? []);
     }
 
     private static ExternalMetadataArtistDetail MapArtistDetail(DiscogsArtistDetailResponse response)
@@ -133,11 +124,6 @@ public sealed partial class DiscogsExternalMetadataProvider
         return first + string.Concat(words.Skip(1).Select(word => string.Concat(
             word[..1].ToUpperInvariant(),
             word[1..].ToLowerInvariant())));
-    }
-
-    private static bool IsTrackRow(DiscogsTrackResponse track)
-    {
-        return !string.Equals(track.Type, "heading", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ExternalMetadataReleaseCredit ToReleaseCredit(DiscogsNamedResource artist, string? trackTitle, string? trackPosition)
@@ -225,7 +211,7 @@ public sealed partial class DiscogsExternalMetadataProvider
     }
 }
 
-file static class DiscogsEnumerableExtensions
+internal static class DiscogsEnumerableExtensions
 {
     public static string[] WhereNotBlank(this IEnumerable<string?> values)
     {

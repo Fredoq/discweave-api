@@ -67,7 +67,7 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
                     ["Vinyl", "12\""],
                     "single",
                     ["Electronic", "Leftfield"],
-                    [new ExternalMetadataReleaseTrack("Blue Monday", "A", TimeSpan.FromSeconds(449), ["New Order"])],
+                    [new ExternalMetadataReleaseTrack("Blue Monday", "A", TimeSpan.FromSeconds(449), ["New Order"], "Orbit Compact Disc", "A")],
                     [
                         new ExternalMetadataIdentifier("Barcode", "5016839200371"),
                         new ExternalMetadataIdentifier("Matrix / Runout", "FAC 73 A")
@@ -94,6 +94,8 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
         Assert.Equal("Producer Name", root.GetProperty("credits")[0].GetProperty("name").GetString());
         Assert.Equal("Remix", root.GetProperty("credits")[1].GetProperty("role").GetString());
         Assert.Equal("Blue Monday", root.GetProperty("credits")[1].GetProperty("trackTitle").GetString());
+        Assert.Equal("Orbit Compact Disc", root.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("A", root.GetProperty("tracklist")[0].GetProperty("side").GetString());
 
         JsonElement draft = root.GetProperty("draft");
         Assert.Equal("Blue Monday", draft.GetProperty("title").GetString());
@@ -108,6 +110,8 @@ public sealed class ExternalMetadataReleaseEndpointTests(PostgresFixture postgre
         Assert.Equal("FAC 73", draft.GetProperty("labels")[0].GetProperty("catalogNumber").GetString());
         Assert.False(draft.GetProperty("labels")[0].GetProperty("hasNoCatalogNumber").GetBoolean());
         Assert.Equal(1, draft.GetProperty("tracklist")[0].GetProperty("position").GetInt32());
+        Assert.Equal("Orbit Compact Disc", draft.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("A", draft.GetProperty("tracklist")[0].GetProperty("side").GetString());
         Assert.Equal(449, draft.GetProperty("tracklist")[0].GetProperty("durationSeconds").GetInt32());
         Assert.Equal("New Order", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[0].GetProperty("name").GetString());
         Assert.Equal("mainArtist", draft.GetProperty("tracklist")[0].GetProperty("artistCredits")[0].GetProperty("role").GetString());

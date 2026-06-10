@@ -121,6 +121,8 @@ public sealed class ImportNameParserTests
                 Optional.Missing<string>()));
         _ = Assert.Throws<DomainException>(() => track.UpdateEditableFields(new DraftTrackEditableFields(
             -1,
+            null,
+            null,
             "Track",
             null,
             [],

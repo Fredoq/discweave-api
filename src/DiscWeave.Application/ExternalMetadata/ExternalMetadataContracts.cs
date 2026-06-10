@@ -148,7 +148,9 @@ public sealed record ExternalMetadataReleaseTrack(
     string Title,
     string? Position,
     TimeSpan? Duration,
-    IReadOnlyList<string> Artists);
+    IReadOnlyList<string> Artists,
+    string? Disc,
+    string? Side);
 
 public sealed record ExternalMetadataIdentifier(
     string Type,

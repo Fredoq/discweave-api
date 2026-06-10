@@ -225,6 +225,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             releaseTrack.TrackId.Value,
             track?.Title ?? "Unknown track",
             releaseTrack.Position.Number,
+            OptionalString(releaseTrack.Position.Disc),
+            OptionalString(releaseTrack.Position.Side),
             track is null ? null : ToDurationSeconds(track),
             [.. trackCredits.Select(credit => ToReleaseArtistCreditResponse(credit, artistsById))],
             OptionalString(releaseTrack.VersionNote));
@@ -248,6 +250,8 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             OptionalInt(release.Summary.Metadata.Year),
             releaseLabel is null ? null : ToReleaseLabelResponse(releaseLabel, labelsById).Name,
             releaseTrack.Position.Number,
+            OptionalString(releaseTrack.Position.Disc),
+            OptionalString(releaseTrack.Position.Side),
             ToDurationSeconds(track),
             OptionalString(releaseTrack.VersionNote));
     }

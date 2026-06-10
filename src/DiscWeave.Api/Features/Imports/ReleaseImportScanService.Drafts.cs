@@ -72,18 +72,38 @@ public static partial class ReleaseImportScanService
             ]
             : parsed.Issues;
 
+        string trackRelativePath = Path.GetRelativePath(releaseRoot, file.FilePath);
+        TrackPositionContext positionContext = TrackPositionContextFromRelativePath(trackRelativePath);
+
         return new ReleaseFolderScanTrack(
             file.FilePath,
-            Path.GetRelativePath(releaseRoot, file.FilePath),
+            trackRelativePath,
             file.AudioFormat ?? throw new InvalidOperationException("Track file requires an audio format"),
             file.Request.SizeBytes,
             file.Request.LastModifiedAt,
             contentHash,
             tags?.DurationSeconds is null ? null : TimeSpan.FromSeconds(tags.DurationSeconds.Value),
             tags?.TrackNumber ?? parsed.Position,
+            positionContext.Disc,
+            positionContext.Side,
             TrimOrNull(tags?.Title) ?? parsed.Title ?? Path.GetFileNameWithoutExtension(file.RelativePath),
             artistNames.Count > 0 ? artistNames : parsed.ArtistNames,
             issues);
+    }
+
+    private static TrackPositionContext TrackPositionContextFromRelativePath(string relativePath)
+    {
+        string[] segments =
+        [
+            .. NormalizeRelativePath(DirectoryRelativePath(relativePath))
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        ];
+        string? disc = segments.LastOrDefault(IsDiscDirectory);
+        string? side = segments
+            .Select(SideFromDirectory)
+            .LastOrDefault(value => value is not null);
+
+        return new TrackPositionContext(disc, side);
     }
 
     private static DesktopAudioMetadataRequest FirstReleaseTags(IReadOnlyList<DesktopScanFile> audioFiles)
@@ -98,4 +118,6 @@ public static partial class ReleaseImportScanService
                     !string.IsNullOrWhiteSpace(metadata.CatalogNumber))) ??
             new DesktopAudioMetadataRequest(null, [], null, [], null, null, null, null, null);
     }
+
+    private sealed record TrackPositionContext(string? Disc, string? Side);
 }

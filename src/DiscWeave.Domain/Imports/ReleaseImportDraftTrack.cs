@@ -9,6 +9,8 @@ namespace DiscWeave.Domain.Imports;
 
 public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
 {
+    private const int PositionMarkerMaxLength = 64;
+
     private string _artistCreditsJson = "[]";
     private string _artistNamesJson = "[]";
     private string? _contentHash;
@@ -47,6 +49,8 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     public IOptionalValue<string> ContentHash => _contentHash is null ? Optional.Missing<string>() : Optional.From(_contentHash);
     public TimeSpan? Duration { get; private set; }
     public int? Position { get; private set; }
+    public string? Disc { get; private set; }
+    public string? Side { get; private set; }
     public string Title { get; private set; }
     public bool IsSkipped { get; private set; }
     public TrackId? SelectedTrackId { get; private set; }
@@ -68,6 +72,8 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
         }
 
         Position = fields.Position;
+        Disc = TrimMarkerOrNull(fields.Disc, nameof(fields.Disc), "release_import.track_disc_too_long");
+        Side = TrimMarkerOrNull(fields.Side, nameof(fields.Side), "release_import.track_side_too_long");
         Title = Guard.RequiredText(fields.Title, nameof(fields.Title), "release_import.track_title_required");
         Duration = fields.Duration;
         IsSkipped = fields.IsSkipped;
@@ -122,5 +128,16 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     private static string? TrimOrNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? TrimMarkerOrNull(string? value, string fieldName, string code)
+    {
+        string? trimmed = TrimOrNull(value);
+        return trimmed switch
+        {
+            null => null,
+            { Length: > PositionMarkerMaxLength } => throw new DomainException(code, $"{fieldName} must be at most {PositionMarkerMaxLength} characters"),
+            _ => trimmed
+        };
     }
 }

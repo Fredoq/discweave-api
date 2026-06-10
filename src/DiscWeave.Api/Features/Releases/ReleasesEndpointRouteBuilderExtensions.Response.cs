@@ -263,6 +263,8 @@ public static partial class ReleasesEndpointRouteBuilderExtensions
             releaseTrack.TrackId.Value,
             track?.Title ?? "Unknown track",
             releaseTrack.Position.Number,
+            OptionalString(releaseTrack.Position.Disc),
+            OptionalString(releaseTrack.Position.Side),
             durationSeconds,
             [.. credits.Select(credit => ToArtistCreditResponse(credit, artistsById))],
             releaseTrack.VersionNote is { HasValue: true } versionNote ? versionNote.Match(value => value, () => string.Empty) : null);

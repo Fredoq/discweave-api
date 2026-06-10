@@ -54,6 +54,11 @@ credit names, tags, genres, external source provenance, and release cover
 metadata. These fields are part of JSON export v1 and must remain
 restore-compatible for `formatVersion: 1`.
 
+Release tracklist items may include optional `disc` and `side` fields. They are
+grouping labels only; `position` remains the release-wide tracklist order.
+Older v1 snapshots without these fields remain valid and restore with no
+disc/side markers.
+
 The snapshot must not include user account data, collection ids, internal
 database-only fields, import review sessions or drafts, raw cover image bytes,
 cover artifact `contentBase64`, or audio file bytes.
@@ -72,7 +77,7 @@ The v1 archive entries and headers are:
 | `labels.csv` | `id,name` |
 | `releases.csv` | `id,title,type,label_id,year,release_date,is_various_artists,not_on_label,genres,tags,cover_image_url,cover_image_content_type,cover_image_original_file_name,cover_image_size_bytes,cover_image_source_type` |
 | `release_labels.csv` | `release_id,label_id,name,catalog_number,has_no_catalog_number` |
-| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,version_note` |
+| `release_tracklist.csv` | `release_id,track_id,position,title,duration_seconds,version_note,disc,side` |
 | `tracks.csv` | `id,title,duration_seconds,genres,tags` |
 | `owned_items.csv` | `id,target_type,target_id,status,medium_type,medium_description,medium_path,medium_format,medium_disc_count,condition,storage_location` |
 | `playlists.csv` | `id,name,type,description,rule_tags,rule_genres,rule_media,rule_ownership_statuses,rule_year_from,rule_year_to` |
@@ -87,6 +92,9 @@ The v1 archive entries and headers are:
 
 Multi-value fields such as `genres`, `tags`, `target_types`, and smart
 playlist rule arrays are joined with `|`.
+
+The `release_tracklist.csv` `disc` and `side` columns are appended to preserve
+the old v1 column order. Empty values mean no grouping marker.
 
 External source provenance is JSON-only in v1. CSV exports intentionally omit
 `externalSources`.

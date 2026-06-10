@@ -12,6 +12,8 @@ public sealed record ReleaseFolderScanTrack(
     string? ContentHash,
     TimeSpan? Duration,
     int? Position,
+    string? Disc,
+    string? Side,
     string Title,
     IReadOnlyList<string> ArtistNames,
     IReadOnlyList<ImportReviewIssue> Issues);
