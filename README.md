@@ -1,5 +1,9 @@
 # discweave-api
 
+> Historical repository. Active DiscWeave development moved to
+> [Fredoq/discweave](https://github.com/Fredoq/discweave), with this code under
+> `api/`.
+
 Backend API for DiscWeave, a personal music archive for cataloging releases,
 tracks, media, owned items, credits, artist relations, imports, playlists,
 search, graph navigation, and exports.
