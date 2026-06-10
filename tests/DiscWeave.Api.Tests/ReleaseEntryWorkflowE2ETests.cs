@@ -45,6 +45,8 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
                     {
                         title = "Dael",
                         position = 1,
+                        disc = "  CD 1  ",
+                        side = " A ",
                         durationSeconds = 398,
                         artistCredits = Array.Empty<object>(),
                         versionNote = "Original album version"
@@ -73,6 +75,8 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
         Assert.True(root.GetProperty("labels")[1].GetProperty("hasNoCatalogNumber").GetBoolean());
         Assert.Equal(2, root.GetProperty("tracklist").GetArrayLength());
         Assert.Equal("Dael", root.GetProperty("tracklist")[0].GetProperty("title").GetString());
+        Assert.Equal("CD 1", root.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("A", root.GetProperty("tracklist")[0].GetProperty("side").GetString());
 
         using HttpResponseMessage listResponse = await client.GetAsync("/api/releases?search=tri&limit=10&offset=0");
         using JsonDocument listDocument = await ReadJsonAsync(listResponse);
@@ -83,6 +87,8 @@ public sealed class ReleaseEntryWorkflowE2ETests(PostgresFixture postgres) : ICl
         Assert.Equal(2, listedRelease.GetProperty("artistCredits").GetArrayLength());
         Assert.Equal(2, listedRelease.GetProperty("labels").GetArrayLength());
         Assert.Equal(2, listedRelease.GetProperty("tracklist").GetArrayLength());
+        Assert.Equal("CD 1", listedRelease.GetProperty("tracklist")[0].GetProperty("disc").GetString());
+        Assert.Equal("A", listedRelease.GetProperty("tracklist")[0].GetProperty("side").GetString());
 
         using HttpResponseMessage ownedItemsResponse = await client.GetAsync("/api/owned-items?limit=10&offset=0");
         using JsonDocument ownedItemsDocument = await ReadJsonAsync(ownedItemsResponse);

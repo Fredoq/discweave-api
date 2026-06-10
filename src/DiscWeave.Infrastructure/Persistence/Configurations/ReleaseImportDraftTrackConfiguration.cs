@@ -24,6 +24,8 @@ internal sealed class ReleaseImportDraftTrackConfiguration : IEntityTypeConfigur
         _ = builder.Property<string>("_contentHash").HasColumnName("content_hash").HasMaxLength(256);
         _ = builder.Property(track => track.Duration).HasColumnName("duration");
         _ = builder.Property(track => track.Position).HasColumnName("position_number");
+        _ = builder.Property(track => track.Disc).HasColumnName("disc").HasMaxLength(64);
+        _ = builder.Property(track => track.Side).HasColumnName("side").HasMaxLength(64);
         _ = builder.Property(track => track.Title).HasColumnName("title").HasMaxLength(1024).IsRequired();
         _ = builder.Property(track => track.IsSkipped).HasColumnName("is_skipped");
         _ = builder.Property(track => track.SelectedTrackId).HasColumnName("selected_track_id").HasConversion(PersistenceValueConverters.NullableTrackId);

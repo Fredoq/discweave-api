@@ -71,6 +71,30 @@ public sealed class ReleaseTracklistValidationE2ETests : IClassFixture<PostgresF
         Assert.Equal("release_track.shape_invalid", invalidShapeDocument.RootElement.GetProperty("code").GetString());
     }
 
+    [Fact(DisplayName = "Release entry create rejects duplicate global positions across discs")]
+    public async Task Release_entry_create_rejects_duplicate_global_positions_across_discs()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient client = await host.CreateAuthenticatedClientAsync();
+        Guid artistId = await CreateArtistAsync(client, "Autechre");
+
+        using HttpResponseMessage duplicateResponse = await client.PostAsJsonAsync(
+            "/api/releases",
+            ReleasePayload(
+                "Duplicate Global Positions",
+                artistId,
+                [
+                    new { title = "First Disc Track", position = 1, disc = "CD 1", side = (string?)null },
+                    new { title = "Second Disc Track", position = 1, disc = "CD 2", side = (string?)null }
+                ],
+                type: "album",
+                year: 1995));
+        using JsonDocument duplicateDocument = await ReadJsonAsync(duplicateResponse);
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
+        Assert.Equal("release_track.position_duplicate", duplicateDocument.RootElement.GetProperty("code").GetString());
+    }
+
     private static async Task<Guid> CreateSourceTrackAsync(
         HttpClient client,
         Guid artistId,

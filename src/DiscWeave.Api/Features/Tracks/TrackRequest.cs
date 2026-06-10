@@ -19,4 +19,4 @@ public sealed record TrackRequest
     public IReadOnlyList<TrackReleaseAppearanceRequest> ReleaseAppearances { get; init; } = [];
 }
 
-public sealed record TrackReleaseAppearanceRequest(Guid ReleaseId, int Position, string? VersionNote);
+public sealed record TrackReleaseAppearanceRequest(Guid ReleaseId, int Position, string? Disc, string? Side, string? VersionNote);

@@ -4,6 +4,8 @@ namespace DiscWeave.Domain.Imports;
 
 public sealed record DraftTrackEditableFields(
     int? Position,
+    string? Disc,
+    string? Side,
     string Title,
     TimeSpan? Duration,
     IReadOnlyList<string> ArtistNames,

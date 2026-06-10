@@ -149,6 +149,8 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
         return new ExternalMetadataReleaseTrackResponse(
             track.Title,
             track.Position,
+            track.Disc,
+            track.Side,
             ToDurationSeconds(track.Duration),
             track.Artists);
     }
@@ -202,6 +204,8 @@ public static class ExternalMetadataReleaseEndpointRouteBuilderExtensions
         return new ExternalMetadataReleaseDraftTrackResponse(
             track.Title,
             position,
+            track.Disc,
+            track.Side,
             ToDurationSeconds(track.Duration),
             DraftTrackCredits(detail, track));
     }

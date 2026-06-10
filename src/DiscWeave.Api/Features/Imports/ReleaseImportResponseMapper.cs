@@ -134,6 +134,8 @@ internal static class ReleaseImportResponseMapper
             track.LastModifiedAt,
             track.Duration is null ? null : (int)track.Duration.Value.TotalSeconds,
             track.Position,
+            track.Disc,
+            track.Side,
             track.Title,
             track.ArtistNames,
             [.. EffectiveTrackArtistCredits(track).Select(ToArtistCreditResponse)],

@@ -34,6 +34,8 @@ public sealed record ExternalMetadataReleaseDetailResponse(
 public sealed record ExternalMetadataReleaseTrackResponse(
     string Title,
     string? Position,
+    string? Disc,
+    string? Side,
     int? DurationSeconds,
     IReadOnlyList<string> Artists);
 
@@ -70,6 +72,8 @@ public sealed record ExternalMetadataReleaseDraftLabelResponse(
 public sealed record ExternalMetadataReleaseDraftTrackResponse(
     string Title,
     int Position,
+    string? Disc,
+    string? Side,
     int? DurationSeconds,
     IReadOnlyList<ExternalMetadataReleaseDraftArtistCreditResponse> ArtistCredits);
 

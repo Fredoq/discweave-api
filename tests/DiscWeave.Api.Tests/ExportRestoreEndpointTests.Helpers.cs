@@ -114,7 +114,7 @@ public sealed partial class ExportRestoreEndpointTests
                 genres = PostPunkGenres,
                 tags = FactoryTags,
                 artistCredits = new[] { new { artistId, role = "mainArtist" } },
-                tracklist = new[] { new { title = "Age of Consent", position = 1, durationSeconds = 316 } }
+                tracklist = new[] { new { title = "Age of Consent", position = 1, disc = "LP 1", side = "A", durationSeconds = 316 } }
             });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

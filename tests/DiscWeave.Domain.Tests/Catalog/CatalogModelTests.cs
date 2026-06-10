@@ -134,6 +134,20 @@ public sealed class CatalogModelTests
     }
 
     [Fact]
+    public void Release_rejects_duplicate_global_track_positions_even_with_different_markers()
+    {
+        var collectionId = CollectionId.New();
+        var releaseId = ReleaseId.New();
+        Release release = Release.Create(collectionId, releaseId, "Selected Ambient Works Volume II")
+            .WithTrack(ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 1", "A")));
+        var duplicatePosition = ReleaseTrack.Create(TrackId.New(), TrackPosition.FromNumber(1, "CD 2", "B"));
+
+        DomainException exception = Assert.Throws<DomainException>(() => release.WithTrack(duplicatePosition));
+
+        Assert.Equal("release_track.position_duplicate", exception.Code);
+    }
+
+    [Fact]
     public void Release_can_store_type_and_cover_image()
     {
         var labelId = LabelId.New();

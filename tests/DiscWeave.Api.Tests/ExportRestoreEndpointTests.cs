@@ -51,7 +51,28 @@ public sealed partial class ExportRestoreEndpointTests : IClassFixture<PostgresF
         Assert.Equal(artistId, Assert.Single(restoredDocument.RootElement.GetProperty("artists").EnumerateArray()).GetProperty("id").GetGuid());
         Assert.Equal(labelId, Assert.Single(restoredDocument.RootElement.GetProperty("labels").EnumerateArray()).GetProperty("id").GetGuid());
         Assert.Equal(releaseId, Assert.Single(restoredDocument.RootElement.GetProperty("releases").EnumerateArray()).GetProperty("id").GetGuid());
+        JsonElement restoredTracklistItem = restoredDocument.RootElement.GetProperty("releases").EnumerateArray().Single().GetProperty("tracklist")[0];
+        Assert.Equal("LP 1", restoredTracklistItem.GetProperty("disc").GetString());
+        Assert.Equal("A", restoredTracklistItem.GetProperty("side").GetString());
         Assert.Contains("Age of Consent", restoredSnapshot, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "JSON restore accepts v1 release tracklists without disc and side")]
+    public async Task Json_restore_accepts_v1_release_tracklists_without_disc_and_side()
+    {
+        await using ApiTestHost host = await ApiTestHost.CreateAsync(_postgres);
+        HttpClient adminClient = await host.CreateAuthenticatedClientAsync();
+        string snapshot = await CreateSnapshotAsync(adminClient);
+        JsonObject document = JsonNode.Parse(snapshot)!.AsObject();
+        JsonObject tracklistItem = document["releases"]!.AsArray()[0]!["tracklist"]!.AsArray()[0]!.AsObject();
+        _ = tracklistItem.Remove("disc");
+        _ = tracklistItem.Remove("side");
+        HttpClient userClient = await CreateUserClientAsync(host, adminClient);
+
+        using HttpResponseMessage restoreResponse = await PostRestoreAsync(userClient, document.ToJsonString());
+        string restoreJson = await restoreResponse.Content.ReadAsStringAsync();
+
+        Assert.True(restoreResponse.StatusCode == HttpStatusCode.OK, restoreJson);
     }
 
     [Fact(DisplayName = "JSON restore rebuilds settings playlists relations ratings and media variants")]

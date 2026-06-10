@@ -3,6 +3,7 @@ using DiscWeave.Api.Features.ExternalSources;
 using DiscWeave.Domain.Catalog;
 using DiscWeave.Domain.Credits;
 using DiscWeave.Domain.SharedKernel.Ids;
+using DiscWeave.Domain.SharedKernel.Optional;
 using DiscWeave.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
@@ -242,8 +243,15 @@ public static partial class TracksEndpointRouteBuilderExtensions
             ToReleaseYear(release),
             releaseLabel is not null ? FormatLabel(releaseLabel, labelsById) : null,
             releaseTrack.Position.Number,
+            OptionalString(releaseTrack.Position.Disc),
+            OptionalString(releaseTrack.Position.Side),
             ToDurationSeconds(track),
             releaseTrack.VersionNote is { HasValue: true } versionNote ? versionNote.Match(value => value, () => string.Empty) : null);
+    }
+
+    private static string? OptionalString(IOptionalValue<string> value)
+    {
+        return value is { HasValue: true } ? value.Match(present => present, () => string.Empty) : null;
     }
 
     private static string FormatReleaseArtists(IReadOnlyList<Credit> releaseCredits, Dictionary<ArtistId, Artist> artistsById)

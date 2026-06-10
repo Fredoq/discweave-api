@@ -59,6 +59,9 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Postgr
 
         Assert.Equal(HttpStatusCode.OK, releaseResponse.StatusCode);
         Assert.Equal(1, releases.RootElement.GetProperty("total").GetInt32());
+        JsonElement releaseTrack = releases.RootElement.GetProperty("items")[0].GetProperty("tracklist")[0];
+        Assert.Equal("CD 1", releaseTrack.GetProperty("disc").GetString());
+        Assert.Equal("A", releaseTrack.GetProperty("side").GetString());
         Assert.Equal(HttpStatusCode.OK, releaseCreditsResponse.StatusCode);
         Assert.Equal(2, releaseCredits.RootElement.GetProperty("total").GetInt32());
         Assert.Equal(HttpStatusCode.OK, tracksResponse.StatusCode);
@@ -134,6 +137,8 @@ public sealed class DesktopImportConfirmationDetailsTests : IClassFixture<Postgr
                 {
                     id = trackId,
                     position = (int?)1,
+                    disc = "  CD 1  ",
+                    side = " A ",
                     title = "Edited Begins",
                     durationSeconds = (int?)321,
                     artistNames = Array.Empty<string>(),

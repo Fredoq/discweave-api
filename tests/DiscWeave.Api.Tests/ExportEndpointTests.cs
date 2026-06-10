@@ -58,6 +58,8 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
         AssertStringArray(MainArtistRoles, releaseCredit.GetProperty("roles"));
         JsonElement tracklistItem = Assert.Single(release.GetProperty("tracklist").EnumerateArray());
         Assert.Equal("Age of Consent", tracklistItem.GetProperty("title").GetString());
+        Assert.Equal("LP 1", tracklistItem.GetProperty("disc").GetString());
+        Assert.Equal("A", tracklistItem.GetProperty("side").GetString());
 
         JsonElement track = Assert.Single(document.RootElement.GetProperty("tracks").EnumerateArray());
         Assert.Equal(tracklistItem.GetProperty("trackId").GetGuid(), track.GetProperty("id").GetGuid());
@@ -124,6 +126,10 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
         string ownedItemsCsv = await ReadEntryAsync(archive, "owned_items.csv");
         Assert.Contains("target_type,target_id,status,medium_type,medium_description", ownedItemsCsv);
         Assert.Contains($"release,{releaseId},owned,vinyl,LP", ownedItemsCsv);
+
+        string releaseTracklistCsv = await ReadEntryAsync(archive, "release_tracklist.csv");
+        Assert.Contains("release_id,track_id,position,title,duration_seconds,version_note,disc,side", releaseTracklistCsv);
+        Assert.Contains("Age of Consent,316,,LP 1,A", releaseTracklistCsv);
     }
 
     [Fact(DisplayName = "Exports only include the current user's collection data")]
@@ -197,7 +203,7 @@ public sealed partial class ExportEndpointTests : IClassFixture<PostgresFixture>
                 genres = PostPunkGenres,
                 tags = FactoryTags,
                 artistCredits = new[] { new { artistId, role = "mainArtist" } },
-                tracklist = new[] { new { title = "Age of Consent", position = 1, durationSeconds = 316 } }
+                tracklist = new[] { new { title = "Age of Consent", position = 1, disc = "LP 1", side = "A", durationSeconds = 316 } }
             });
         using JsonDocument document = await ReadJsonAsync(response);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

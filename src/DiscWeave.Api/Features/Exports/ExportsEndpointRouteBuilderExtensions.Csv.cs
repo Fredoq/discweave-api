@@ -178,7 +178,9 @@ public static partial class ExportsEndpointRouteBuilderExtensions
             Invariant(track.Position),
             track.Title,
             Invariant(track.DurationSeconds),
-            track.VersionNote ?? string.Empty
+            track.VersionNote ?? string.Empty,
+            track.Disc ?? string.Empty,
+            track.Side ?? string.Empty
         }));
     }
 

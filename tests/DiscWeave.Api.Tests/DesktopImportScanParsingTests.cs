@@ -18,13 +18,13 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixtur
     {
         using var root = TempImportRoot.Create();
         string releaseDirectory = Path.Combine(root.Path, "[BP2016, 2022-00-00] VA - Structures");
-        string discOne = Path.Combine(releaseDirectory, "CD 1");
-        string discTwo = Path.Combine(releaseDirectory, "CD 2");
-        _ = Directory.CreateDirectory(discOne);
-        _ = Directory.CreateDirectory(discTwo);
+        string discOneSideA = Path.Combine(releaseDirectory, "CD 1", "Side A");
+        string discTwoSideB = Path.Combine(releaseDirectory, "Disc 2", "Side B");
+        _ = Directory.CreateDirectory(discOneSideA);
+        _ = Directory.CreateDirectory(discTwoSideB);
 
-        string trackOne = Path.Combine(discOne, "01 Steve Bicknell - Disguise of Beings.flac");
-        string trackTwo = Path.Combine(discTwo, "02 Dj Sports, C.K. & pH 1 - Second Wave.m4a");
+        string trackOne = Path.Combine(discOneSideA, "01 Steve Bicknell - Disguise of Beings.flac");
+        string trackTwo = Path.Combine(discTwoSideB, "02 Dj Sports, C.K. & pH 1 - Second Wave.m4a");
         string cover = Path.Combine(releaseDirectory, "cover.png");
         string front = Path.Combine(releaseDirectory, "front.jpg");
         string hidden = Path.Combine(releaseDirectory, ".DS_Store");
@@ -79,9 +79,13 @@ public sealed class DesktopImportScanParsingTests : IClassFixture<PostgresFixtur
 
         JsonElement tracks = draft.GetProperty("tracks");
         Assert.Equal("Disguise of Beings", tracks[0].GetProperty("title").GetString());
+        Assert.Equal("CD 1", tracks[0].GetProperty("disc").GetString());
+        Assert.Equal("A", tracks[0].GetProperty("side").GetString());
         Assert.Equal("flac", tracks[0].GetProperty("format").GetString());
         Assert.Equal("Steve Bicknell", tracks[0].GetProperty("artistNames")[0].GetString());
         Assert.Equal("Second Wave", tracks[1].GetProperty("title").GetString());
+        Assert.Equal("Disc 2", tracks[1].GetProperty("disc").GetString());
+        Assert.Equal("B", tracks[1].GetProperty("side").GetString());
         Assert.Equal("m4a", tracks[1].GetProperty("format").GetString());
         Assert.Equal("Dj Sports", tracks[1].GetProperty("artistNames")[0].GetString());
         Assert.Equal("C.K. & pH 1", tracks[1].GetProperty("artistNames")[1].GetString());

@@ -38,6 +38,12 @@ public sealed class DiscogsReleaseDetailMappingTests
                   "extraartists": [ { "name": "Heading Credit", "role": "Design" } ]
                 },
                 {
+                  "type_": "heading",
+                  "position": "",
+                  "title": "Side A",
+                  "duration": ""
+                },
+                {
                   "type_": "track",
                   "position": "A",
                   "title": "Blue Monday",
@@ -71,6 +77,8 @@ public sealed class DiscogsReleaseDetailMappingTests
         Assert.Contains(result.Value.Identifiers, identifier => identifier.Type == "Barcode" && identifier.Value == "5016839200371");
         ExternalMetadataReleaseTrack track = Assert.Single(result.Value.Tracklist);
         Assert.Equal("A", track.Position);
+        Assert.Equal("Orbit Compact Disc", track.Disc);
+        Assert.Equal("A", track.Side);
         Assert.Equal(TimeSpan.FromSeconds(449), track.Duration);
         Assert.Contains("New Order", track.Artists);
         Assert.Contains(result.Value.Credits, credit => credit.Name == "Producer Name" && credit.Role == "Producer" && credit.TrackTitle is null);

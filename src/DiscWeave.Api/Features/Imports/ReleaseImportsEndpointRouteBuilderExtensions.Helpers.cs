@@ -95,6 +95,8 @@ public static partial class ReleaseImportsEndpointRouteBuilderExtensions
 
             track.UpdateEditableFields(new DraftTrackEditableFields(
                 trackRequest.Position,
+                trackRequest.Disc,
+                trackRequest.Side,
                 trackRequest.Title,
                 trackRequest.DurationSeconds is null ? null : TimeSpan.FromSeconds(trackRequest.DurationSeconds.Value),
                 trackRequest.ArtistNames ?? [],

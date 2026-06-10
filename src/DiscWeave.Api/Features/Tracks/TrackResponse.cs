@@ -21,5 +21,7 @@ public sealed record TrackReleaseAppearanceResponse(
     int? Year,
     string? Label,
     int Position,
+    string? Disc,
+    string? Side,
     int? DurationSeconds,
     string? VersionNote);

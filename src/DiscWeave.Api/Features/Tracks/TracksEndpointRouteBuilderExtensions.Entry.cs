@@ -84,7 +84,7 @@ public static partial class TracksEndpointRouteBuilderExtensions
             {
                 retained.Add(ReleaseTrack.Create(
                     track.Id,
-                    TrackPosition.FromNumber(request.Position),
+                    TrackPosition.FromNumber(request.Position, request.Disc ?? string.Empty, request.Side ?? string.Empty),
                     Optional.Missing<string>(),
                     ToOptionalString(request.VersionNote)));
             }

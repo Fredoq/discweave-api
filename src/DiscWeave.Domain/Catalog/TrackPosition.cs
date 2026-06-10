@@ -1,10 +1,13 @@
 using DiscWeave.Domain.SharedKernel.Optional;
+using DiscWeave.Domain.SharedKernel.Errors;
 using DiscWeave.Domain.SharedKernel.Validation;
 
 namespace DiscWeave.Domain.Catalog;
 
 public sealed record TrackPosition
 {
+    private const int MarkerMaxLength = 64;
+
     private TrackPosition()
     {
         Disc = Optional.Missing<string>();
@@ -39,12 +42,19 @@ public sealed record TrackPosition
         ArgumentNullException.ThrowIfNull(disc);
         ArgumentNullException.ThrowIfNull(side);
 
-        string trimmedDisc = disc.Trim();
-        string trimmedSide = side.Trim();
-
         return new TrackPosition(
             Guard.Positive(number, nameof(number), "track_position.number_required"),
-            trimmedDisc.Length == 0 ? Optional.Missing<string>() : Optional.From(trimmedDisc),
-            trimmedSide.Length == 0 ? Optional.Missing<string>() : Optional.From(trimmedSide));
+            ToMarker(disc, nameof(disc), "track_position.disc_too_long"),
+            ToMarker(side, nameof(side), "track_position.side_too_long"));
+    }
+
+    private static IOptionalValue<string> ToMarker(string value, string fieldName, string code)
+    {
+        string trimmed = value.Trim();
+        return trimmed.Length == 0
+            ? Optional.Missing<string>()
+            : trimmed.Length > MarkerMaxLength
+            ? throw new DomainException(code, $"{fieldName} must be at most {MarkerMaxLength} characters")
+            : Optional.From(trimmed);
     }
 }

@@ -116,8 +116,31 @@ public static partial class ReleaseImportScanService
             return string.Empty;
         }
 
+        string lastSegment = LastSegment(audioDirectory);
+        if (IsSideDirectory(lastSegment))
+        {
+            string sideParent = ParentRelativePath(audioDirectory);
+            if (string.IsNullOrWhiteSpace(sideParent))
+            {
+                return string.Empty;
+            }
+
+            string sideParentLastSegment = LastSegment(sideParent);
+            if (IsDiscDirectory(sideParentLastSegment))
+            {
+                string discParent = ParentRelativePath(sideParent);
+                return ParentContainsOnlyDiscAudioDirectories(discParent, audioFiles)
+                    ? discParent
+                    : sideParent;
+            }
+
+            return ParentContainsOnlySideAudioDirectories(sideParent, audioFiles)
+                ? sideParent
+                : audioDirectory;
+        }
+
         string parent = ParentRelativePath(audioDirectory);
-        return IsDiscDirectory(LastSegment(audioDirectory)) && ParentContainsOnlyDiscAudioDirectories(parent, audioFiles)
+        return IsDiscDirectory(lastSegment) && ParentContainsOnlyDiscAudioDirectories(parent, audioFiles)
             ? parent
             : audioDirectory;
     }
@@ -133,6 +156,19 @@ public static partial class ReleaseImportScanService
         ];
 
         return childDirectories.Length > 0 && childDirectories.All(child => IsDiscDirectory(LastSegment(child)));
+    }
+
+    private static bool ParentContainsOnlySideAudioDirectories(string parent, IReadOnlyList<DesktopScanFile> audioFiles)
+    {
+        string[] childDirectories =
+        [
+            .. audioFiles
+                .Select(file => ImmediateChildDirectory(parent, DirectoryRelativePath(file.RelativePath)))
+                .Where(child => !string.IsNullOrWhiteSpace(child))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        ];
+
+        return childDirectories.Length > 0 && childDirectories.All(child => IsSideDirectory(LastSegment(child)));
     }
 
     private static string ImmediateChildDirectory(string parent, string directory)
@@ -271,8 +307,22 @@ public static partial class ReleaseImportScanService
         return DiscDirectoryRegex().IsMatch(directoryName);
     }
 
+    private static bool IsSideDirectory(string directoryName)
+    {
+        return SideDirectoryRegex().IsMatch(directoryName);
+    }
+
+    private static string? SideFromDirectory(string directoryName)
+    {
+        Match match = SideDirectoryRegex().Match(directoryName);
+        return match.Success ? match.Groups["side"].Value.Trim() : null;
+    }
+
     [GeneratedRegex("^(cd|disc|disk)\\s*\\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DiscDirectoryRegex();
+
+    [GeneratedRegex("^side\\s+(?<side>[A-Za-z0-9]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SideDirectoryRegex();
 
     private static string? TrimOrNull(string? value)
     {

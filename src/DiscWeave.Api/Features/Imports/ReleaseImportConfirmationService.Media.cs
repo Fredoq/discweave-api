@@ -89,7 +89,12 @@ public sealed partial class ReleaseImportConfirmationService
             Track track = await ResolveTrackAsync(context, collectionId, draftTrack, cancellationToken);
             await AddTrackCreditsAsync(context, collectionId, track, draft, draftTrack, cancellationToken);
             await AddTrackOwnedItemAsync(context, collectionId, track, draftTrack, cancellationToken);
-            releaseTracks.Add(ReleaseTrack.Create(track.Id, TrackPosition.FromNumber(draftTrack.Position ?? (releaseTracks.Count + 1))));
+            releaseTracks.Add(ReleaseTrack.Create(
+                track.Id,
+                TrackPosition.FromNumber(
+                    draftTrack.Position ?? (releaseTracks.Count + 1),
+                    draftTrack.Disc ?? string.Empty,
+                    draftTrack.Side ?? string.Empty)));
         }
 
         release.ReplaceTracklist(releaseTracks);
