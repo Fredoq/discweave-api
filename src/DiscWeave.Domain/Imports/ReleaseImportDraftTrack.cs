@@ -133,10 +133,11 @@ public sealed class ReleaseImportDraftTrack : IEntity<ReleaseImportDraftTrackId>
     private static string? TrimMarkerOrNull(string? value, string fieldName, string code)
     {
         string? trimmed = TrimOrNull(value);
-        return trimmed is null
-            ? null
-            : trimmed.Length > PositionMarkerMaxLength
-            ? throw new DomainException(code, $"{fieldName} must be at most {PositionMarkerMaxLength} characters")
-            : trimmed;
+        return trimmed switch
+        {
+            null => null,
+            { Length: > PositionMarkerMaxLength } => throw new DomainException(code, $"{fieldName} must be at most {PositionMarkerMaxLength} characters"),
+            _ => trimmed
+        };
     }
 }

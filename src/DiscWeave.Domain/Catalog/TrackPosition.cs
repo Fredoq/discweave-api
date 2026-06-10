@@ -51,10 +51,11 @@ public sealed record TrackPosition
     private static IOptionalValue<string> ToMarker(string value, string fieldName, string code)
     {
         string trimmed = value.Trim();
-        return trimmed.Length == 0
-            ? Optional.Missing<string>()
-            : trimmed.Length > MarkerMaxLength
-            ? throw new DomainException(code, $"{fieldName} must be at most {MarkerMaxLength} characters")
-            : Optional.From(trimmed);
+        return trimmed.Length switch
+        {
+            0 => Optional.Missing<string>(),
+            > MarkerMaxLength => throw new DomainException(code, $"{fieldName} must be at most {MarkerMaxLength} characters"),
+            _ => Optional.From(trimmed)
+        };
     }
 }

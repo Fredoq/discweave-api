@@ -4,7 +4,55 @@ namespace DiscWeave.Api.Features.Imports;
 
 public static partial class ReleaseImportScanService
 {
-    private static string ReleaseRootFor(string audioRelativePath, IReadOnlyList<DesktopScanFile> audioFiles)
+    private static Dictionary<string, DirectoryFacts> BuildDirectoryFacts(IReadOnlyList<DesktopScanFile> audioFiles)
+    {
+        var childDirectoriesByParent = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (DesktopScanFile file in audioFiles)
+        {
+            string directory = DirectoryRelativePath(file.RelativePath);
+            foreach (DirectoryChild relationship in ParentChildDirectories(directory))
+            {
+                if (!childDirectoriesByParent.TryGetValue(relationship.Parent, out HashSet<string>? childDirectories))
+                {
+                    childDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    childDirectoriesByParent.Add(relationship.Parent, childDirectories);
+                }
+
+                _ = childDirectories.Add(relationship.Child);
+            }
+        }
+
+        return childDirectoriesByParent.ToDictionary(
+            item => item.Key,
+            item => ToDirectoryFacts(item.Value),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static DirectoryFacts ToDirectoryFacts(HashSet<string> childDirectories)
+    {
+        return new DirectoryFacts(
+            childDirectories.Count > 0 && childDirectories.All(child => IsDiscDirectory(LastSegment(child))),
+            childDirectories.Count > 0 && childDirectories.All(child => IsSideDirectory(LastSegment(child))));
+    }
+
+    private static IEnumerable<DirectoryChild> ParentChildDirectories(string directory)
+    {
+        string normalized = NormalizeRelativePath(directory);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            yield break;
+        }
+
+        string parent = string.Empty;
+        foreach (string segment in normalized.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string child = string.IsNullOrWhiteSpace(parent) ? segment : $"{parent}/{segment}";
+            yield return new DirectoryChild(parent, child);
+            parent = child;
+        }
+    }
+
+    private static string ReleaseRootFor(string audioRelativePath, Dictionary<string, DirectoryFacts> directoryFacts)
     {
         string audioDirectory = DirectoryRelativePath(audioRelativePath);
         if (string.IsNullOrWhiteSpace(audioDirectory))
@@ -25,63 +73,30 @@ public static partial class ReleaseImportScanService
             if (IsDiscDirectory(sideParentLastSegment))
             {
                 string discParent = ParentRelativePath(sideParent);
-                return ParentContainsOnlyDiscAudioDirectories(discParent, audioFiles)
+                return ParentContainsOnlyDiscAudioDirectories(discParent, directoryFacts)
                     ? discParent
                     : sideParent;
             }
 
-            return ParentContainsOnlySideAudioDirectories(sideParent, audioFiles)
+            return ParentContainsOnlySideAudioDirectories(sideParent, directoryFacts)
                 ? sideParent
                 : audioDirectory;
         }
 
         string parent = ParentRelativePath(audioDirectory);
-        return IsDiscDirectory(lastSegment) && ParentContainsOnlyDiscAudioDirectories(parent, audioFiles)
+        return IsDiscDirectory(lastSegment) && ParentContainsOnlyDiscAudioDirectories(parent, directoryFacts)
             ? parent
             : audioDirectory;
     }
 
-    private static bool ParentContainsOnlyDiscAudioDirectories(string parent, IReadOnlyList<DesktopScanFile> audioFiles)
+    private static bool ParentContainsOnlyDiscAudioDirectories(string parent, Dictionary<string, DirectoryFacts> directoryFacts)
     {
-        string[] childDirectories =
-        [
-            .. audioFiles
-                .Select(file => ImmediateChildDirectory(parent, DirectoryRelativePath(file.RelativePath)))
-                .Where(child => !string.IsNullOrWhiteSpace(child))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-        ];
-
-        return childDirectories.Length > 0 && childDirectories.All(child => IsDiscDirectory(LastSegment(child)));
+        return directoryFacts.TryGetValue(parent, out DirectoryFacts? facts) && facts.ContainsOnlyDiscAudioDirectories;
     }
 
-    private static bool ParentContainsOnlySideAudioDirectories(string parent, IReadOnlyList<DesktopScanFile> audioFiles)
+    private static bool ParentContainsOnlySideAudioDirectories(string parent, Dictionary<string, DirectoryFacts> directoryFacts)
     {
-        string[] childDirectories =
-        [
-            .. audioFiles
-                .Select(file => ImmediateChildDirectory(parent, DirectoryRelativePath(file.RelativePath)))
-                .Where(child => !string.IsNullOrWhiteSpace(child))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-        ];
-
-        return childDirectories.Length > 0 && childDirectories.All(child => IsSideDirectory(LastSegment(child)));
-    }
-
-    private static string ImmediateChildDirectory(string parent, string directory)
-    {
-        if (string.IsNullOrWhiteSpace(parent))
-        {
-            return FirstSegment(directory);
-        }
-
-        if (!directory.StartsWith(parent + "/", StringComparison.OrdinalIgnoreCase))
-        {
-            return string.Empty;
-        }
-
-        string remainder = directory[(parent.Length + 1)..];
-        string first = FirstSegment(remainder);
-        return string.IsNullOrWhiteSpace(first) ? string.Empty : $"{parent}/{first}";
+        return directoryFacts.TryGetValue(parent, out DirectoryFacts? facts) && facts.ContainsOnlySideAudioDirectories;
     }
 
     private static string DirectoryRelativePath(string relativePath)
@@ -108,13 +123,6 @@ public static partial class ReleaseImportScanService
         string normalized = NormalizeRelativePath(relativePath);
         int index = normalized.LastIndexOf('/');
         return index < 0 ? normalized : normalized[(index + 1)..];
-    }
-
-    private static string FirstSegment(string relativePath)
-    {
-        string normalized = NormalizeRelativePath(relativePath);
-        int index = normalized.IndexOf('/');
-        return index < 0 ? normalized : normalized[..index];
     }
 
     private static bool IsHiddenPath(string relativePath)
@@ -145,4 +153,8 @@ public static partial class ReleaseImportScanService
 
     [GeneratedRegex("^side\\s+(?<side>[A-Za-z0-9]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SideDirectoryRegex();
+
+    private sealed record DirectoryFacts(bool ContainsOnlyDiscAudioDirectories, bool ContainsOnlySideAudioDirectories);
+
+    private readonly record struct DirectoryChild(string Parent, string Child);
 }

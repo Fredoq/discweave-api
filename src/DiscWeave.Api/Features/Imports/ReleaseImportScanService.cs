@@ -79,10 +79,11 @@ public static partial class ReleaseImportScanService
         }
 
         string sourceRoot = Path.TrimEndingDirectorySeparator(request.SourceRoot.Trim());
+        Dictionary<string, DirectoryFacts> directoryFacts = BuildDirectoryFacts(audioFiles);
         ReleaseFolderScanDraft[] drafts =
         [
             .. audioFiles
-                .GroupBy(file => ReleaseRootFor(file.RelativePath, audioFiles), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(file => ReleaseRootFor(file.RelativePath, directoryFacts), StringComparer.OrdinalIgnoreCase)
                 .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(group => CreateDraft(
                     sourceRoot,
