@@ -14,7 +14,7 @@ using NpgsqlTypes;
 namespace DiscWeave.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DiscWeaveDbContext))]
-    [Migration("20260603171315_Initial")]
+    [Migration("20260610135627_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -255,15 +255,6 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("collections", (string)null);
-                });
-
-            modelBuilder.Entity("DiscWeave.Domain.Collection.MusicCollection", b =>
-                {
-                    b.HasOne("DiscWeave.Infrastructure.Identity.DiscWeaveUser", null)
-                        .WithMany()
-                        .HasForeignKey("OwnerUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("DiscWeave.Domain.Collection.OwnedItem", b =>
@@ -732,6 +723,11 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("collection_id");
 
+                    b.Property<string>("Disc")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("disc");
+
                     b.Property<Guid>("DraftId")
                         .HasColumnType("uuid")
                         .HasColumnName("release_import_draft_id");
@@ -777,6 +773,11 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("SelectedTrackId")
                         .HasColumnType("uuid")
                         .HasColumnName("selected_track_id");
+
+                    b.Property<string>("Side")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("side");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")

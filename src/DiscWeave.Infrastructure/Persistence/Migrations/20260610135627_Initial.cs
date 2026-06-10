@@ -1138,6 +1138,8 @@ namespace DiscWeave.Infrastructure.Persistence.Migrations
                     last_modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     duration = table.Column<TimeSpan>(type: "interval", nullable: true),
                     position_number = table.Column<int>(type: "integer", nullable: true),
+                    disc = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
+                    side = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: false),
                     is_skipped = table.Column<bool>(type: "boolean", nullable: false),
                     selected_track_id = table.Column<Guid>(type: "uuid", nullable: true),
